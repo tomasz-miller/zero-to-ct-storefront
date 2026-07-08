@@ -18,6 +18,13 @@ Chronological log of development time and milestones. Used for sales demos and `
 ### 2026-07-08 — Repository bootstrap
 - **Time:** —
 - **Phase:** phase-0-setup
-- **Milestone:** GitHub repo created; `.cursor/` rules, MCP config, and `docs/AGENT_CODING.md` added
-- **Agent vs manual:** Agent scaffolded docs and rules; human created GitHub repo
-- **Notes:** Next step — CT trial project with B2C sample data + install commercetools AI plugin
+- **Milestone:** GitHub repo created; agent coding docs, TECH_STACK, CURSOR_SETUP
+- **Agent vs manual:** Agent scaffolded docs; human created GitHub repo
+- **Notes:** —
+
+### 2026-07-08 — Phase 0 complete — CT project ready
+- **Time:** —
+- **Phase:** phase-0-setup
+- **Milestone:** Demo CT project + API client; Product Search + Product Projection Search enabled; `.env.example` / `.env.local`; coss skill added; docs committed
+- **Agent vs manual:** Human — MC setup, credentials, commits
+- **Notes:** UI library decision — **coss ui** (not raw Tailwind). Next: Phase 1 scaffold (Next.js + coss + TS SDK)

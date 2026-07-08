@@ -54,7 +54,8 @@ auto-install-peers=true
 |------|--------|
 | Framework | **Next.js** (App Router, latest stable) |
 | Language | **TypeScript** (`strict: true` in `tsconfig.json`) |
-| Styling | **Tailwind CSS** |
+| Styling | **Tailwind CSS v4** |
+| UI components | **[coss ui](https://coss.com/ui)** via `pnpm dlx shadcn@latest add @coss/*` |
 | Linting | **ESLint** with `eslint-config-next` (flat config) |
 | Formatting | **Prettier** (optional but recommended for agent-generated code) |
 
@@ -82,6 +83,18 @@ eslint.config.mjs    # eslint-config-next + typescript-eslint
 ```
 
 Run before every commit: `pnpm lint && pnpm typecheck`
+
+### coss ui
+
+All customer-facing UI uses **coss** primitives — see [docs/UI_COMPONENTS.md](./UI_COMPONENTS.md).
+
+```bash
+# After Next.js scaffold
+pnpm dlx shadcn@latest init @coss/style
+# or: pnpm dlx shadcn@latest add @coss/ui @coss/colors-neutral
+```
+
+Agent skill: `.agents/skills/coss/SKILL.md`
 
 ### Prettier (recommended)
 

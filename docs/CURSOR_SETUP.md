@@ -136,10 +136,12 @@ alwaysApply: false
 
 # Next.js UI patterns
 
+- Use **coss ui** primitives from `components/ui/` — see `docs/UI_COMPONENTS.md` and `.agents/skills/coss/SKILL.md`
+- Install primitives: `pnpm dlx shadcn@latest add @coss/<component>`
 - Fetch data from **BFF routes** (`/api/*`), not directly from commercetools
 - Prefer Server Components; `'use client'` only for interactivity
-- Tailwind utility classes — functional, minimal UI
-- Always include basic loading/error states
+- Semantic tokens (`text-muted-foreground`, `bg-card`) — no raw palette classes
+- Always include basic loading/error states (use coss `skeleton`, `alert`)
 
 ## PoC routes
 

@@ -2,7 +2,9 @@
 
 Quick entry point for AI coding agents working in this repository.
 
-**Read first:** [docs/AGENT_CODING.md](docs/AGENT_CODING.md) · [docs/TECH_STACK.md](docs/TECH_STACK.md)
+**Read first:** [docs/AGENT_CODING.md](docs/AGENT_CODING.md) · [docs/TECH_STACK.md](docs/TECH_STACK.md) · [docs/UI_COMPONENTS.md](docs/UI_COMPONENTS.md)
+
+**UI skill:** `.agents/skills/coss/SKILL.md` — use coss primitives for all UI; `pnpm dlx shadcn@latest add @coss/<component>`
 
 ## Project
 

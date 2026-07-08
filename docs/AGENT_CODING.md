@@ -25,6 +25,7 @@ This document describes how to develop **zero-to-ct-storefront** using AI coding
 | **ESLint** | Linting (`eslint-config-next`) | Yes |
 | **TypeScript** | `strict` mode | Yes |
 | [TypeScript SDK v3](https://docs.commercetools.com/dev-tooling/ts-sdk-getting-started) | CT API client | Yes |
+| **[coss ui](https://coss.com/ui)** | UI primitives (skill in `.agents/skills/coss/`) | Yes |
 | **commerce-mcp** | Live project API calls from agents | Optional (later phase) |
 | WakaTime / Clockify | Time tracking | Recommended |
 
@@ -122,7 +123,7 @@ This project is intentionally built by a **backend developer** with agent suppor
 |------|-----|
 | CT project setup, API clients, scopes | Human |
 | BFF routes, SDK client, error handling | Agent drafts → **human reviews** |
-| React pages and components | **Agent generates** → human tests flows |
+| React pages and components (coss ui) | **Agent generates** using coss skill → human tests flows |
 | Checkout / PSP configuration in MC | Human |
 | Architecture decisions | Human |
 | Documentation | Human outlines → agent drafts → human edits |
@@ -150,7 +151,7 @@ Always verify against [commercetools docs](https://docs.commercetools.com) via K
 
 | Phase | Focus | BUILD_LOG tag |
 |-------|-------|---------------|
-| 0 | CT trial, sample data, plugin install | `phase-0-setup` |
+| 0 | CT trial, sample data, API client, env files | `phase-0-setup` ✅ |
 | 1 | `/nextjs-setup-project` with **pnpm**, SDK smoke test | `phase-1-scaffold` |
 | 2 | Discovery, cart, checkout | `phase-2-core` |
 | 3 | Deploy, demo script, TIME_REPORT | `phase-3-demo` |
