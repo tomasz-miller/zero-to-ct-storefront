@@ -42,3 +42,10 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Milestone:** `/search` with `?q=` full-text search; `/product/[slug]` PDP; homepage compact best-seller tiles via `listBestSellingProducts()` (excludes new-arrival products/category; oldest-first). Locale fixed to `en-GB` for B2C sample data.
 - **Agent vs manual:** ~90% agent
 - **Notes:** Orders API unavailable without `view_orders` scope — bestsellers use catalog heuristic instead
+
+### 2026-07-08 — Test suite (unit + E2E)
+- **Time:** —
+- **Phase:** phase-2-core
+- **Milestone:** Vitest unit tests for lib, API routes, and components (34 tests). Playwright E2E for discovery flow + API smoke (5 tests, live CT locally). Extracted `product-mappers.ts` for testable pure functions.
+- **Agent vs manual:** ~95% agent
+- **Notes:** E2E runs locally with `.env.local`; skipped in CI without `CTP_*`. See `docs/TESTING.md`.

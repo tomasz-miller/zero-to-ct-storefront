@@ -2,7 +2,7 @@
 
 Quick entry point for AI coding agents working in this repository.
 
-**Read first:** [docs/AGENT_CODING.md](docs/AGENT_CODING.md) · [docs/TECH_STACK.md](docs/TECH_STACK.md) · [docs/UI_COMPONENTS.md](docs/UI_COMPONENTS.md)
+**Read first:** [docs/AGENT_CODING.md](docs/AGENT_CODING.md) · [docs/TECH_STACK.md](docs/TECH_STACK.md) · [docs/UI_COMPONENTS.md](docs/UI_COMPONENTS.md) · [docs/TESTING.md](docs/TESTING.md)
 
 **UI skill:** `.agents/skills/coss/SKILL.md` — use coss primitives for all UI; `pnpm dlx shadcn@latest add @coss/<component>`
 
@@ -13,7 +13,7 @@ Minimal B2C storefront on commercetools — agent-assisted, backend-developer-le
 ## Hard rules
 
 1. **pnpm only** — never npm or yarn; commit `pnpm-lock.yaml`
-2. Run **`pnpm lint`** and **`pnpm typecheck`** before finishing a task
+2. Run **`pnpm lint`**, **`pnpm typecheck`**, and **`pnpm test:unit`** before finishing a task
 3. **Never** expose commercetools credentials to the client bundle
 4. Use **TypeScript SDK v3** (`ClientBuilder` pattern) — [getting started](https://docs.commercetools.com/dev-tooling/ts-sdk-getting-started)
 5. Validate API calls via **commercetools-knowledge** MCP

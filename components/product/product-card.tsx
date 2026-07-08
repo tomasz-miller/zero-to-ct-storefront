@@ -27,6 +27,7 @@ export function ProductCard({ product }: ProductCardProps) {
             width={400}
             height={400}
             className="size-full object-cover"
+            loading="eager"
           />
         ) : (
           <div className="flex size-full items-center justify-center text-sm text-muted-foreground">

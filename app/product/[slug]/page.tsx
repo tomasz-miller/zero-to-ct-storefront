@@ -49,6 +49,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                   width={800}
                   height={800}
                   className="size-full object-cover"
+                  loading="eager"
                   priority
                 />
               ) : (
@@ -70,6 +71,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                       width={200}
                       height={200}
                       className="size-full object-cover"
+                      loading="eager"
                     />
                   </div>
                 ))}

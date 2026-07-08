@@ -22,6 +22,7 @@ export function ProductCardCompact({ product }: ProductCardCompactProps) {
             width={200}
             height={200}
             className="size-full object-cover transition-transform group-hover:scale-[1.02]"
+            loading="eager"
           />
         ) : (
           <div className="flex size-full items-center justify-center text-xs text-muted-foreground">

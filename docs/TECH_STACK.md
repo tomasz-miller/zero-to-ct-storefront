@@ -225,6 +225,21 @@ See `.env.example`. Region-specific hosts from [API hosts reference](https://doc
 
 ---
 
+## Testing
+
+Full guide: [docs/TESTING.md](TESTING.md)
+
+| Layer | Tool | Command |
+|-------|------|---------|
+| Unit (lib, API, components) | Vitest + Testing Library | `pnpm test:unit` |
+| E2E (live CT, local only) | Playwright | `pnpm test:e2e` |
+
+Before finishing a task: `pnpm lint && pnpm typecheck && pnpm test:unit`
+
+E2E requires `.env.local` with `CTP_*` credentials. Tests skip automatically when credentials are missing.
+
+---
+
 ## Agent scaffolding checklist
 
 When running `/nextjs-setup-project` or manual scaffold, verify:
@@ -233,18 +248,26 @@ When running `/nextjs-setup-project` or manual scaffold, verify:
 - [ ] `pnpm-lock.yaml` committed
 - [ ] ESLint config present and `pnpm lint` passes
 - [ ] `pnpm typecheck` passes
+- [ ] `pnpm test:unit` passes
 - [ ] SDK client matches official `ClientBuilder` pattern (not v2 / not browser UMD)
 - [ ] `@commercetools/ts-client` + `@commercetools/platform-sdk` installed via pnpm
 - [ ] No `npm install` or `yarn add` in docs, scripts, or CI
 
 ---
 
-## CI (Phase 3 — Vercel / GitHub Actions)
+## CI (GitHub Actions)
 
-```yaml
-# Minimal GitHub Actions job
-- run: corepack enable && pnpm install --frozen-lockfile
-- run: pnpm lint
-- run: pnpm typecheck
-- run: pnpm build
-```
+Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+
+Runs on **pull requests to `main`** and **pushes to `main`**:
+
+- `pnpm lint`
+- `pnpm typecheck`
+- `pnpm test:unit`
+
+**Not in CI (by design):**
+
+- `pnpm build` — homepage prerenders against live commercetools; requires valid `CTP_*` secrets
+- `pnpm test:e2e` — Playwright integration tests; run locally with `.env.local`
+
+To add a production build check later, store `CTP_*` values as GitHub repository secrets and add a separate job.
