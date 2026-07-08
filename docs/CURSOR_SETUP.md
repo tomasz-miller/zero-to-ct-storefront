@@ -13,7 +13,8 @@ This file documents the `.cursor/` directory structure for this repo.
 └── rules/
     ├── project-overview.mdc
     ├── commercetools-bff.mdc
-    └── nextjs-ui.mdc
+    ├── nextjs-ui.mdc
+    └── toolchain.mdc           # pnpm, ESLint, SDK reference
 ```
 
 Also create at repo root: `.env.example` (see bottom of this file).
@@ -50,7 +51,10 @@ Minimal B2C storefront on commercetools Composable Commerce. Built agent-assiste
 ## Architecture
 
 - **Next.js App Router** with API Routes as BFF (Backend for Frontend)
-- **commercetools TypeScript SDK v3** (`@commercetools/ts-client`, `@commercetools/platform-sdk`)
+- **pnpm only** — never npm or yarn; see `docs/TECH_STACK.md`
+- **ESLint** (`eslint-config-next`) + TypeScript `strict`
+- **commercetools TypeScript SDK v3** per [official getting started](https://docs.commercetools.com/dev-tooling/ts-sdk-getting-started)
+- Packages: `@commercetools/ts-client`, `@commercetools/platform-sdk`, `@commercetools/checkout-sdk`
 - **Server-side only** for CT credentials — never expose secrets to the client bundle
 - **Product Search API** for discovery; Cart API for basket; Checkout Browser SDK for payments
 
@@ -89,9 +93,20 @@ alwaysApply: false
 
 # commercetools BFF conventions
 
-## SDK client (v3, Promise-based)
+Follow [TS SDK getting started](https://docs.commercetools.com/dev-tooling/ts-sdk-getting-started) and `docs/TECH_STACK.md`.
 
-Use env vars: `CTP_PROJECT_KEY`, `CTP_CLIENT_ID`, `CTP_CLIENT_SECRET`, `CTP_AUTH_URL`, `CTP_API_URL`, `CTP_SCOPES`.
+## SDK client (v3, Promise-based, ClientBuilder)
+
+```typescript
+import { ClientBuilder, type AuthMiddlewareOptions, type HttpMiddlewareOptions } from '@commercetools/ts-client';
+import { createApiBuilderFromCtpClient } from '@commercetools/platform-sdk';
+
+// Auth + HTTP middleware with httpClient: fetch
+// .withClientCredentialsFlow() → .withHttpMiddleware() → .withLoggerMiddleware() → .build()
+// apiRoot = createApiBuilderFromCtpClient(client).withProjectKey({ projectKey })
+```
+
+Env vars: `CTP_PROJECT_KEY`, `CTP_CLIENT_ID`, `CTP_CLIENT_SECRET`, `CTP_AUTH_URL`, `CTP_API_URL`, `CTP_SCOPES`.
 
 ## API conventions
 
@@ -99,13 +114,13 @@ Use env vars: `CTP_PROJECT_KEY`, `CTP_CLIENT_ID`, `CTP_CLIENT_SECRET`, `CTP_AUTH
 - Money: always `centAmount` + `currencyCode` — never floats
 - Localized strings: match project locales
 - Carts: create lazily (on first add-to-cart), not on page load
-- Handle `409 ConcurrentModification` — use SDK concurrent modification middleware
+- Handle `409` with `withConcurrentModificationMiddleware()`
 
 ## Do not
 
 - Import CT client in `'use client'` components
-- Hardcode project key or credentials
-- Use deprecated TypeScript SDK v2 patterns
+- Use deprecated SDK v2 or `.defaultClient()` browser patterns on server
+- Use npm/yarn — **pnpm only**
 ```
 
 ---
@@ -133,6 +148,26 @@ alwaysApply: false
 
 ---
 
+## `.cursor/rules/toolchain.mdc`
+
+```markdown
+---
+description: Package manager, linting, and quality gates
+globs: "{package.json,pnpm-lock.yaml,eslint.config.*,tsconfig.json}"
+alwaysApply: false
+---
+
+# Toolchain
+
+- **pnpm only** — never `npm install` or `yarn add`
+- Run `pnpm lint` and `pnpm typecheck` before committing
+- Node >= 22, packageManager pinned in package.json
+- ESLint: eslint-config-next (flat config)
+- Reference: docs/TECH_STACK.md
+```
+
+---
+
 ## `.env.example`
 
 ```bash
@@ -142,6 +177,7 @@ CTP_CLIENT_ID=
 CTP_CLIENT_SECRET=
 CTP_AUTH_URL=https://auth.europe-west1.gcp.commercetools.com
 CTP_API_URL=https://api.europe-west1.gcp.commercetools.com
+CTP_CHECKOUT_URL=https://checkout.europe-west1.gcp.commercetools.com
 CTP_SCOPES=manage_project:your-project-key
 
 NEXT_PUBLIC_DEFAULT_LOCALE=en-GB
@@ -154,8 +190,11 @@ NEXT_PUBLIC_DEFAULT_CURRENCY=GBP
 
 ```bash
 mkdir -p .cursor/rules
-# Then create mcp.json and the three .mdc files using content above
-cp .env.example .env.local   # after .env.example exists
+corepack enable
+# Create mcp.json and .mdc files using content above
+cp .env.example .env.local
+pnpm install   # after package.json exists
+pnpm lint && pnpm typecheck
 ```
 
 See also: [AGENT_CODING.md](./AGENT_CODING.md)

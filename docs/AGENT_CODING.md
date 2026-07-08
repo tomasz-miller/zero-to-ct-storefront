@@ -21,8 +21,14 @@ This document describes how to develop **zero-to-ct-storefront** using AI coding
 | [Cursor](https://cursor.com) | IDE with AI agents | Yes |
 | [commercetools AI plugin](https://github.com/commercetools/commercetools-ai-plugins) | Skills + scaffolding commands | Yes |
 | **commercetools-knowledge MCP** | Live docs, schema lookup, query validation | Yes (configured in `.cursor/mcp.json`) |
+| **pnpm** | Package manager (**only** — no npm/yarn) | Yes |
+| **ESLint** | Linting (`eslint-config-next`) | Yes |
+| **TypeScript** | `strict` mode | Yes |
+| [TypeScript SDK v3](https://docs.commercetools.com/dev-tooling/ts-sdk-getting-started) | CT API client | Yes |
 | **commerce-mcp** | Live project API calls from agents | Optional (later phase) |
 | WakaTime / Clockify | Time tracking | Recommended |
+
+Full stack details: **[docs/TECH_STACK.md](./TECH_STACK.md)**
 
 ### Install commercetools AI plugin (Cursor)
 
@@ -54,7 +60,8 @@ zero-to-ct-storefront/
 ├── lib/commercetools/        # SDK client, helpers (human-reviewed)
 ├── docs/
 │   ├── AGENT_CODING.md       # This file
-│   ├── ARCHITECTURE.md       # Added during development
+│   ├── TECH_STACK.md         # pnpm, ESLint, TS SDK v3 conventions
+│   ├── CURSOR_SETUP.md       # .cursor/ bootstrap
 │   ├── DEMO_SCRIPT.md        # Sales demo script
 │   └── TIME_REPORT.md        # End-of-project time summary
 ├── BUILD_LOG.md              # Chronological dev log (human-maintained)
@@ -90,8 +97,10 @@ Make a product page.
 
 ### 3. Review checklist (human, every PR-sized chunk)
 
+- [ ] **pnpm only** — no `package-lock.json` or `yarn.lock`; `pnpm-lock.yaml` updated
+- [ ] `pnpm lint` and `pnpm typecheck` pass
 - [ ] CT credentials only in server code / env vars
-- [ ] SDK v3 patterns (not deprecated v2)
+- [ ] SDK v3 `ClientBuilder` pattern per [TS SDK getting started](https://docs.commercetools.com/dev-tooling/ts-sdk-getting-started)
 - [ ] Money as `centAmount`, locales handled correctly
 - [ ] API route returns proper HTTP status codes
 - [ ] Manual test: `curl localhost:3000/api/...` works
@@ -142,7 +151,7 @@ Always verify against [commercetools docs](https://docs.commercetools.com) via K
 | Phase | Focus | BUILD_LOG tag |
 |-------|-------|---------------|
 | 0 | CT trial, sample data, plugin install | `phase-0-setup` |
-| 1 | `/nextjs-setup-project`, SDK smoke test | `phase-1-scaffold` |
+| 1 | `/nextjs-setup-project` with **pnpm**, SDK smoke test | `phase-1-scaffold` |
 | 2 | Discovery, cart, checkout | `phase-2-core` |
 | 3 | Deploy, demo script, TIME_REPORT | `phase-3-demo` |
 
@@ -168,6 +177,9 @@ Never commit `.env.local` or any file containing secrets.
 
 ## Further reading
 
+- [Tech stack (this repo)](./TECH_STACK.md)
+- [TypeScript SDK — Get started](https://docs.commercetools.com/dev-tooling/ts-sdk-getting-started)
+- [TypeScript SDK — Middleware](https://docs.commercetools.com/dev-tooling/ts-sdk-middleware)
 - [commercetools AI plugin overview](https://docs.commercetools.com/dev-tooling/build-with-ai-overview)
 - [Knowledge MCP](https://docs.commercetools.com/sdk/mcp/knowledge-mcp)
 - [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail)
