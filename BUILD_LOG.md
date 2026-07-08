@@ -25,6 +25,20 @@ Chronological log of development time and milestones. Used for sales demos and `
 ### 2026-07-08 — Phase 0 complete — CT project ready
 - **Time:** —
 - **Phase:** phase-0-setup
-- **Milestone:** Demo CT project + API client; Product Search + Product Projection Search enabled; `.env.example` / `.env.local`; coss skill added; docs committed
+- **Milestone:** Demo CT project + API client; Product Search + Product Projection Search enabled; `.env` files; coss skill
 - **Agent vs manual:** Human — MC setup, credentials, commits
-- **Notes:** UI library decision — **coss ui** (not raw Tailwind). Next: Phase 1 scaffold (Next.js + coss + TS SDK)
+- **Notes:** UI library — coss ui + Tailwind v4
+
+### 2026-07-08 — Phase 1 scaffold + homepage
+- **Time:** —
+- **Phase:** phase-1-scaffold
+- **Milestone:** Flattened nested app to repo root; CT SDK v5 + platform-sdk v9; `/api/health`, `/api/products`; homepage with live products (117 total from B2C sample data)
+- **Agent vs manual:** ~85% agent / 15% human (env, CT project existed)
+- **Notes:** `apiRoot.get()` health check failed on client scopes — health uses `productProjections` instead
+
+### 2026-07-08 — Discovery pages (search, PDP, bestsellers)
+- **Time:** —
+- **Phase:** phase-2-core
+- **Milestone:** `/search` with `?q=` full-text search; `/product/[slug]` PDP; homepage compact best-seller tiles via `listBestSellingProducts()` (excludes new-arrival products/category; oldest-first). Locale fixed to `en-GB` for B2C sample data.
+- **Agent vs manual:** ~90% agent
+- **Notes:** Orders API unavailable without `view_orders` scope — bestsellers use catalog heuristic instead
