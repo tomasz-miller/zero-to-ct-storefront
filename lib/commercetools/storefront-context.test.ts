@@ -46,6 +46,10 @@ describe('getCatalogContext', () => {
 });
 
 describe('resolveCheckoutApplicationKey', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('maps DE to standard demo checkout app', () => {
     expect(resolveCheckoutApplicationKey('DE')).toBe(
       'demo-commercetools-checkout',
@@ -65,5 +69,13 @@ describe('resolveCheckoutApplicationKey', () => {
     expect(resolveCheckoutApplicationKey('FR')).toBe(
       'demo-commercetools-checkout',
     );
+  });
+
+  it('uses CTP_CHECKOUT_APPLICATION_KEY override for all countries', () => {
+    vi.stubEnv('CTP_CHECKOUT_APPLICATION_KEY', 'custom-checkout-app');
+
+    expect(resolveCheckoutApplicationKey('DE')).toBe('custom-checkout-app');
+    expect(resolveCheckoutApplicationKey('GB')).toBe('custom-checkout-app');
+    expect(resolveCheckoutApplicationKey('FR')).toBe('custom-checkout-app');
   });
 });

@@ -51,6 +51,11 @@ export function getCatalogContext(): Pick<StorefrontContext, 'locale' | 'currenc
 
 /** Maps cart country to MC Checkout Application key. */
 export function resolveCheckoutApplicationKey(country: string): string {
+  const override = process.env.CTP_CHECKOUT_APPLICATION_KEY;
+  if (override) {
+    return override;
+  }
+
   if (country === 'DE') {
     return CHECKOUT_APP_BY_COUNTRY.DE;
   }
@@ -58,9 +63,7 @@ export function resolveCheckoutApplicationKey(country: string): string {
     return CHECKOUT_APP_BY_COUNTRY.GB;
   }
 
-  return (
-    process.env.CTP_CHECKOUT_APPLICATION_KEY ?? CHECKOUT_APP_BY_COUNTRY.DE
-  );
+  return CHECKOUT_APP_BY_COUNTRY.DE;
 }
 
 export function getPublicCheckoutConfig() {

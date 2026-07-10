@@ -56,3 +56,10 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Milestone:** Stripe connector + Checkout Applications configured in MC; `docs/CHECKOUT.md`; guest cart BFF (`/api/cart/*`), checkout session (`/api/checkout/session`), pages `/cart`, `/checkout`, `/order-confirmation`; Checkout Browser SDK embed. Application keys: `demo-commercetools-checkout` (DE), `demo-commercetools-checkout-taxes` (GB/US).
 - **Agent vs manual:** Human — Stripe/Connect/MC; agent — storefront implementation
 - **Notes:** Storefront BFF needs **separate** API client with `manage_orders` + `manage_sessions` (not the Stripe connector client). See `docs/CHECKOUT.md` and `.env.example`.
+
+### 2026-07-10 — Guest checkout payment fix (`no_payment_integrations`)
+- **Time:** —
+- **Phase:** phase-2-core
+- **Milestone:** Activated Stripe Payment Integrations on both checkout applications via Payment Integrations API; improved checkout error messages; fixed `CTP_CHECKOUT_APPLICATION_KEY` override; extended `docs/CHECKOUT.md` troubleshooting.
+- **Agent vs manual:** Agent — API activation + storefront hardening; manual — end-to-end payment test in browser with Stripe test card
+- **Notes:** Root cause was inactive Payment Integrations (default after MC creation). Verify with `payment-integrations?status=eq:Active` (expect count ≥ 1).

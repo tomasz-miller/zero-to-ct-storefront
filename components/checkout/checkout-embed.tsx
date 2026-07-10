@@ -4,6 +4,20 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { checkoutFlow } from '@commercetools/checkout-browser-sdk';
 
+import { resolveCheckoutErrorMessage } from '@/lib/checkout-error-messages';
+
+function handleCheckoutSdkMessage(
+  code: string | undefined,
+  setError: (message: string) => void,
+): void {
+  if (
+    code === 'no_payment_integrations' ||
+    code === 'error_loading_all_payment_integrations'
+  ) {
+    setError(resolveCheckoutErrorMessage(code));
+  }
+}
+
 type CheckoutEmbedProps = {
   projectKey: string;
   region: string;
@@ -62,10 +76,16 @@ export function CheckoutEmbed({
                   ? `/order-confirmation?orderId=${orderId}`
                   : '/order-confirmation',
               );
+              return;
             }
+
+            handleCheckoutSdkMessage(message.code, setError);
+          },
+          onWarn: (message) => {
+            handleCheckoutSdkMessage(message.code, setError);
           },
           onError: (checkoutError) => {
-            setError(checkoutError.code ?? 'Checkout failed');
+            setError(resolveCheckoutErrorMessage(checkoutError.code));
           },
         });
 

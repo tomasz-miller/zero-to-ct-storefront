@@ -200,6 +200,32 @@ After changing connector credentials or redeploying, **remove and re-add** the P
 | `EUR` price not found for `country 'GB'` | Stale guest cart cookie from old `NEXT_PUBLIC_DEFAULT_COUNTRY=GB`; code now realigns empty carts to `DE`. Clear cookie `ct_guest_cart` or retry add-to-cart after deploy |
 | Post-deploy: types / scope | Connector client needs `manage_types`; check `CTP_CLIENT_ID` |
 | CORS on express-config | `ALLOWED_ORIGINS` empty or typo (`localhost:3000` without `http://`) |
+| `[ctc] no_payment_integrations` | All Payment Integrations are **Inactive** — toggle Status to Active in MC (Checkout → Applications → Payment integrations), or activate via Payment Integrations API |
+| `[ctc] error_loading_all_payment_integrations` | Active integration exists but Stripe connector failed to load — check CT Connect deployment logs, `ALLOWED_ORIGINS`, and connector API client scopes |
+
+### Verify active payment integrations (API)
+
+Use an admin API client with `manage_project:{projectKey}`:
+
+```bash
+# OAuth token (replace placeholders)
+TOKEN=$(curl -s -X POST "https://auth.europe-west1.gcp.commercetools.com/oauth/token" \
+  -u "{clientId}:{clientSecret}" \
+  -d "grant_type=client_credentials&scope=manage_project:zero-to-ct-storefront" \
+  | jq -r .access_token)
+
+# List active integrations (expect count >= 1)
+curl -s "https://checkout.europe-west1.gcp.commercetools.com/zero-to-ct-storefront/payment-integrations?status=eq:Active" \
+  -H "Authorization: Bearer ${TOKEN}" | jq '.count, .results[].name'
+
+# Activate an integration (replace id and version from GET response)
+curl -s -X POST "https://checkout.europe-west1.gcp.commercetools.com/zero-to-ct-storefront/payment-integrations/{integrationId}" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"version":1,"actions":[{"action":"setStatus","status":"Active"}]}'
+```
+
+Payment Integrations are **inactive by default** after creation.
 
 ---
 
