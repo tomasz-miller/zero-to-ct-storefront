@@ -179,6 +179,7 @@ Never commit `.env.local` or any file containing secrets.
 
 ## Further reading
 
+- [Product roadmap (this repo)](./ROADMAP.md)
 - [Tech stack (this repo)](./TECH_STACK.md)
 - [TypeScript SDK — Get started](https://docs.commercetools.com/dev-tooling/ts-sdk-getting-started)
 - [TypeScript SDK — Middleware](https://docs.commercetools.com/dev-tooling/ts-sdk-middleware)

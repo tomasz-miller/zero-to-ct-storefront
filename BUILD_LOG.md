@@ -70,3 +70,10 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Milestone:** Customer login/register/logout, password reset, cart merge on auth, `/account` with order history, header account menu, BFF routes under `/api/auth/*` and `/api/customer/orders`; docs in `docs/CUSTOMER_AUTH.md`.
 - **Agent vs manual:** ~95% agent
 - **Notes:** Add `manage_customers`, `manage_my_profile`, and `manage_my_orders` to Frontend API client scopes. Dev-only `devResetUrl` on forgot-password when `NODE_ENV !== 'production'`.
+
+### 2026-07-10 — Product roadmap
+- **Time:** —
+- **Phase:** phase-2-core
+- **Milestone:** Created `docs/ROADMAP.md` with implemented capabilities inventory, gaps vs commercetools B2C Retail demo flow, and prioritized phases 3–10; linked from `docs/AGENT_CODING.md`.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Roadmap complements BUILD_LOG (history) and AGENT_CODING (phases 0–3). Next immediate work: phase-3-demo (deploy, demo script, E2E checkout).

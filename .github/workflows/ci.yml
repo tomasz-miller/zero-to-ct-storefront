@@ -34,6 +34,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/pnpm-lock.yaml') }}-
+
       - name: Lint
         run: pnpm lint
 
@@ -45,3 +53,16 @@ jobs:
 
       - name: Build
         run: pnpm build
+        env:
+          # Required at build time: lib/commercetools/env.ts validates on import,
+          # and Next.js prerenders pages (e.g. /) that call the CT API.
+          # Add matching repository secrets in GitHub (Settings → Secrets → Actions).
+          CTP_PROJECT_KEY: ${{ secrets.CTP_PROJECT_KEY }}
+          CTP_CLIENT_ID: ${{ secrets.CTP_CLIENT_ID }}
+          CTP_CLIENT_SECRET: ${{ secrets.CTP_CLIENT_SECRET }}
+          CTP_AUTH_URL: https://auth.europe-west1.gcp.commercetools.com
+          CTP_API_URL: https://api.europe-west1.gcp.commercetools.com
+          CTP_SESSION_URL: https://session.europe-west1.gcp.commercetools.com
+          CTP_SCOPES: ${{ secrets.CTP_SCOPES }}
+          NEXT_PUBLIC_CTP_PROJECT_KEY: ${{ secrets.CTP_PROJECT_KEY }}
+          NEXT_PUBLIC_CTP_REGION: europe-west1.gcp
