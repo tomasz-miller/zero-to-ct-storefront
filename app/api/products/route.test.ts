@@ -23,7 +23,7 @@ describe('GET /api/products', () => {
     vi.restoreAllMocks();
   });
 
-  it('returns products with default locale en-GB', async () => {
+  it('returns products with default catalog locale en-GB and EUR currency', async () => {
     listProducts.mockResolvedValue({
       products: [{ id: 'prod-1', name: 'Bed', slug: 'bed' }],
       total: 1,
@@ -44,7 +44,7 @@ describe('GET /api/products', () => {
     listProducts.mockResolvedValue({ products: [], total: 0 });
 
     const request = new NextRequest(
-      'http://localhost:3000/api/products?q=bed&limit=5&offset=10&locale=de-DE&currency=GBP',
+      'http://localhost:3000/api/products?q=bed&limit=5&offset=10&locale=de-DE&currency=EUR',
     );
     await GET(request);
 
@@ -52,7 +52,7 @@ describe('GET /api/products', () => {
       limit: 5,
       offset: 10,
       locale: 'de-DE',
-      currency: 'GBP',
+      currency: 'EUR',
       query: 'bed',
     });
   });

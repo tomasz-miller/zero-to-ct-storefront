@@ -183,10 +183,11 @@ CTP_CHECKOUT_URL=https://checkout.europe-west1.gcp.commercetools.com
 CTP_SCOPES=manage_project:your-project-key
 
 NEXT_PUBLIC_DEFAULT_LOCALE=en-GB
-NEXT_PUBLIC_DEFAULT_CURRENCY=GBP
+NEXT_PUBLIC_DEFAULT_CURRENCY=EUR
+NEXT_PUBLIC_DEFAULT_COUNTRY=DE
 ```
 
----
+Product catalog and cart/checkout both use English (`en-GB`); `DE` country and `EUR` currency drive pricing and the checkout application.
 
 ## Quick setup commands
 

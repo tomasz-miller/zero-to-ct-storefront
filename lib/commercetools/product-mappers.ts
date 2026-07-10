@@ -5,6 +5,7 @@ export type StorefrontProduct = {
   key?: string;
   name: string;
   slug: string;
+  sku?: string;
   imageUrl?: string;
   price?: {
     centAmount: number;
@@ -97,6 +98,7 @@ export function mapProjection(
     key: projection.key,
     name,
     slug,
+    sku: variant.sku,
     imageUrl,
     price,
   };

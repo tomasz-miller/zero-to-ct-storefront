@@ -28,5 +28,6 @@ export const ctpClient = new ClientBuilder()
   .withProjectKey(commercetoolsEnv.projectKey)
   .withClientCredentialsFlow(authMiddlewareOptions)
   .withHttpMiddleware(httpMiddlewareOptions)
+  .withConcurrentModificationMiddleware()
   .withLoggerMiddleware()
   .build();

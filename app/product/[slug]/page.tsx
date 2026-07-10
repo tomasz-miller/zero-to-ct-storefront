@@ -2,7 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { SiteHeader } from '@/components/layout/site-header';
+import { AddToCartButton } from '@/components/cart/add-to-cart-button';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -27,11 +27,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
   }
 
   const hasMultipleVariants = product.variants.length > 1;
+  const defaultSku =
+    product.variants.find((variant) => variant.sku)?.sku ?? undefined;
 
   return (
-    <div className="min-h-svh bg-background">
-      <SiteHeader />
-      <main className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-10">
         <Link
           href="/"
           className="text-sm text-muted-foreground hover:text-foreground"
@@ -109,28 +109,38 @@ export default async function ProductPage({ params }: ProductPageProps) {
                     {product.variants.map((variant) => (
                       <li
                         key={variant.id}
-                        className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+                        className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
                       >
-                        <span>{variant.name ?? `Variant ${variant.id}`}</span>
-                        <span className="text-muted-foreground">
-                          {variant.price
-                            ? formatPrice(
-                                variant.price.centAmount,
-                                variant.price.currencyCode,
-                              )
-                            : '—'}
-                        </span>
+                        <div className="flex flex-col">
+                          <span>{variant.name ?? `Variant ${variant.id}`}</span>
+                          <span className="text-muted-foreground">
+                            {variant.price
+                              ? formatPrice(
+                                  variant.price.centAmount,
+                                  variant.price.currencyCode,
+                                )
+                              : '—'}
+                          </span>
+                        </div>
+                        {variant.sku ? (
+                          <AddToCartButton sku={variant.sku} />
+                        ) : (
+                          <Button disabled size="sm">
+                            Unavailable
+                          </Button>
+                        )}
                       </li>
                     ))}
                   </ul>
                 </div>
               ) : null}
 
-              <Button disabled>Add to cart</Button>
+              {!hasMultipleVariants ? (
+                <AddToCartButton sku={defaultSku ?? ''} disabled={!defaultSku} />
+              ) : null}
             </CardContent>
           </Card>
         </div>
-      </main>
-    </div>
+    </main>
   );
 }

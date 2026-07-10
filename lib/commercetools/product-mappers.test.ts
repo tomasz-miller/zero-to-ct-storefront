@@ -51,6 +51,7 @@ describe('mapProjection', () => {
       key: undefined,
       name: 'Orion Double Bed',
       slug: 'orion-double-bed',
+      sku: 'ORION-BED',
       imageUrl: 'https://example.com/orion.jpg',
       price: { centAmount: 49900, currencyCode: 'EUR' },
     });

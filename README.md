@@ -15,6 +15,7 @@ A minimal B2C storefront on [commercetools](https://commercetools.com) Composabl
 | [docs/TECH_STACK.md](./docs/TECH_STACK.md) | pnpm, ESLint, TypeScript SDK v3 |
 | [docs/UI_COMPONENTS.md](./docs/UI_COMPONENTS.md) | coss ui primitives and conventions |
 | [docs/CURSOR_SETUP.md](./docs/CURSOR_SETUP.md) | `.cursor/` directory setup (rules, MCP) |
+| [docs/CHECKOUT.md](./docs/CHECKOUT.md) | Checkout + Stripe connector (MC, Connect, API client scopes) |
 | [BUILD_LOG.md](./BUILD_LOG.md) | Chronological development log |
 
 ## Stack

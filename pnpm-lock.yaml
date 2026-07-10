@@ -11,6 +11,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.6.0
         version: 1.6.0(@types/react@19.2.17)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@commercetools/checkout-browser-sdk':
+        specifier: ^1.7.2
+        version: 1.7.2
       '@commercetools/platform-sdk':
         specifier: ^9.2.0
         version: 9.2.0
@@ -290,6 +293,9 @@ packages:
   '@bramus/specificity@2.4.2':
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
     hasBin: true
+
+  '@commercetools/checkout-browser-sdk@1.7.2':
+    resolution: {integrity: sha512-JUV8P4PXCHdxiDXPjvNXiLonumLeQwJ8GUyAejjVU1QXpJbVbJRvc45V+YqBz7tyedB0+VdREmSy8d6UWBp2nw==}
 
   '@commercetools/platform-sdk@9.2.0':
     resolution: {integrity: sha512-lxjDH6r3gJOgaXJW56OuJ3+6DbUlEnb1R80xS3pdYo7awq4TNoYvaJBeInMM4Pll19PNt7gZgc67wF+8CGLWWA==}
@@ -805,6 +811,9 @@ packages:
 
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
+
+  '@swc/helpers@0.5.21':
+    resolution: {integrity: sha512-jI/VAmtdjB/RnI8GTnokyX7Ug8c+g+ffD6QRLa6XQewtnGyukKkKSk3wLTM3b5cjt1jNh9x0jfVlagdN2gDKQg==}
 
   '@tailwindcss/node@4.3.2':
     resolution: {integrity: sha512-yWP/sqEcBLaD8JuA6zNwxoYKr75qxTioYwlRwekj5Jr/I5GXnoJfjetH/psLUIv74cYTH2lBUEzBkinthoYcBg==}
@@ -3793,6 +3802,10 @@ snapshots:
     dependencies:
       css-tree: 3.2.1
 
+  '@commercetools/checkout-browser-sdk@1.7.2':
+    dependencies:
+      '@swc/helpers': 0.5.21
+
   '@commercetools/platform-sdk@9.2.0':
     dependencies:
       '@commercetools/ts-client': 5.0.0
@@ -4230,6 +4243,10 @@ snapshots:
   '@standard-schema/spec@1.1.0': {}
 
   '@swc/helpers@0.5.15':
+    dependencies:
+      tslib: 2.8.1
+
+  '@swc/helpers@0.5.21':
     dependencies:
       tslib: 2.8.1
 

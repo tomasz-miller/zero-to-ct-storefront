@@ -18,7 +18,10 @@ vi.mock('@/lib/commercetools/api-root', () => ({
 }));
 
 vi.mock('@/lib/commercetools/env', () => ({
-  commercetoolsEnv: { projectKey: 'demo-project' },
+  commercetoolsEnv: {
+    projectKey: 'demo-project',
+    sessionUrl: 'https://session.example.com',
+  },
 }));
 
 import { GET } from './route';

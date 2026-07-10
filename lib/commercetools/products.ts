@@ -2,6 +2,9 @@ import 'server-only';
 
 import { apiRoot } from './api-root';
 import {
+  getCatalogContext,
+} from './storefront-context';
+import {
   buildSlugWhere,
   isNewArrivalProduct,
   mapProjection,
@@ -15,8 +18,6 @@ export type {
   StorefrontProductDetail,
   StorefrontProductVariant,
 } from './product-mappers';
-
-const DEFAULT_LOCALE = 'en-GB';
 
 async function getNewArrivalsCategoryId(): Promise<string | undefined> {
   const response = await apiRoot
@@ -41,8 +42,9 @@ export async function listProducts(options?: {
 }): Promise<{ products: StorefrontProduct[]; total: number }> {
   const limit = options?.limit ?? 12;
   const offset = options?.offset ?? 0;
-  const locale = options?.locale ?? DEFAULT_LOCALE;
-  const currency = options?.currency ?? 'EUR';
+  const { locale, currency } = getCatalogContext();
+  const resolvedLocale = options?.locale ?? locale;
+  const resolvedCurrency = options?.currency ?? currency;
   const query = options?.query?.trim();
 
   if (query) {
@@ -54,7 +56,7 @@ export async function listProducts(options?: {
           query: {
             fullText: {
               field: 'name',
-              language: locale,
+              language: resolvedLocale,
               value: query,
             },
           },
@@ -76,13 +78,13 @@ export async function listProducts(options?: {
           where: `id in (${ids.map((id) => `"${id}"`).join(',')})`,
           limit,
           staged: false,
-          localeProjection: locale,
+          localeProjection: resolvedLocale,
         },
       })
       .execute();
 
     const products = projectionsResponse.body.results
-      .map((projection) => mapProjection(projection, locale, currency))
+      .map((projection) => mapProjection(projection, resolvedLocale, resolvedCurrency))
       .filter((product): product is StorefrontProduct => product !== null);
 
     return {
@@ -98,14 +100,16 @@ export async function listProducts(options?: {
         limit,
         offset,
         staged: false,
-        localeProjection: locale,
+        localeProjection: resolvedLocale,
         sort: 'createdAt desc',
       },
     })
     .execute();
 
   const products = projectionsResponse.body.results
-    .map((projection) => mapProjection(projection, locale, currency))
+    .map((projection) =>
+      mapProjection(projection, resolvedLocale, resolvedCurrency),
+    )
     .filter((product): product is StorefrontProduct => product !== null);
 
   return {
@@ -120,8 +124,9 @@ export async function listBestSellingProducts(options?: {
   currency?: string;
 }): Promise<{ products: StorefrontProduct[]; total: number }> {
   const limit = options?.limit ?? 12;
-  const locale = options?.locale ?? DEFAULT_LOCALE;
-  const currency = options?.currency ?? 'EUR';
+  const { locale, currency } = getCatalogContext();
+  const resolvedLocale = options?.locale ?? locale;
+  const resolvedCurrency = options?.currency ?? currency;
 
   const newArrivalsCategoryId = await getNewArrivalsCategoryId();
 
@@ -131,7 +136,7 @@ export async function listBestSellingProducts(options?: {
       queryArgs: {
         limit: 500,
         staged: false,
-        localeProjection: locale,
+        localeProjection: resolvedLocale,
         sort: 'createdAt asc',
       },
     })
@@ -143,7 +148,9 @@ export async function listBestSellingProducts(options?: {
 
   const products = bestSellingProjections
     .slice(0, limit)
-    .map((projection) => mapProjection(projection, locale, currency))
+    .map((projection) =>
+      mapProjection(projection, resolvedLocale, resolvedCurrency),
+    )
     .filter((product): product is StorefrontProduct => product !== null);
 
   return {
@@ -159,17 +166,18 @@ export async function getProductBySlug(
     currency?: string;
   },
 ): Promise<StorefrontProductDetail | null> {
-  const locale = options?.locale ?? DEFAULT_LOCALE;
-  const currency = options?.currency ?? 'EUR';
+  const { locale, currency } = getCatalogContext();
+  const resolvedLocale = options?.locale ?? locale;
+  const resolvedCurrency = options?.currency ?? currency;
 
   const response = await apiRoot
     .productProjections()
     .get({
       queryArgs: {
-        where: buildSlugWhere(slug, locale),
+        where: buildSlugWhere(slug, resolvedLocale),
         limit: 1,
         staged: false,
-        localeProjection: locale,
+        localeProjection: resolvedLocale,
       },
     })
     .execute();
@@ -179,5 +187,5 @@ export async function getProductBySlug(
     return null;
   }
 
-  return mapProjectionDetail(projection, locale, currency);
+  return mapProjectionDetail(projection, resolvedLocale, resolvedCurrency);
 }

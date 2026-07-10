@@ -211,6 +211,8 @@ Separate `ClientBuilder` with Checkout API host (`https://checkout.{region}.comm
 
 Checkout session creation stays in **BFF** (`app/api/checkout-session/`); only `sessionId` goes to the browser.
 
+**Stripe + MC setup** (API clients, Connect env, scopes): [docs/CHECKOUT.md](./CHECKOUT.md).
+
 ---
 
 ## Environment variables

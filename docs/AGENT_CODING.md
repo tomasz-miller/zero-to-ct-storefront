@@ -63,6 +63,7 @@ zero-to-ct-storefront/
 │   ├── AGENT_CODING.md       # This file
 │   ├── TECH_STACK.md         # pnpm, ESLint, TS SDK v3 conventions
 │   ├── CURSOR_SETUP.md       # .cursor/ bootstrap
+│   ├── CHECKOUT.md           # Stripe connector + Checkout MC/Connect setup
 │   ├── DEMO_SCRIPT.md        # Sales demo script
 │   └── TIME_REPORT.md        # End-of-project time summary
 ├── BUILD_LOG.md              # Chronological dev log (human-maintained)

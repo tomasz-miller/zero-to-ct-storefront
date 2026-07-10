@@ -39,7 +39,7 @@ Chronological log of development time and milestones. Used for sales demos and `
 ### 2026-07-08 — Discovery pages (search, PDP, bestsellers)
 - **Time:** —
 - **Phase:** phase-2-core
-- **Milestone:** `/search` with `?q=` full-text search; `/product/[slug]` PDP; homepage compact best-seller tiles via `listBestSellingProducts()` (excludes new-arrival products/category; oldest-first). Locale fixed to `en-GB` for B2C sample data.
+- **Milestone:** `/search` with `?q=` full-text search; `/product/[slug]` PDP; homepage compact best-seller tiles via `listBestSellingProducts()` (excludes new-arrival products/category; oldest-first). Catalog copy in `en-GB`; purchase defaults `de-DE` / `DE` / `EUR`.
 - **Agent vs manual:** ~90% agent
 - **Notes:** Orders API unavailable without `view_orders` scope — bestsellers use catalog heuristic instead
 
@@ -49,3 +49,10 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Milestone:** Vitest unit tests for lib, API routes, and components (34 tests). Playwright E2E for discovery flow + API smoke (5 tests, live CT locally). Extracted `product-mappers.ts` for testable pure functions.
 - **Agent vs manual:** ~95% agent
 - **Notes:** E2E runs locally with `.env.local`; skipped in CI without `CTP_*`. See `docs/TESTING.md`.
+
+### 2026-07-09 — Stripe Checkout MC setup + guest cart/checkout code
+- **Time:** —
+- **Phase:** phase-2-core
+- **Milestone:** Stripe connector + Checkout Applications configured in MC; `docs/CHECKOUT.md`; guest cart BFF (`/api/cart/*`), checkout session (`/api/checkout/session`), pages `/cart`, `/checkout`, `/order-confirmation`; Checkout Browser SDK embed. Application keys: `demo-commercetools-checkout` (DE), `demo-commercetools-checkout-taxes` (GB/US).
+- **Agent vs manual:** Human — Stripe/Connect/MC; agent — storefront implementation
+- **Notes:** Storefront BFF needs **separate** API client with `manage_orders` + `manage_sessions` (not the Stripe connector client). See `docs/CHECKOUT.md` and `.env.example`.
