@@ -5,6 +5,7 @@ import { Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { CartNavLink } from '@/components/cart/cart-nav-link';
+import { AccountNav } from '@/components/auth/account-nav';
 import { StoreBrand } from '@/components/layout/store-brand';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -60,6 +61,7 @@ export function SiteHeader() {
                 Search
               </span>
             </Button>
+            <AccountNav compact={isScrolled} />
             <CartNavLink compact={isScrolled} />
           </nav>
         </div>

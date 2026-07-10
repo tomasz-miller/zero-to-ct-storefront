@@ -53,3 +53,16 @@ export async function clearCartSession(): Promise<void> {
 export function createAnonymousId(): string {
   return crypto.randomUUID();
 }
+
+/** Rotate anonymousId after CT consumes it during sign-in/sign-up. */
+export async function rotateCartSessionAnonymousId(): Promise<void> {
+  const session = await getCartSession();
+  if (!session) {
+    return;
+  }
+
+  await setCartSession({
+    anonymousId: createAnonymousId(),
+    cartId: session.cartId,
+  });
+}

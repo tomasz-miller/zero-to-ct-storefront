@@ -5,11 +5,13 @@ import type { Cart } from '@commercetools/platform-sdk';
 import { apiRoot } from './api-root';
 import { mapCart, type StorefrontCart } from './cart-mappers';
 import {
+  clearCartSession,
   createAnonymousId,
   getCartSession,
   setCartSession,
   type CartSession,
 } from './cart-session';
+import { getCustomerSession } from './customer-session';
 import { getStorefrontContext } from './storefront-context';
 
 export class CartAccessError extends Error {
@@ -35,13 +37,32 @@ async function fetchCartById(cartId: string): Promise<Cart | null> {
   }
 }
 
+export function canAccessCart(
+  cart: Cart,
+  session: CartSession,
+  customerId?: string,
+): boolean {
+  if (customerId && cart.customerId === customerId) {
+    return true;
+  }
+
+  if (cart.customerId) {
+    return false;
+  }
+
+  return cart.anonymousId === session.anonymousId;
+}
+
 export function verifyCartOwnership(
   cart: Cart,
   anonymousId: string,
+  customerId?: string,
 ): void {
-  if (cart.anonymousId !== anonymousId) {
-    throw new CartAccessError();
+  if (canAccessCart(cart, { anonymousId, cartId: cart.id }, customerId)) {
+    return;
   }
+
+  throw new CartAccessError();
 }
 
 function cartMatchesStorefront(cart: Cart): boolean {
@@ -55,6 +76,26 @@ async function alignCartWithStorefront(cart: Cart): Promise<Cart> {
   }
 
   const { currency, country } = getStorefrontContext();
+
+  if (cart.customerId) {
+    if (cart.lineItems.length > 0 || cart.totalPrice.currencyCode !== currency) {
+      return cart;
+    }
+
+    const response = await apiRoot
+      .carts()
+      .withId({ ID: cart.id })
+      .post({
+        body: {
+          version: cart.version,
+          actions: [{ action: 'setCountry', country }],
+        },
+      })
+      .execute();
+
+    return response.body;
+  }
+
   const anonymousId = cart.anonymousId;
 
   if (!anonymousId) {
@@ -82,10 +123,15 @@ async function alignCartWithStorefront(cart: Cart): Promise<Cart> {
 async function loadOwnedCart(session: CartSession): Promise<Cart | null> {
   const cart = await fetchCartById(session.cartId);
   if (!cart) {
+    await clearCartSession();
     return null;
   }
 
-  verifyCartOwnership(cart, session.anonymousId);
+  const customerSession = await getCustomerSession();
+  if (!canAccessCart(cart, session, customerSession?.customerId)) {
+    await clearCartSession();
+    return null;
+  }
 
   const aligned = await alignCartWithStorefront(cart);
   if (aligned.id !== session.cartId) {

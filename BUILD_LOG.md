@@ -63,3 +63,10 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Milestone:** Activated Stripe Payment Integrations on both checkout applications via Payment Integrations API; improved checkout error messages; fixed `CTP_CHECKOUT_APPLICATION_KEY` override; extended `docs/CHECKOUT.md` troubleshooting.
 - **Agent vs manual:** Agent — API activation + storefront hardening; manual — end-to-end payment test in browser with Stripe test card
 - **Notes:** Root cause was inactive Payment Integrations (default after MC creation). Verify with `payment-integrations?status=eq:Active` (expect count ≥ 1).
+
+### 2026-07-10 — Customer authentication and account page
+- **Time:** —
+- **Phase:** phase-2-core
+- **Milestone:** Customer login/register/logout, password reset, cart merge on auth, `/account` with order history, header account menu, BFF routes under `/api/auth/*` and `/api/customer/orders`; docs in `docs/CUSTOMER_AUTH.md`.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Add `manage_customers`, `manage_my_profile`, and `manage_my_orders` to Frontend API client scopes. Dev-only `devResetUrl` on forgot-password when `NODE_ENV !== 'production'`.

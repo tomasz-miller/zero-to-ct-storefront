@@ -1,6 +1,9 @@
+import { Suspense } from 'react';
 import { Geist, Geist_Mono } from 'next/font/google';
 
 import './globals.css';
+import { AuthProvider } from '@/components/auth/auth-context';
+import { LoginDialog } from '@/components/auth/login-dialog';
 import { CartProvider } from '@/components/cart/cart-context';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { SiteHeader } from '@/components/layout/site-header';
@@ -36,13 +39,18 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider>
-          <CartProvider>
-            <div className="flex min-h-svh flex-col bg-background">
-              <SiteHeader />
-              {children}
-              <SiteFooter />
-            </div>
-          </CartProvider>
+          <Suspense fallback={null}>
+            <AuthProvider>
+              <CartProvider>
+                <div className="flex min-h-svh flex-col bg-background">
+                  <SiteHeader />
+                  {children}
+                  <SiteFooter />
+                </div>
+                <LoginDialog />
+              </CartProvider>
+            </AuthProvider>
+          </Suspense>
         </ThemeProvider>
       </body>
     </html>
