@@ -29,10 +29,10 @@ test.describe('Discovery flow', () => {
     await expect(page.locator('a[href^="/product/"]').first()).toBeVisible();
   });
 
-  test('product detail page shows title and disabled add to cart', async ({ page }) => {
+  test('product detail page shows title and add to cart', async ({ page }) => {
     await page.goto('/product/orion-double-bed');
 
     await expect(page.getByRole('img', { name: /orion double bed/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Add to cart' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Add to cart' })).toBeVisible();
   });
 });

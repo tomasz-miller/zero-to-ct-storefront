@@ -2,7 +2,7 @@
 
 Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on commercetools sample data. Complements [BUILD_LOG.md](../BUILD_LOG.md) (history) and [AGENT_CODING.md](./AGENT_CODING.md) (phases 0–3).
 
-**Last updated:** 2026-07-10
+**Last updated:** 2026-07-10 (Phase 3 partial)
 
 ---
 
@@ -13,7 +13,7 @@ Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on comm
 | Phase 0 — CT project setup | Done |
 | Phase 1 — Next.js scaffold | Done |
 | Phase 2 — Discovery, cart, checkout, auth | Done |
-| Phase 3 — Deploy, demo script, time report | **Planned (P0)** |
+| Phase 3 — Deploy, demo script, time report | **In progress** (E2E, docs done; deploy pending human) |
 | Phase 4+ — Feature expansion | Planned |
 
 The storefront covers the core B2C purchase path (browse → cart → checkout → account) but lacks several capabilities from the [commercetools B2C Retail demo flow](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail).
@@ -27,8 +27,8 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 - **Next.js 16** App Router with **BFF** (`/app/api/*`) — commercetools credentials stay server-side
 - **TypeScript SDK v3** (`ClientBuilder`) in [`lib/commercetools/`](../lib/commercetools/)
 - **coss ui** + Tailwind v4, dark/light theme (`next-themes`)
-- **CI** (`.github/workflows/ci.yml`): `lint`, `typecheck`, `test:unit`
-- **~69 unit tests** (Vitest) + **5 E2E tests** (Playwright, discovery only, local with `CTP_*`)
+- **CI** (`.github/workflows/ci.yml`): `lint`, `typecheck`, `test:unit`, `build` (with GitHub secrets)
+- **~72 unit tests** (Vitest) + **10 E2E tests** (Playwright: discovery + cart/checkout, local with `CTP_*`)
 
 ### Product discovery
 
@@ -145,11 +145,11 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 
 | Feature | Status | CT API | Suggested files | Dependencies |
 |---------|--------|--------|-----------------|--------------|
-| Deploy (Vercel/Netlify) | planned | — | — | CT AI plugin `/deploy-vercel` |
-| Sales demo script | planned | — | `docs/DEMO_SCRIPT.md` | — |
-| Time report | planned | — | `docs/TIME_REPORT.md` | `BUILD_LOG.md` entries |
-| E2E: add-to-cart + checkout | planned | Carts, Checkout Sessions | `e2e/checkout.spec.ts` | Local `CTP_*` credentials |
-| CI `pnpm build` job (optional) | planned | — | `.github/workflows/ci.yml` | GitHub secrets for `CTP_*` |
+| Deploy (Vercel/Netlify) | planned (human) | — | — | CT AI plugin `/deploy-vercel`; see [DEPLOY.md](./DEPLOY.md) |
+| Sales demo script | done | — | [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) | — |
+| Time report | done (draft) | — | [TIME_REPORT.md](./TIME_REPORT.md) | `BUILD_LOG.md` entries |
+| E2E: add-to-cart + checkout | done | Carts, Checkout Sessions | `e2e/cart-checkout.spec.ts` | Local `CTP_*` credentials |
+| CI `pnpm build` job | done | — | `.github/workflows/ci.yml` | GitHub secrets for `CTP_*` |
 
 **Effort:** S | **Value:** High (demo readiness)
 
@@ -275,8 +275,9 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 
 | Feature | Priority | Effort | Status | CT API |
 |---------|----------|--------|--------|--------|
-| Deploy + demo script | P0 | S | planned | — |
-| E2E checkout flow | P0 | S | planned | Carts, Checkout Sessions |
+| Deploy + demo script | P0 | S | partial (deploy pending) | — |
+| E2E checkout flow | P0 | S | done | Carts, Checkout Sessions |
+| CI production build | P0 | S | done | — |
 | Category pages + navigation | P1 | M | planned | Categories, Product Search |
 | Search facets, sort, pagination | P1 | M | planned | Product Search |
 | Search autocomplete | P1 | S | planned | Search Term Suggestions |
@@ -367,6 +368,9 @@ The following remain **out of scope** for this PoC (see [AGENT_CODING.md](./AGEN
 - [CHECKOUT.md](./CHECKOUT.md) — Stripe + Checkout setup
 - [CUSTOMER_AUTH.md](./CUSTOMER_AUTH.md) — auth architecture
 - [TESTING.md](./TESTING.md) — test strategy
+- [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) — sales demo script
+- [TIME_REPORT.md](./TIME_REPORT.md) — time summary (draft)
+- [DEPLOY.md](./DEPLOY.md) — deployment guide
 
 ---
 

@@ -65,6 +65,8 @@ zero-to-ct-storefront/
 │   ├── CURSOR_SETUP.md       # .cursor/ bootstrap
 │   ├── CHECKOUT.md           # Stripe connector + Checkout MC/Connect setup
 │   ├── DEMO_SCRIPT.md        # Sales demo script
+│   ├── DEPLOY.md             # Vercel deployment guide
+│   ├── ROADMAP.md            # Product roadmap
 │   └── TIME_REPORT.md        # End-of-project time summary
 ├── BUILD_LOG.md              # Chronological dev log (human-maintained)
 ├── .env.example              # Env var template (no secrets)
@@ -153,9 +155,9 @@ Always verify against [commercetools docs](https://docs.commercetools.com) via K
 | Phase | Focus | BUILD_LOG tag |
 |-------|-------|---------------|
 | 0 | CT trial, sample data, API client, env files | `phase-0-setup` ✅ |
-| 1 | `/nextjs-setup-project` with **pnpm**, SDK smoke test | `phase-1-scaffold` |
-| 2 | Discovery, cart, checkout | `phase-2-core` |
-| 3 | Deploy, demo script, TIME_REPORT | `phase-3-demo` |
+| 1 | `/nextjs-setup-project` with **pnpm**, SDK smoke test | `phase-1-scaffold` ✅ |
+| 2 | Discovery, cart, checkout, auth | `phase-2-core` ✅ |
+| 3 | Deploy, demo script, TIME_REPORT, E2E cart/checkout | `phase-3-demo` (in progress) |
 
 ---
 
@@ -180,6 +182,9 @@ Never commit `.env.local` or any file containing secrets.
 ## Further reading
 
 - [Product roadmap (this repo)](./ROADMAP.md)
+- [Sales demo script](./DEMO_SCRIPT.md)
+- [Deployment guide](./DEPLOY.md)
+- [Time report](./TIME_REPORT.md)
 - [Tech stack (this repo)](./TECH_STACK.md)
 - [TypeScript SDK — Get started](https://docs.commercetools.com/dev-tooling/ts-sdk-getting-started)
 - [TypeScript SDK — Middleware](https://docs.commercetools.com/dev-tooling/ts-sdk-middleware)

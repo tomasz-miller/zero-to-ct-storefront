@@ -9,9 +9,9 @@ Testing strategy for **zero-to-ct-storefront**. Unit tests run in CI without com
 | Layer | Tool | Scope | CI |
 |-------|------|-------|-----|
 | Unit — lib | Vitest | `format`, product mappers, mocked `products` | Yes |
-| Unit — API | Vitest (node) | `/api/health`, `/api/products` route handlers | Yes |
+| Unit — API | Vitest (node) | `/api/health`, `/api/products`, `/api/cart/items` | Yes |
 | Unit — UI | Vitest + Testing Library | product cards, search form | Yes |
-| E2E | Playwright | discovery flow + API smoke against live CT | No (local only) |
+| E2E | Playwright | discovery + cart/checkout + API smoke against live CT | No (local only) |
 
 ---
 
@@ -38,7 +38,7 @@ Before finishing a task, run:
 pnpm lint && pnpm typecheck && pnpm test:unit
 ```
 
-**CI:** GitHub Actions runs the same checks on pull requests and merges to `main` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)).
+**CI:** GitHub Actions runs `lint`, `typecheck`, `test:unit`, and `build` on pull requests and merges to `main` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)). The build job requires `CTP_*` GitHub secrets.
 
 ---
 
@@ -53,7 +53,7 @@ pnpm lint && pnpm typecheck && pnpm test:unit
 - `test/mocks/next-image.tsx` — renders `<img>` instead of `next/image`
 - `test/fixtures/product-projection.ts` — sample `ProductProjection` data
 
-**API route tests** mock `@/lib/commercetools/products` or `@/lib/commercetools/api-root` — no network calls.
+**API route tests** mock `@/lib/commercetools/products`, `@/lib/commercetools/cart`, or `@/lib/commercetools/api-root` — no network calls.
 
 **Component tests** use React Testing Library with semantic queries (`getByRole`, `getByLabelText`).
 
@@ -71,10 +71,14 @@ pnpm lint && pnpm typecheck && pnpm test:unit
 - Tests are **skipped** when `CTP_PROJECT_KEY` is not set
 
 **What is tested live:**
-- Homepage best sellers grid
-- Search for `bed`
-- Product detail page (`/product/orion-double-bed`)
-- `GET /api/health` and `GET /api/products`
+
+| File | Scenarios |
+|------|-----------|
+| `discovery.spec.ts` | Homepage best sellers, search for `bed`, PDP |
+| `cart-checkout.spec.ts` | Add to cart from homepage, cart page line items, checkout embed load, cart API |
+| `api.spec.ts` | `GET /api/health`, `GET /api/products` |
+
+**E2E boundaries:** Tests verify cart and checkout **session load** (order summary + `[data-ctc]` embed container). **Full Stripe payment** is not automated — the Checkout Browser SDK iframe is flaky in CI and requires manual card entry. Use [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) for payment demo steps.
 
 **webServer:** Playwright runs `pnpm build && pnpm start` on port 3000 (reuses an existing server locally when available).
 
@@ -93,11 +97,9 @@ pnpm lint && pnpm typecheck && pnpm test:unit
 
 ## Adding tests for new features
 
-When implementing cart/checkout (next phase):
-
-1. Add mapper/unit tests for cart logic in `lib/`
-2. Add route handler tests for new `/api/cart` endpoints
-3. Add component tests for cart UI
-4. Extend `e2e/` with add-to-cart and checkout flows
+1. Add mapper/unit tests for business logic in `lib/`
+2. Add route handler tests for new `/api/*` endpoints (mock CT layer)
+3. Add component tests for new UI where behavior is non-trivial
+4. Extend `e2e/` with focused user-visible flows
 
 Keep E2E scenarios focused on user-visible flows, not implementation details.
