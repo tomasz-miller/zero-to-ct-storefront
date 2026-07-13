@@ -5,8 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createProductProjection } from '@/test/fixtures/product-projection';
 
-const { mockExecute, mockApiRoot } = vi.hoisted(() => {
+const { mockExecute, mockApiRoot, mockGetSearchableAttributeFacetConfigsForQuery } =
+  vi.hoisted(() => {
   const mockExecute = vi.fn();
+  const mockGetSearchableAttributeFacetConfigsForQuery = vi.fn();
   const mockApiRoot = {
     products: vi.fn(() => ({
       search: vi.fn(() => ({
@@ -16,11 +18,25 @@ const { mockExecute, mockApiRoot } = vi.hoisted(() => {
     productProjections: vi.fn(() => ({
       get: vi.fn(() => ({ execute: mockExecute })),
     })),
+    productTypes: vi.fn(() => ({
+      get: vi.fn(() => ({ execute: mockExecute })),
+    })),
     categories: vi.fn(() => ({
       get: vi.fn(() => ({ execute: mockExecute })),
     })),
   };
-  return { mockExecute, mockApiRoot };
+  return { mockExecute, mockApiRoot, mockGetSearchableAttributeFacetConfigsForQuery };
+});
+
+vi.mock('./searchable-product-attributes', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./searchable-product-attributes')>();
+
+  return {
+    ...actual,
+    getSearchableAttributeFacetConfigsForQuery:
+      mockGetSearchableAttributeFacetConfigsForQuery,
+  };
 });
 
 vi.mock('./api-root', () => ({
@@ -38,6 +54,17 @@ describe('listProducts', () => {
     mockExecute.mockReset();
     mockApiRoot.products.mockClear();
     mockApiRoot.productProjections.mockClear();
+    mockApiRoot.productTypes.mockClear();
+    mockGetSearchableAttributeFacetConfigsForQuery.mockResolvedValue([
+      {
+        name: 'color-label',
+        label: 'Colour Label',
+        field: 'variants.attributes.color-label',
+        filterField: 'variants.attributes.color-label',
+        fieldType: 'ltext',
+        language: 'en-GB',
+      },
+    ]);
   });
 
   it('returns mapped products from projections when no query', async () => {
@@ -87,7 +114,12 @@ describe('listProducts', () => {
 
     const result = await listProducts({ query: 'missing-product' });
 
-    expect(result).toEqual({ products: [], total: 0 });
+    expect(result).toEqual({
+      products: [],
+      total: 0,
+      facets: [],
+      filters: { attributes: {} },
+    });
     expect(mockApiRoot.productProjections).not.toHaveBeenCalled();
   });
 
@@ -157,6 +189,7 @@ describe('listProducts', () => {
       body: expect.objectContaining({
         limit: 24,
         offset: 24,
+        facets: expect.any(Array),
         sort: [
           {
             field: 'variants.prices.centAmount',
@@ -181,6 +214,16 @@ describe('listNewArrivalProducts', () => {
     mockApiRoot.categories.mockClear();
     mockApiRoot.products.mockClear();
     mockApiRoot.productProjections.mockClear();
+    mockGetSearchableAttributeFacetConfigsForQuery.mockResolvedValue([
+      {
+        name: 'color-label',
+        label: 'Colour Label',
+        field: 'variants.attributes.color-label',
+        filterField: 'variants.attributes.color-label',
+        fieldType: 'ltext',
+        language: 'en-GB',
+      },
+    ]);
   });
 
   it('returns empty list when new-arrivals category is missing', async () => {
@@ -190,7 +233,12 @@ describe('listNewArrivalProducts', () => {
 
     const result = await listNewArrivalProducts();
 
-    expect(result).toEqual({ products: [], total: 0 });
+    expect(result).toEqual({
+      products: [],
+      total: 0,
+      facets: [],
+      filters: { attributes: {} },
+    });
     expect(mockApiRoot.products).not.toHaveBeenCalled();
   });
 
@@ -213,6 +261,7 @@ describe('listNewArrivalProducts', () => {
         body: {
           results: [{ id: 'prod-new' }],
           total: 1,
+          facets: [],
         },
       })
       .mockResolvedValueOnce({

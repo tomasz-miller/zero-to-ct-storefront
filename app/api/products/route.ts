@@ -4,6 +4,7 @@ import {
   getDefaultProductListingSort,
   parseProductListingSort,
 } from '@/lib/commercetools/product-listing-params';
+import { parseProductListingFilters } from '@/lib/commercetools/product-search-facets';
 import { getCatalogContext } from '@/lib/commercetools/storefront-context';
 import { listProducts } from '@/lib/commercetools/products';
 
@@ -23,6 +24,9 @@ export async function GET(request: NextRequest) {
     defaultSort,
     listingMode,
   );
+  const filters = parseProductListingFilters(
+    Object.fromEntries(searchParams.entries()),
+  );
 
   try {
     const result = await listProducts({
@@ -32,6 +36,7 @@ export async function GET(request: NextRequest) {
       currency,
       query,
       sort,
+      filters,
     });
 
     return NextResponse.json(result);

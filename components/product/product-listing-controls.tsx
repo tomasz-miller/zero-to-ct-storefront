@@ -12,6 +12,7 @@ import {
   type ProductListingSort,
   productListingTotalPages,
 } from '@/lib/commercetools/product-listing-params';
+import type { ProductListingFilters } from '@/lib/commercetools/product-search-facets';
 
 type ProductListingControlsProps = {
   pathname: string;
@@ -21,6 +22,7 @@ type ProductListingControlsProps = {
   pageSize: number;
   sort: ProductListingSort;
   query?: string;
+  filters?: ProductListingFilters;
   showSort?: boolean;
   showRange?: boolean;
   showPagination?: boolean;
@@ -34,6 +36,7 @@ export function ProductListingControls({
   pageSize,
   sort,
   query,
+  filters,
   showSort = true,
   showRange = true,
   showPagination = true,
@@ -45,7 +48,7 @@ export function ProductListingControls({
     : null;
   const pageNumbers = getProductListingPageNumbers({ page, totalPages });
   const sortOptions = getProductListingSortOptions(mode);
-  const sharedParams = { q: query, page, sort };
+  const sharedParams = { q: query, page, sort, filters };
 
   return (
     <div className="flex flex-col gap-4">

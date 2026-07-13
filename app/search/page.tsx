@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { ProductGridCompact } from '@/components/product/product-grid-compact';
 import { ProductListingControls } from '@/components/product/product-listing-controls';
+import { ProductListingFacets } from '@/components/product/product-listing-facets';
 import { SearchForm } from '@/components/search/search-form';
 import {
   buildProductListingHref,
@@ -12,20 +13,33 @@ import {
   PRODUCT_LISTING_PAGE_SIZE,
   productListingOffset,
 } from '@/lib/commercetools/product-listing-params';
+import {
+  EMPTY_PRODUCT_LISTING_FILTERS,
+  parseProductListingFilters,
+  productListingFiltersEqual,
+} from '@/lib/commercetools/product-search-facets';
 import { listProducts } from '@/lib/commercetools/products';
 
 type SearchPageProps = {
-  searchParams: Promise<{ q?: string; page?: string; sort?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
-  const { q, page: pageParam, sort: sortParam } = await searchParams;
-  const query = q?.trim() ?? '';
+  const resolvedSearchParams = await searchParams;
+  const query = resolvedSearchParams.q?.toString().trim() ?? '';
   const hasQuery = query.length > 0;
   const defaultSort = getDefaultProductListingSort('search');
-  const sort = parseProductListingSort(sortParam, defaultSort, 'search');
+  const sort = parseProductListingSort(
+    resolvedSearchParams.sort?.toString(),
+    defaultSort,
+    'search',
+  );
+  const parsedFilters = parseProductListingFilters(resolvedSearchParams);
   const pageSize = PRODUCT_LISTING_PAGE_SIZE;
-  const requestedPage = parseProductListingPage(pageParam, pageSize);
+  const requestedPage = parseProductListingPage(
+    resolvedSearchParams.page?.toString(),
+    pageSize,
+  );
 
   const listingResult = hasQuery
     ? await listProducts({
@@ -33,17 +47,33 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         limit: pageSize,
         offset: productListingOffset(requestedPage, pageSize),
         sort,
+        filters: parsedFilters,
       })
-    : { products: [], total: 0 };
+    : {
+        products: [],
+        total: 0,
+        facets: [],
+        filters: EMPTY_PRODUCT_LISTING_FILTERS,
+      };
 
-  const { total } = listingResult;
+  const { total, facets, filters } = listingResult;
   const page = clampProductListingPage(requestedPage, total, pageSize);
+
+  if (hasQuery && !productListingFiltersEqual(parsedFilters, filters)) {
+    redirect(
+      buildProductListingHref(
+        '/search',
+        { q: query, sort, page, filters },
+        { defaultSort },
+      ),
+    );
+  }
 
   if (hasQuery && requestedPage !== page) {
     redirect(
       buildProductListingHref(
         '/search',
-        { q: query, sort, page },
+        { q: query, sort, page, filters },
         { defaultSort },
       ),
     );
@@ -60,7 +90,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             Find products in your commercetools catalog.
           </p>
         </div>
-        <SearchForm defaultQuery={query} />
+        <SearchForm key={query} defaultQuery={query} />
       </div>
 
       {hasQuery ? (
@@ -70,6 +100,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           </p>
           {total > 0 ? (
             <ProductListingControls
+              filters={filters}
               mode="search"
               page={page}
               pageSize={pageSize}
@@ -80,9 +111,22 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
               total={total}
             />
           ) : null}
-          <ProductGridCompact products={products} />
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+            <ProductListingFacets
+              facets={facets}
+              filters={filters}
+              mode="search"
+              pathname="/search"
+              query={query}
+              sort={sort}
+            />
+            <div className="min-w-0 flex-1">
+              <ProductGridCompact products={products} />
+            </div>
+          </div>
           {total > 0 ? (
             <ProductListingControls
+              filters={filters}
               mode="search"
               page={page}
               pageSize={pageSize}

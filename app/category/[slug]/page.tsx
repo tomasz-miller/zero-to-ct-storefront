@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { ProductGridCompact } from '@/components/product/product-grid-compact';
 import { ProductListingControls } from '@/components/product/product-listing-controls';
+import { ProductListingFacets } from '@/components/product/product-listing-facets';
 import { getCategoryBySlug } from '@/lib/commercetools/categories';
 import {
   buildProductListingHref,
@@ -12,11 +13,15 @@ import {
   PRODUCT_LISTING_PAGE_SIZE,
   productListingOffset,
 } from '@/lib/commercetools/product-listing-params';
+import {
+  parseProductListingFilters,
+  productListingFiltersEqual,
+} from '@/lib/commercetools/product-search-facets';
 import { listProducts } from '@/lib/commercetools/products';
 
 type CategoryPageProps = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ page?: string; sort?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export default async function CategoryPage({
@@ -24,7 +29,7 @@ export default async function CategoryPage({
   searchParams,
 }: CategoryPageProps) {
   const { slug } = await params;
-  const { page: pageParam, sort: sortParam } = await searchParams;
+  const resolvedSearchParams = await searchParams;
   const category = await getCategoryBySlug(slug);
 
   if (!category) {
@@ -32,9 +37,17 @@ export default async function CategoryPage({
   }
 
   const defaultSort = getDefaultProductListingSort('category');
-  const sort = parseProductListingSort(sortParam, defaultSort, 'category');
+  const sort = parseProductListingSort(
+    resolvedSearchParams.sort?.toString(),
+    defaultSort,
+    'category',
+  );
+  const parsedFilters = parseProductListingFilters(resolvedSearchParams);
   const pageSize = PRODUCT_LISTING_PAGE_SIZE;
-  const requestedPage = parseProductListingPage(pageParam, pageSize);
+  const requestedPage = parseProductListingPage(
+    resolvedSearchParams.page?.toString(),
+    pageSize,
+  );
   const pathname = `/category/${slug}`;
 
   const listingResult = await listProducts({
@@ -42,14 +55,21 @@ export default async function CategoryPage({
     limit: pageSize,
     offset: productListingOffset(requestedPage, pageSize),
     sort,
+    filters: parsedFilters,
   });
 
-  const { total } = listingResult;
+  const { total, facets, filters } = listingResult;
   const page = clampProductListingPage(requestedPage, total, pageSize);
+
+  if (!productListingFiltersEqual(parsedFilters, filters)) {
+    redirect(
+      buildProductListingHref(pathname, { sort, page, filters }, { defaultSort }),
+    );
+  }
 
   if (requestedPage !== page) {
     redirect(
-      buildProductListingHref(pathname, { sort, page }, { defaultSort }),
+      buildProductListingHref(pathname, { sort, page, filters }, { defaultSort }),
     );
   }
 
@@ -64,6 +84,7 @@ export default async function CategoryPage({
 
       {total > 0 ? (
         <ProductListingControls
+          filters={filters}
           mode="category"
           page={page}
           pageSize={pageSize}
@@ -74,10 +95,22 @@ export default async function CategoryPage({
         />
       ) : null}
 
-      <ProductGridCompact products={listingResult.products} />
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+        <ProductListingFacets
+          facets={facets}
+          filters={filters}
+          mode="category"
+          pathname={pathname}
+          sort={sort}
+        />
+        <div className="min-w-0 flex-1">
+          <ProductGridCompact products={listingResult.products} />
+        </div>
+      </div>
 
       {total > 0 ? (
         <ProductListingControls
+          filters={filters}
           mode="category"
           page={page}
           pageSize={pageSize}

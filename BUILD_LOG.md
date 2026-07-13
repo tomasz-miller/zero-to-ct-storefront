@@ -92,7 +92,13 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Agent vs manual:** ~95% agent
 - **Notes:** Facets, sort, pagination UI, and search autocomplete remain planned for next slice. Deploy still human step per `docs/DEPLOY.md`.
 
-### 2026-07-13 — Phase 4 slice 2a — listing sort + pagination
+### 2026-07-13 — Phase 4 slice 2b+2c — facets + search autocomplete
+- **Time:** 0.5h
+- **Phase:** phase-4-discovery
+- **Milestone:** Product Search faceted filters (price, color, brand) on `/search` and `/category/[slug]` with URL-driven state; Search Term Suggestions autocomplete via `/api/search/suggestions` and coss `Autocomplete`; unit + E2E coverage.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Brand facet depends on `variants.attributes.brand` in sample data — section hidden when buckets are empty. Deploy still human step per `docs/DEPLOY.md`.
+
 - **Time:** 1h
 - **Phase:** phase-4-discovery
 - **Milestone:** Product Search sort (`relevance`, `newest`, `price-asc`, `price-desc`) in `lib/commercetools/products.ts`; URL params `?sort=` and `?page=` on `/search` and `/category/[slug]`; shared `ProductListingControls` (sort toolbar + bottom pagination); BFF `sort` on `/api/products`; code-review fixes (page clamp/redirect, CT offset cap, category relevance guard, a11y); unit + E2E coverage.

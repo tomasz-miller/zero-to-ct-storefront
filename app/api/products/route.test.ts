@@ -61,6 +61,10 @@ describe('GET /api/products', () => {
       currency: 'EUR',
       query: 'bed',
       sort: 'price-desc',
+      filters: {
+        attributes: {},
+        price: undefined,
+      },
     });
   });
 

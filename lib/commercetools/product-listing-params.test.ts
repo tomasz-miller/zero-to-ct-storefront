@@ -73,6 +73,23 @@ describe('product listing params', () => {
     ).toBe('/search?q=bed&sort=price-asc&page=2');
   });
 
+  it('serializes active listing filters in hrefs', () => {
+    expect(
+      buildProductListingHref(
+        '/search',
+        {
+          q: 'table',
+          sort: 'relevance',
+          filters: {
+            attributes: { 'color-label': ['Oak'] },
+            price: '100-300',
+          },
+        },
+        { defaultSort: 'relevance' },
+      ),
+    ).toBe('/search?q=table&attr.color-label=Oak&price=100-300');
+  });
+
   it('formats visible result ranges using clamped pages', () => {
     expect(
       formatProductListingRange({ page: 1, pageSize: 24, total: 0 }),

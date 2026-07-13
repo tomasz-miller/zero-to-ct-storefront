@@ -110,10 +110,16 @@ export function productListingTotalPages(
   return Math.ceil(total / pageSize);
 }
 
+import {
+  serializeProductListingFilters,
+  type ProductListingFilters,
+} from './product-search-facets';
+
 export type ProductListingUrlParams = {
   q?: string;
   sort?: ProductListingSort;
   page?: number;
+  filters?: ProductListingFilters;
 };
 
 export function buildProductListingHref(
@@ -133,6 +139,12 @@ export function buildProductListingHref(
 
   if (params.page && params.page > 1) {
     searchParams.set('page', String(params.page));
+  }
+
+  for (const [key, value] of Object.entries(
+    serializeProductListingFilters(params.filters ?? { attributes: {} }),
+  )) {
+    searchParams.set(key, value);
   }
 
   const queryString = searchParams.toString();

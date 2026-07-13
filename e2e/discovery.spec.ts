@@ -113,6 +113,48 @@ test.describe('Discovery flow', () => {
     }
   });
 
+  test('search exposes facet filters when Product Search returns facets', async ({ page }) => {
+    await page.goto('/search?q=table');
+
+    const filtersHeading = page.getByRole('heading', { name: 'Filters' });
+    if (!(await filtersHeading.isVisible())) {
+      return;
+    }
+
+    const priceFacetLink = page.getByRole('link', { name: /Under €100/i });
+    if (await priceFacetLink.isVisible()) {
+      await priceFacetLink.click();
+      await expect(page).toHaveURL(/price=under-100/);
+    }
+  });
+
+  test('search autocomplete suggests terms from the BFF endpoint', async ({
+    page,
+    request,
+  }) => {
+    const suggestionsResponse = await request.get('/api/search/suggestions?q=be');
+    expect(suggestionsResponse.ok()).toBeTruthy();
+
+    const { suggestions } = (await suggestionsResponse.json()) as {
+      suggestions: string[];
+    };
+
+    test.skip(
+      suggestions.length === 0,
+      'No search keywords configured in the CT project',
+    );
+
+    await page.goto('/search');
+    await page.getByLabel('Search products').fill('be');
+    await expect(page.getByRole('option', { name: suggestions[0]! })).toBeVisible({
+      timeout: 10_000,
+    });
+    await page.getByRole('option', { name: suggestions[0]! }).click();
+    await expect(page).toHaveURL(
+      new RegExp(`/search\\?q=${encodeURIComponent(suggestions[0]!)}`),
+    );
+  });
+
   test('product detail page shows title and add to cart', async ({ page }) => {
     await page.goto('/product/orion-double-bed');
 

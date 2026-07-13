@@ -16,7 +16,17 @@ import {
   type StorefrontProductDetail,
 } from './product-mappers';
 import type { ProductListingSort } from './product-listing-params';
+import {
+  buildProductSearchFacetDefinitions,
+  combineProductSearchQuery,
+  EMPTY_PRODUCT_LISTING_FILTERS,
+  mapFacetResults,
+  sanitizeProductListingFilters,
+  type ProductListingFilters,
+  type StorefrontFacet,
+} from './product-search-facets';
 import { buildProductSearchSort } from './product-search-sort';
+import { getSearchableAttributeFacetConfigsForQuery } from './searchable-product-attributes';
 
 export type {
   StorefrontProduct,
@@ -24,6 +34,7 @@ export type {
   StorefrontProductVariant,
 } from './product-mappers';
 export type { ProductListingSort } from './product-listing-params';
+export type { ProductListingFilters, StorefrontFacet } from './product-search-facets';
 
 type ListProductsOptions = {
   limit?: number;
@@ -33,6 +44,14 @@ type ListProductsOptions = {
   query?: string;
   categoryId?: string;
   sort?: ProductListingSort;
+  filters?: ProductListingFilters;
+};
+
+type ProductSearchResult = {
+  ids: string[];
+  total: number;
+  facets: StorefrontFacet[];
+  filters: ProductListingFilters;
 };
 
 function reorderProjectionsByIds(
@@ -73,14 +92,33 @@ async function fetchProjectionsForIds(
 }
 
 async function searchProducts(
-  query: Record<string, unknown>,
+  baseQuery: Record<string, unknown>,
   options: {
     limit: number;
     offset: number;
     sort: ProductListingSort;
     currency: string;
+    locale: string;
+    contextKey: string;
+    filters?: ProductListingFilters;
   },
-): Promise<{ ids: string[]; total: number }> {
+): Promise<ProductSearchResult> {
+  const attributeConfigs = await getSearchableAttributeFacetConfigsForQuery(
+    options.locale,
+    options.contextKey,
+    baseQuery,
+  );
+  const filters = sanitizeProductListingFilters(
+    options.filters ?? EMPTY_PRODUCT_LISTING_FILTERS,
+    attributeConfigs,
+  );
+  const query = combineProductSearchQuery(
+    baseQuery,
+    filters,
+    attributeConfigs,
+    options.currency,
+  );
+
   const searchResponse = await apiRoot
     .products()
     .search()
@@ -90,6 +128,10 @@ async function searchProducts(
         limit: options.limit,
         offset: options.offset,
         sort: buildProductSearchSort(options.sort, options.currency),
+        facets: buildProductSearchFacetDefinitions(
+          attributeConfigs,
+          options.currency,
+        ),
       },
     })
     .execute();
@@ -97,6 +139,8 @@ async function searchProducts(
   return {
     ids: searchResponse.body.results.map((result) => result.id),
     total: searchResponse.body.total ?? searchResponse.body.results.length,
+    facets: mapFacetResults(searchResponse.body.facets, attributeConfigs),
+    filters,
   };
 }
 
@@ -107,23 +151,70 @@ async function searchProductsByCategory(
     offset: number;
     sort: ProductListingSort;
     currency: string;
+    locale: string;
+    filters?: ProductListingFilters;
   },
-): Promise<{ ids: string[]; total: number }> {
-  return searchProducts(
-    {
-      exact: {
-        field: 'categoriesSubTree',
-        fieldType: 'keyword',
-        value: categoryId,
-      },
+): Promise<ProductSearchResult> {
+  const baseQuery = {
+    exact: {
+      field: 'categoriesSubTree',
+      fieldType: 'keyword',
+      value: categoryId,
     },
-    options,
-  );
+  };
+
+  return searchProducts(baseQuery, {
+    ...options,
+    contextKey: `category:${categoryId}`,
+  });
+}
+
+async function mapSearchResultsToProducts(
+  searchResult: ProductSearchResult,
+  options: {
+    limit: number;
+    locale: string;
+    currency: string;
+  },
+): Promise<{
+  products: StorefrontProduct[];
+  total: number;
+  facets: StorefrontFacet[];
+  filters: ProductListingFilters;
+}> {
+  if (searchResult.ids.length === 0) {
+    return {
+      products: [],
+      total: searchResult.total,
+      facets: searchResult.facets,
+      filters: searchResult.filters,
+    };
+  }
+
+  const projections = await fetchProjectionsForIds(searchResult.ids, {
+    limit: options.limit,
+    locale: options.locale,
+  });
+  const products = projections
+    .map((projection) => mapProjection(projection, options.locale, options.currency))
+    .filter((product): product is StorefrontProduct => product !== null);
+
+  return {
+    products,
+    total: searchResult.total,
+    facets: searchResult.facets,
+    filters: searchResult.filters,
+  };
 }
 
 export async function listProducts(
   options?: ListProductsOptions,
-): Promise<{ products: StorefrontProduct[]; total: number }> {
+): Promise<{
+  products: StorefrontProduct[];
+  total: number;
+  facets: StorefrontFacet[];
+  filters: ProductListingFilters;
+}> {
   const limit = options?.limit ?? 12;
   const offset = options?.offset ?? 0;
   const { locale, currency } = getCatalogContext();
@@ -131,57 +222,49 @@ export async function listProducts(
   const resolvedCurrency = options?.currency ?? currency;
   const query = options?.query?.trim();
   const categoryId = options?.categoryId;
+  const filters = options?.filters;
 
   if (categoryId) {
-    const { ids, total } = await searchProductsByCategory(categoryId, {
+    const searchResult = await searchProductsByCategory(categoryId, {
       limit,
       offset,
       sort: options?.sort ?? 'newest',
       currency: resolvedCurrency,
+      locale: resolvedLocale,
+      filters,
     });
 
-    if (ids.length === 0) {
-      return { products: [], total };
-    }
-
-    const projections = await fetchProjectionsForIds(ids, { limit, locale: resolvedLocale });
-    const products = projections
-      .map((projection) => mapProjection(projection, resolvedLocale, resolvedCurrency))
-      .filter((product): product is StorefrontProduct => product !== null);
-
-    return { products, total };
+    return mapSearchResultsToProducts(searchResult, {
+      limit,
+      locale: resolvedLocale,
+      currency: resolvedCurrency,
+    });
   }
 
   if (query) {
-    const { ids, total } = await searchProducts(
-      {
-        fullText: {
-          field: 'name',
-          language: resolvedLocale,
-          value: query,
-        },
+    const baseQuery = {
+      fullText: {
+        field: 'name',
+        language: resolvedLocale,
+        value: query,
       },
-      {
-        limit,
-        offset,
-        sort: options?.sort ?? 'relevance',
-        currency: resolvedCurrency,
-      },
-    );
-
-    if (ids.length === 0) {
-      return { products: [], total };
-    }
-
-    const projections = await fetchProjectionsForIds(ids, { limit, locale: resolvedLocale });
-    const products = projections
-      .map((projection) => mapProjection(projection, resolvedLocale, resolvedCurrency))
-      .filter((product): product is StorefrontProduct => product !== null);
-
-    return {
-      products,
-      total,
     };
+
+    const searchResult = await searchProducts(baseQuery, {
+      limit,
+      offset,
+      sort: options?.sort ?? 'relevance',
+      currency: resolvedCurrency,
+      locale: resolvedLocale,
+      contextKey: `search:${resolvedLocale}:${query}`,
+      filters,
+    });
+
+    return mapSearchResultsToProducts(searchResult, {
+      limit,
+      locale: resolvedLocale,
+      currency: resolvedCurrency,
+    });
   }
 
   const projectionsResponse = await apiRoot
@@ -206,6 +289,8 @@ export async function listProducts(
   return {
     products,
     total: projectionsResponse.body.total ?? products.length,
+    facets: [],
+    filters: EMPTY_PRODUCT_LISTING_FILTERS,
   };
 }
 
@@ -213,11 +298,21 @@ export async function listNewArrivalProducts(options?: {
   limit?: number;
   locale?: string;
   currency?: string;
-}): Promise<{ products: StorefrontProduct[]; total: number }> {
+}): Promise<{
+  products: StorefrontProduct[];
+  total: number;
+  facets: StorefrontFacet[];
+  filters: ProductListingFilters;
+}> {
   const category = await getCategoryByKey('new-arrivals');
 
   if (!category) {
-    return { products: [], total: 0 };
+    return {
+      products: [],
+      total: 0,
+      facets: [],
+      filters: EMPTY_PRODUCT_LISTING_FILTERS,
+    };
   }
 
   return listProducts({

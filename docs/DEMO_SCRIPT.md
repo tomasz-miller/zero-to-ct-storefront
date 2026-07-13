@@ -34,10 +34,12 @@ Demonstrates the core B2C path: discover → cart → checkout → order confirm
 
 1. Open the **homepage** (`/`).
 2. Point out the **Best Sellers** grid — live data from commercetools Product Projections (117 products in B2C sample data).
-3. Use **search** (header): type `bed` and submit.
-4. Open a product from search results (e.g. a bed or mattress).
+3. Use **search** (`/search`): type `bed` and watch **autocomplete suggestions** (Search Term Suggestions API).
+4. Submit search or pick a suggestion to open results.
+5. On the results page, refine with **facet filters** (price, color, brand when present in sample data).
+6. Open a product from search results (e.g. a bed or mattress).
 
-**Talking point:** Full-text search uses the **Product Search API** via a Next.js BFF — no commercetools credentials in the browser.
+**Talking point:** Full-text search and **faceted filters** use the **Product Search API** via a Next.js BFF — no commercetools credentials in the browser. Autocomplete uses **Search Term Suggestions** from product `searchKeywords`.
 
 ### 2. Add to cart
 
@@ -126,13 +128,14 @@ Demonstrates customer auth, cart merge, and order history.
 
 ## Known limitations (honest demo close)
 
-Refer to [ROADMAP.md](./ROADMAP.md) Phase 4+ for planned work:
+Refer to [ROADMAP.md](./ROADMAP.md) Phase 5+ for planned work:
 
-- No **category navigation** or faceted filters yet
 - No **wishlist** / shopping lists
+- No **Quick View** on listing pages
 - No **multi-country switcher** in UI (env-driven `DE` / `EUR` defaults)
 - **Best sellers** use a catalog heuristic (not real sales ranking)
 - **Order detail page** not implemented (`/account` shows list only)
+- **Brand facet** only appears when `variants.attributes.brand` exists in the CT project
 
 These gaps are intentional PoC scope — the roadmap shows how to extend toward full B2C Retail parity.
 
