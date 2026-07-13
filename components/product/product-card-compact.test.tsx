@@ -55,4 +55,17 @@ describe('ProductCardCompact', () => {
     renderCard({ ...product, sku: undefined });
     expect(screen.getByRole('button', { name: /add to cart/i })).toBeDisabled();
   });
+
+  it('truncates long product names to two lines', () => {
+    renderCard({
+      ...product,
+      name: 'Nala Two-Seater Sofa With Extra Long Descriptive Product Name',
+    });
+
+    const title = screen.getByText(
+      /Nala Two-Seater Sofa With Extra Long Descriptive Product Name/i,
+    );
+    expect(title).toHaveClass('line-clamp-2');
+    expect(title).toHaveClass('min-h-11');
+  });
 });

@@ -8,6 +8,7 @@ import { CartProvider } from '@/components/cart/cart-context';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { SiteHeader } from '@/components/layout/site-header';
 import { ThemeProvider } from '@/components/theme-provider';
+import { getNavigationCategories } from '@/lib/commercetools/categories';
 import { getStoreBrandConfig } from '@/lib/store-brand';
 import { cn } from '@/lib/utils';
 
@@ -26,11 +27,19 @@ export const metadata = {
     'Minimal B2C storefront on commercetools — built with Next.js, coss ui, and the TypeScript SDK.',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let categories: Awaited<ReturnType<typeof getNavigationCategories>> = [];
+
+  try {
+    categories = await getNavigationCategories();
+  } catch (error) {
+    console.error('[layout] Failed to load navigation categories', error);
+  }
+
   return (
     <html
       lang="en"
@@ -43,7 +52,7 @@ export default function RootLayout({
             <AuthProvider>
               <CartProvider>
                 <div className="flex min-h-svh flex-col bg-background">
-                  <SiteHeader />
+                  <SiteHeader categories={categories} />
                   {children}
                   <SiteFooter />
                 </div>

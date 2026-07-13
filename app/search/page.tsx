@@ -1,4 +1,4 @@
-import { ProductGrid } from '@/components/product/product-grid';
+import { ProductGridCompact } from '@/components/product/product-grid-compact';
 import { SearchForm } from '@/components/search/search-form';
 import { listProducts } from '@/lib/commercetools/products';
 
@@ -32,7 +32,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <p className="text-sm text-muted-foreground">
             {total} result{total === 1 ? '' : 's'} for &ldquo;{query}&rdquo;
           </p>
-          <ProductGrid products={products} />
+          <ProductGridCompact products={products} />
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">

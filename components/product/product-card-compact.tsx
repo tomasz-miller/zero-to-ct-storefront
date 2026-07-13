@@ -11,10 +11,10 @@ type ProductCardCompactProps = {
 
 export function ProductCardCompact({ product }: ProductCardCompactProps) {
   return (
-    <article className="group flex flex-col gap-2 rounded-xl border bg-card p-3 shadow-xs/5 transition-colors hover:bg-accent/30">
+    <article className="group flex h-full flex-col gap-2 rounded-xl border bg-card p-3 shadow-xs/5 transition-colors hover:bg-accent/30">
       <Link
         href={`/product/${product.slug}`}
-        className="flex min-w-0 flex-col gap-2"
+        className="flex min-h-0 flex-1 flex-col gap-2"
       >
         <div className="aspect-square overflow-hidden rounded-lg bg-muted">
           {product.imageUrl ? (
@@ -32,11 +32,11 @@ export function ProductCardCompact({ product }: ProductCardCompactProps) {
             </div>
           )}
         </div>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <p className="line-clamp-2 text-sm font-medium leading-snug">
+        <div className="flex min-h-0 flex-1 flex-col gap-0.5">
+          <p className="line-clamp-2 min-h-11 text-sm font-medium leading-snug">
             {product.name}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="shrink-0 text-xs text-muted-foreground">
             {product.price
               ? formatPrice(product.price.centAmount, product.price.currencyCode)
               : 'Price unavailable'}
@@ -47,7 +47,7 @@ export function ProductCardCompact({ product }: ProductCardCompactProps) {
         sku={product.sku ?? ''}
         disabled={!product.sku}
         size="sm"
-        className="w-full"
+        className="mt-auto w-full shrink-0"
       />
     </article>
   );

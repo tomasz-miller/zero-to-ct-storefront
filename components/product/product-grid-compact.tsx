@@ -13,7 +13,7 @@ export function ProductGridCompact({ products }: ProductGridCompactProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+    <div className="grid grid-cols-2 items-stretch gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
       {products.map((product) => (
         <ProductCardCompact key={product.id} product={product} />
       ))}

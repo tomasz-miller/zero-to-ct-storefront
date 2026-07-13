@@ -84,3 +84,10 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Milestone:** E2E cart/checkout (`e2e/cart-checkout.spec.ts`); unit tests for `POST /api/cart/items`; `docs/DEMO_SCRIPT.md`, `docs/TIME_REPORT.md`, `docs/DEPLOY.md`; updated ROADMAP, TESTING, AGENT_CODING.
 - **Agent vs manual:** ~95% agent
 - **Notes:** E2E stops at checkout embed load (no automated Stripe payment). Deploy to Vercel remains human step — see `docs/DEPLOY.md`.
+
+### 2026-07-13 — Phase 4 partial — category discovery slice
+- **Time:** 1h
+- **Phase:** phase-4-discovery
+- **Milestone:** Category module (`lib/commercetools/categories.ts`), `GET /api/categories`, `/category/[slug]` CLP via Product Search `categoriesSubTree`, header category navigation, homepage New Arrivals section, custom `app/not-found.tsx`; unit + E2E coverage.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Facets, sort, pagination UI, and search autocomplete remain planned for next slice. Deploy still human step per `docs/DEPLOY.md`.

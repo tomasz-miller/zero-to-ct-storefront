@@ -6,14 +6,20 @@ import { useEffect, useState } from 'react';
 
 import { CartNavLink } from '@/components/cart/cart-nav-link';
 import { AccountNav } from '@/components/auth/account-nav';
+import { CategoryNav } from '@/components/layout/category-nav';
 import { StoreBrand } from '@/components/layout/store-brand';
+import type { StorefrontCategory } from '@/lib/commercetools/categories';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const HEADER_HEIGHT = 64;
 const HEADER_HEIGHT_SCROLLED = 46;
 
-export function SiteHeader() {
+type SiteHeaderProps = {
+  categories?: StorefrontCategory[];
+};
+
+export function SiteHeader({ categories = [] }: SiteHeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -50,6 +56,7 @@ export function SiteHeader() {
             aria-label="Store navigation"
             className="flex items-center gap-1.5 sm:gap-2"
           >
+            <CategoryNav categories={categories} compact={isScrolled} />
             <Button
               variant="ghost"
               size="sm"

@@ -18,13 +18,20 @@ test.describe('API smoke', () => {
     expect(body.projectKey).toBeTruthy();
   });
 
-  test('GET /api/products returns product list', async ({ request }) => {
-    const response = await request.get('/api/products?limit=3');
+  test('GET /api/categories returns category tree', async ({ request }) => {
+    const response = await request.get('/api/categories');
     expect(response.ok()).toBeTruthy();
 
     const body = await response.json();
-    expect(Array.isArray(body.products)).toBe(true);
-    expect(body.products.length).toBeLessThanOrEqual(3);
-    expect(typeof body.total).toBe('number');
+    expect(Array.isArray(body.categories)).toBe(true);
+    expect(body.categories.length).toBeGreaterThan(0);
+    expect(body.categories[0]).toEqual(
+      expect.objectContaining({
+        id: expect.any(String),
+        name: expect.any(String),
+        slug: expect.any(String),
+        children: expect.any(Array),
+      }),
+    );
   });
 });

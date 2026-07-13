@@ -2,7 +2,7 @@
 
 Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on commercetools sample data. Complements [BUILD_LOG.md](../BUILD_LOG.md) (history) and [AGENT_CODING.md](./AGENT_CODING.md) (phases 0–3).
 
-**Last updated:** 2026-07-10 (Phase 3 partial)
+**Last updated:** 2026-07-13 (Phase 4 partial — category discovery + listing UI polish)
 
 ---
 
@@ -14,9 +14,10 @@ Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on comm
 | Phase 1 — Next.js scaffold | Done |
 | Phase 2 — Discovery, cart, checkout, auth | Done |
 | Phase 3 — Deploy, demo script, time report | **In progress** (E2E, docs done; deploy pending human) |
-| Phase 4+ — Feature expansion | Planned |
+| Phase 4 — Discovery completeness | **In progress** (category nav, CLP, New Arrivals, unified listing cards done; facets/sort/pagination/autocomplete pending) |
+| Phase 5+ — Feature expansion | Planned |
 
-The storefront covers the core B2C purchase path (browse → cart → checkout → account) but lacks several capabilities from the [commercetools B2C Retail demo flow](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail).
+The storefront covers the core B2C purchase path (browse → cart → checkout → account) and category-based discovery. It still lacks faceted search, sorting, pagination UI, and several capabilities from the [commercetools B2C Retail demo flow](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail).
 
 ---
 
@@ -28,18 +29,22 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 - **TypeScript SDK v3** (`ClientBuilder`) in [`lib/commercetools/`](../lib/commercetools/)
 - **coss ui** + Tailwind v4, dark/light theme (`next-themes`)
 - **CI** (`.github/workflows/ci.yml`): `lint`, `typecheck`, `test:unit`, `build` (with GitHub secrets)
-- **~72 unit tests** (Vitest) + **10 E2E tests** (Playwright: discovery + cart/checkout, local with `CTP_*`)
+- **~95 unit tests** (Vitest) + **12 E2E tests** (Playwright: discovery + cart/checkout + API smoke, local with `CTP_*`)
 
 ### Product discovery
 
 | Feature | Route / module | commercetools API |
 |---------|----------------|-------------------|
 | Homepage "Best Sellers" grid | `/` | Product Projections (catalog heuristic) |
-| Full-text search | `/search?q=` | [Product Search API](https://docs.commercetools.com/api/projects/product-search) |
+| Homepage "New Arrivals" grid | `/` | [Product Search](https://docs.commercetools.com/api/projects/product-search) (`categoriesSubTree`) |
+| Category navigation (nested menu) | header `CategoryNav` | [Categories API](https://docs.commercetools.com/api/projects/categories) |
+| Category Listing Page | `/category/[slug]` | Product Search (`categoriesSubTree`) + Product Projections |
+| Full-text search | `/search?q=` | Product Search API |
 | Product Detail Page (images, variants) | `/product/[slug]` | Product Projections |
-| Inline add-to-cart on cards | product cards | — |
+| Unified compact product cards + add-to-cart | `ProductCardCompact` on `/`, `/search`, `/category/[slug]` | — |
+| Custom not-found page | `app/not-found.tsx` | — |
 
-> Best sellers use a catalog heuristic (oldest products, excluding new-arrivals category) because the Orders API requires `view_orders` scope.
+> Best sellers use a catalog heuristic (oldest products, excluding new-arrivals category) because the Orders API requires `view_orders` scope. Category listings use Product Search with `categoriesSubTree` and preserve search result order when fetching projections.
 
 ### Cart and checkout
 
@@ -65,17 +70,18 @@ See [CUSTOMER_AUTH.md](./CUSTOMER_AUTH.md) for architecture and scopes.
 
 ### Shell UX
 
-- Fixed header: search, account menu, cart badge
+- Fixed header: category menu, search, account menu, cart badge
 - Footer with navigation links
 - Configurable store branding (`NEXT_PUBLIC_STORE_NAME`)
-- Locale/country: env-driven defaults (`de-DE` / `DE` / `EUR`)
+- Catalog copy in `en-GB`; purchase defaults `en-GB` / `DE` / `EUR` (see `storefront-context.ts`)
 
-### BFF API endpoints (14 route files)
+### BFF API endpoints (15 route files)
 
 | Endpoint | Methods |
 |----------|---------|
 | `/api/health` | GET |
 | `/api/products` | GET |
+| `/api/categories` | GET |
 | `/api/cart` | GET |
 | `/api/cart/items` | POST |
 | `/api/cart/items/[lineItemId]` | PATCH, DELETE |
@@ -94,6 +100,7 @@ See [CUSTOMER_AUTH.md](./CUSTOMER_AUTH.md) for architecture and scopes.
 flowchart LR
   subgraph implemented [Implemented]
     Discovery[Discovery]
+    Categories[Category Nav + CLP]
     Cart[Guest Cart]
     Checkout[CT Checkout]
     Auth[Customer Auth]
@@ -102,12 +109,15 @@ flowchart LR
   subgraph ct [commercetools APIs]
     PS[Product Search]
     PP[Product Projections]
+    Cats[Categories API]
     Carts[Carts API]
     Sessions[Checkout Sessions]
     Customers[Customers / Me]
   end
   Discovery --> PS
   Discovery --> PP
+  Categories --> Cats
+  Categories --> PS
   Cart --> Carts
   Checkout --> Sessions
   Auth --> Customers
@@ -122,7 +132,10 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 
 | CT reference capability | Project status |
 |-------------------------|----------------|
-| Category navigation + Category Listing Page with filters | Missing (`/category/[slug]`) |
+| Category navigation + Category Listing Page | **Partial** — nav, CLP, unified cards; filters pending |
+| New Arrivals homepage section | Done |
+| Unified product listing cards (homepage, search, category) | Done |
+| Custom not-found page | Done |
 | Search suggestions / autocomplete | Missing |
 | Faceted filters (price, attributes) | Missing |
 | Sorting and pagination on listings | Missing |
@@ -147,7 +160,7 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 |---------|--------|--------|-----------------|--------------|
 | Deploy (Vercel/Netlify) | planned (human) | — | — | CT AI plugin `/deploy-vercel`; see [DEPLOY.md](./DEPLOY.md) |
 | Sales demo script | done | — | [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) | — |
-| Time report | done (draft) | — | [TIME_REPORT.md](./TIME_REPORT.md) | `BUILD_LOG.md` entries |
+| Time report | done | — | [TIME_REPORT.md](./TIME_REPORT.md) | `BUILD_LOG.md` entries |
 | E2E: add-to-cart + checkout | done | Carts, Checkout Sessions | `e2e/cart-checkout.spec.ts` | Local `CTP_*` credentials |
 | CI `pnpm build` job | done | — | `.github/workflows/ci.yml` | GitHub secrets for `CTP_*` |
 
@@ -161,16 +174,17 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 
 | Feature | Status | CT API | Suggested files | Dependencies |
 |---------|--------|--------|-----------------|--------------|
-| Category tree in navigation | planned | [Categories API](https://docs.commercetools.com/api/projects/categories) | `lib/commercetools/categories.ts`, `components/layout/site-header.tsx` | — |
-| Category Listing Page `/category/[slug]` | planned | [Product Search](https://docs.commercetools.com/api/projects/product-search) | `app/category/[slug]/page.tsx`, `/api/categories` | Categories module |
+| Category tree in navigation | done | [Categories API](https://docs.commercetools.com/api/projects/categories) | `lib/commercetools/categories.ts`, `components/layout/site-header.tsx` | — |
+| Category Listing Page `/category/[slug]` | done | [Product Search](https://docs.commercetools.com/api/projects/product-search) | `app/category/[slug]/page.tsx`, `/api/categories` | Categories module |
 | Faceted filters (price, color, brand) | planned | [Product Search faceting](https://docs.commercetools.com/api/storefront-search-overview#faceting) | search + category pages | Product Search |
 | Sorting (price, newest) | planned | Product Search `sort` | listing components | — |
 | Pagination | planned | `limit` + `offset` | search, category pages | — |
 | Search autocomplete | planned | [Search Term Suggestions API](https://docs.commercetools.com/api/projects/search-term-suggestions) | `components/search/search-form.tsx`, `/api/search/suggestions` | — |
-| New Arrivals section on homepage | planned | Categories + Product Search | `app/page.tsx` | Categories module |
-| Custom `not-found` page | planned | — | `app/not-found.tsx` | — |
+| New Arrivals section on homepage | done | Categories + Product Search | `app/page.tsx` | Categories module |
+| Unified product listing cards | done | — | `components/product/product-card-compact.tsx`, `product-grid-compact.tsx` | Used on `/`, `/search`, `/category/[slug]` |
+| Custom `not-found` page | done | — | `app/not-found.tsx` | — |
 
-**Effort:** M–L | **Value:** High (full discovery flow)
+**Effort:** M–L (slice 1 done) | **Value:** High (full discovery flow)
 
 > Use **Product Search API** for new listing code (project convention in [AGENT_CODING.md](./AGENT_CODING.md)), not Product Projection Search.
 
@@ -261,9 +275,10 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| SDK middleware (correlation ID, concurrent modification) | planned | Mentioned in [TECH_STACK.md](./TECH_STACK.md) |
+| SDK middleware (concurrent modification) | done | `withConcurrentModificationMiddleware()` in `lib/commercetools/client.ts` |
+| SDK middleware (correlation ID) | planned | Mentioned in [TECH_STACK.md](./TECH_STACK.md) |
 | E2E auth + account flows | planned | Playwright |
-| Cart/checkout unit tests | planned | `cart-mappers`, route handlers |
+| Cart/checkout unit tests | partial | `POST /api/cart/items` covered; `cart-mappers` and other routes pending |
 | `commerce-mcp` integration | future | Live project API from agents |
 | Commerce MCP shopping assistant | future | Explicit non-goal for PoC |
 
@@ -278,7 +293,10 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 | Deploy + demo script | P0 | S | partial (deploy pending) | — |
 | E2E checkout flow | P0 | S | done | Carts, Checkout Sessions |
 | CI production build | P0 | S | done | — |
-| Category pages + navigation | P1 | M | planned | Categories, Product Search |
+| Category pages + navigation | P1 | M | **partial** (nav, CLP, cards done; facets pending) | Categories, Product Search |
+| New Arrivals homepage section | P1 | S | **done** | Categories, Product Search |
+| Unified listing product cards | P1 | S | **done** | — |
+| Custom not-found page | P1 | S | **done** | — |
 | Search facets, sort, pagination | P1 | M | planned | Product Search |
 | Search autocomplete | P1 | S | planned | Search Term Suggestions |
 | Order detail page | P2 | S | planned | `GET /me/orders/{id}` |
@@ -289,6 +307,10 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 | Multi-market switcher | P4 | L | future | Price selection, Stores |
 | Commerce MCP assistant | — | L | future | — |
 | Homepage bestsellers | — | — | **done** | Product Projections |
+| Homepage new arrivals | — | — | **done** | Product Search |
+| Category navigation + CLP | — | — | **partial** | Categories, Product Search |
+| Unified listing cards | — | — | **done** | — |
+| Custom not-found | — | — | **done** | — |
 | Full-text search | — | — | **done** | Product Search |
 | PDP with variants | — | — | **done** | Product Projections |
 | Guest cart CRUD | — | — | **done** | Carts API |
@@ -320,15 +342,17 @@ quadrantChart
 
 ### Recommended implementation order
 
-1. **Phase 3** — Demo readiness (P0)
-2. **Phase 4** — Category pages + navigation (P1)
-3. **Phase 4** — Search facets, sort, pagination (P1)
+1. **Phase 3** — Demo readiness (P0) — deploy remains human step
+2. **Phase 4** — Search facets, sort, pagination (P1) — next slice
+3. **Phase 4** — Search autocomplete (P1)
 4. **Phase 5** — Order detail + account polish (P2)
 5. **Phase 6** — Wishlist (P2)
 6. **Phase 7** — Discount codes + promotion display (P3)
 7. **Phase 8** — Inventory availability (P3)
 8. **Phase 9** — Multi-market (P4, post-PoC)
 9. **Phase 10** — Agentic commerce assistant (Future)
+
+**Phase 4 slice 1 (done):** category module, `/api/categories`, header category nav, `/category/[slug]`, New Arrivals, custom `not-found`, unified `ProductCardCompact` listings, review hardening (layout fallback, slug validation, paginated category fetch).
 
 ---
 
@@ -369,7 +393,7 @@ The following remain **out of scope** for this PoC (see [AGENT_CODING.md](./AGEN
 - [CUSTOMER_AUTH.md](./CUSTOMER_AUTH.md) — auth architecture
 - [TESTING.md](./TESTING.md) — test strategy
 - [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) — sales demo script
-- [TIME_REPORT.md](./TIME_REPORT.md) — time summary (draft)
+- [TIME_REPORT.md](./TIME_REPORT.md) — time summary (estimated)
 - [DEPLOY.md](./DEPLOY.md) — deployment guide
 
 ---
