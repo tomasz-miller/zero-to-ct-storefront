@@ -96,6 +96,23 @@ test.describe('Discovery flow', () => {
     await expect(page.locator('a[href^="/product/"]').first()).toBeVisible();
   });
 
+  test('search supports URL-driven sort and pagination', async ({ page }) => {
+    await page.goto('/search?q=bed&sort=price-asc&page=1');
+
+    await expect(page.getByRole('link', { name: 'Price: low to high' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    await expect(page.getByText(/Showing 1–/)).toBeVisible();
+    await expect(page.locator('a[href^="/product/"]').first()).toBeVisible();
+
+    const nextPageLink = page.getByRole('link', { name: '2' });
+    if (await nextPageLink.isVisible()) {
+      await nextPageLink.click();
+      await expect(page).toHaveURL(/\/search\?q=bed&sort=price-asc&page=2/);
+    }
+  });
+
   test('product detail page shows title and add to cart', async ({ page }) => {
     await page.goto('/product/orion-double-bed');
 

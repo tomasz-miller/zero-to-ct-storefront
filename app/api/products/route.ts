@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import {
+  getDefaultProductListingSort,
+  parseProductListingSort,
+} from '@/lib/commercetools/product-listing-params';
 import { getCatalogContext } from '@/lib/commercetools/storefront-context';
 import { listProducts } from '@/lib/commercetools/products';
 
@@ -12,6 +16,13 @@ export async function GET(request: NextRequest) {
   const locale = searchParams.get('locale') ?? catalogLocale;
   const currency = searchParams.get('currency') ?? catalogCurrency;
   const query = searchParams.get('q') ?? undefined;
+  const listingMode = query ? 'search' : 'category';
+  const defaultSort = getDefaultProductListingSort(listingMode);
+  const sort = parseProductListingSort(
+    searchParams.get('sort') ?? undefined,
+    defaultSort,
+    listingMode,
+  );
 
   try {
     const result = await listProducts({
@@ -20,6 +31,7 @@ export async function GET(request: NextRequest) {
       locale,
       currency,
       query,
+      sort,
     });
 
     return NextResponse.json(result);

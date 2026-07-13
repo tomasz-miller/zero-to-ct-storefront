@@ -91,3 +91,10 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Milestone:** Category module (`lib/commercetools/categories.ts`), `GET /api/categories`, `/category/[slug]` CLP via Product Search `categoriesSubTree`, header category navigation, homepage New Arrivals section, custom `app/not-found.tsx`; unit + E2E coverage.
 - **Agent vs manual:** ~95% agent
 - **Notes:** Facets, sort, pagination UI, and search autocomplete remain planned for next slice. Deploy still human step per `docs/DEPLOY.md`.
+
+### 2026-07-13 — Phase 4 slice 2a — listing sort + pagination
+- **Time:** 1h
+- **Phase:** phase-4-discovery
+- **Milestone:** Product Search sort (`relevance`, `newest`, `price-asc`, `price-desc`) in `lib/commercetools/products.ts`; URL params `?sort=` and `?page=` on `/search` and `/category/[slug]`; shared `ProductListingControls` (sort toolbar + bottom pagination); BFF `sort` on `/api/products`; code-review fixes (page clamp/redirect, CT offset cap, category relevance guard, a11y); unit + E2E coverage.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Facets and search autocomplete remain next Phase 4 slices. Production deploy still pending (human) — follow `docs/DEPLOY.md` post-deploy checklist before sales demos.

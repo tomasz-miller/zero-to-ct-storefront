@@ -36,15 +36,21 @@ describe('GET /api/products', () => {
     expect(response.status).toBe(200);
     expect(body.products).toHaveLength(1);
     expect(listProducts).toHaveBeenCalledWith(
-      expect.objectContaining({ locale: 'en-GB', currency: 'EUR', limit: 12, offset: 0 }),
+      expect.objectContaining({
+        locale: 'en-GB',
+        currency: 'EUR',
+        limit: 12,
+        offset: 0,
+        sort: 'newest',
+      }),
     );
   });
 
-  it('passes search query and pagination params', async () => {
+  it('passes search query, pagination, and sort params', async () => {
     listProducts.mockResolvedValue({ products: [], total: 0 });
 
     const request = new NextRequest(
-      'http://localhost:3000/api/products?q=bed&limit=5&offset=10&locale=de-DE&currency=EUR',
+      'http://localhost:3000/api/products?q=bed&limit=5&offset=10&sort=price-desc&locale=de-DE&currency=EUR',
     );
     await GET(request);
 
@@ -54,6 +60,7 @@ describe('GET /api/products', () => {
       locale: 'de-DE',
       currency: 'EUR',
       query: 'bed',
+      sort: 'price-desc',
     });
   });
 

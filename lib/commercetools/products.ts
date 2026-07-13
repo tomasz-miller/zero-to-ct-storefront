@@ -15,12 +15,15 @@ import {
   type StorefrontProduct,
   type StorefrontProductDetail,
 } from './product-mappers';
+import type { ProductListingSort } from './product-listing-params';
+import { buildProductSearchSort } from './product-search-sort';
 
 export type {
   StorefrontProduct,
   StorefrontProductDetail,
   StorefrontProductVariant,
 } from './product-mappers';
+export type { ProductListingSort } from './product-listing-params';
 
 type ListProductsOptions = {
   limit?: number;
@@ -29,6 +32,7 @@ type ListProductsOptions = {
   currency?: string;
   query?: string;
   categoryId?: string;
+  sort?: ProductListingSort;
 };
 
 function reorderProjectionsByIds(
@@ -68,11 +72,13 @@ async function fetchProjectionsForIds(
   return reorderProjectionsByIds(projectionsResponse.body.results, ids);
 }
 
-async function searchProductsByCategory(
-  categoryId: string,
+async function searchProducts(
+  query: Record<string, unknown>,
   options: {
     limit: number;
     offset: number;
+    sort: ProductListingSort;
+    currency: string;
   },
 ): Promise<{ ids: string[]; total: number }> {
   const searchResponse = await apiRoot
@@ -80,16 +86,10 @@ async function searchProductsByCategory(
     .search()
     .post({
       body: {
-        query: {
-          exact: {
-            field: 'categoriesSubTree',
-            fieldType: 'keyword',
-            value: categoryId,
-          },
-        },
+        query,
         limit: options.limit,
         offset: options.offset,
-        sort: [{ field: 'createdAt', order: 'desc' }],
+        sort: buildProductSearchSort(options.sort, options.currency),
       },
     })
     .execute();
@@ -98,6 +98,27 @@ async function searchProductsByCategory(
     ids: searchResponse.body.results.map((result) => result.id),
     total: searchResponse.body.total ?? searchResponse.body.results.length,
   };
+}
+
+async function searchProductsByCategory(
+  categoryId: string,
+  options: {
+    limit: number;
+    offset: number;
+    sort: ProductListingSort;
+    currency: string;
+  },
+): Promise<{ ids: string[]; total: number }> {
+  return searchProducts(
+    {
+      exact: {
+        field: 'categoriesSubTree',
+        fieldType: 'keyword',
+        value: categoryId,
+      },
+    },
+    options,
+  );
 }
 
 export async function listProducts(
@@ -112,7 +133,12 @@ export async function listProducts(
   const categoryId = options?.categoryId;
 
   if (categoryId) {
-    const { ids, total } = await searchProductsByCategory(categoryId, { limit, offset });
+    const { ids, total } = await searchProductsByCategory(categoryId, {
+      limit,
+      offset,
+      sort: options?.sort ?? 'newest',
+      currency: resolvedCurrency,
+    });
 
     if (ids.length === 0) {
       return { products: [], total };
@@ -127,27 +153,24 @@ export async function listProducts(
   }
 
   if (query) {
-    const searchResponse = await apiRoot
-      .products()
-      .search()
-      .post({
-        body: {
-          query: {
-            fullText: {
-              field: 'name',
-              language: resolvedLocale,
-              value: query,
-            },
-          },
-          limit,
-          offset,
+    const { ids, total } = await searchProducts(
+      {
+        fullText: {
+          field: 'name',
+          language: resolvedLocale,
+          value: query,
         },
-      })
-      .execute();
+      },
+      {
+        limit,
+        offset,
+        sort: options?.sort ?? 'relevance',
+        currency: resolvedCurrency,
+      },
+    );
 
-    const ids = searchResponse.body.results.map((result) => result.id);
     if (ids.length === 0) {
-      return { products: [], total: searchResponse.body.total ?? 0 };
+      return { products: [], total };
     }
 
     const projections = await fetchProjectionsForIds(ids, { limit, locale: resolvedLocale });
@@ -157,7 +180,7 @@ export async function listProducts(
 
     return {
       products,
-      total: searchResponse.body.total ?? products.length,
+      total,
     };
   }
 

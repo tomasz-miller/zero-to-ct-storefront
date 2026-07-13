@@ -125,6 +125,54 @@ describe('listProducts', () => {
     ]);
     expect(result.total).toBe(2);
   });
+
+  it('passes sort and pagination to Product Search for queries', async () => {
+    const postMock = vi.fn(() => ({ execute: mockExecute }));
+    mockApiRoot.products.mockReturnValue({
+      search: vi.fn(() => ({ post: postMock })),
+    });
+
+    mockExecute
+      .mockResolvedValueOnce({
+        body: {
+          results: [{ id: 'prod-1' }],
+          total: 1,
+        },
+      })
+      .mockResolvedValueOnce({
+        body: {
+          results: [createProductProjection()],
+        },
+      });
+
+    await listProducts({
+      query: 'bed',
+      limit: 24,
+      offset: 24,
+      sort: 'price-asc',
+      currency: 'EUR',
+    });
+
+    expect(postMock).toHaveBeenCalledWith({
+      body: expect.objectContaining({
+        limit: 24,
+        offset: 24,
+        sort: [
+          {
+            field: 'variants.prices.centAmount',
+            order: 'asc',
+            mode: 'min',
+            filter: {
+              exact: {
+                field: 'variants.prices.currencyCode',
+                value: 'EUR',
+              },
+            },
+          },
+        ],
+      }),
+    });
+  });
 });
 
 describe('listNewArrivalProducts', () => {

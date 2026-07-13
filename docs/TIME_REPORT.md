@@ -28,7 +28,7 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | 2026-07-08 | 13:26 | 16:00 | 8 |
 | 2026-07-09 | — | — | 0 (MC/Stripe setup per BUILD_LOG) |
 | 2026-07-10 | 12:52 | 14:50+ | 5 (+ uncommitted Phase 3 work) |
-| 2026-07-13 | — | — | 0 (Phase 4 category slice + polish per BUILD_LOG; user-reported 2h) |
+| 2026-07-13 | — | — | 0 (Phase 4 category slice + listing sort/pagination per BUILD_LOG; user-reported 3h) |
 
 ### Daily totals
 
@@ -37,8 +37,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | 2026-07-08 | Full day: morning MC/docs (no commits) + afternoon commits 13:26–16:00 → 9:00–17:00 minus 1h lunch | **7h** |
 | 2026-07-09 | No commits; BUILD_LOG Stripe/Connect/MC manual work → full day estimate | **7h** |
 | 2026-07-10 | Partial day: first commit 12:52 (post-lunch) through ~17:00 incl. Phase 3 docs/tests | **4h** |
-| 2026-07-13 | Phase 4 category discovery slice + review fixes and listing UI polish (user-reported) | **2h** |
-| **Total** | | **20h** |
+| 2026-07-13 | Phase 4 category discovery slice + listing sort/pagination (user-reported) | **3h** |
+| **Total** | | **21h** |
 
 ---
 
@@ -47,7 +47,7 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Metric | Value |
 |--------|-------|
 | Project duration | 4 working days (2026-07-08 → 2026-07-13) |
-| Total estimated time | **20h** net |
+| Total estimated time | **21h** net |
 | Current phase | phase-3-demo (deploy pending); phase-4-discovery partial |
 | Developer profile | Backend-focused, agent-assisted (Cursor + commercetools AI plugin) |
 | Agent contribution | ~85–95% of storefront code; human owns CT project, Stripe/Connect, MC config |
@@ -69,7 +69,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-2-core | 2026-07-10 | Product roadmap (`docs/ROADMAP.md`) | ~95% agent | 0.5h |
 | phase-3-demo | 2026-07-10 | E2E cart/checkout, demo script, time report, deploy docs | ~95% agent | 1.5h |
 | phase-4-discovery | 2026-07-13 | Category module, CLP, header nav, New Arrivals, custom 404; code review fixes; unified product listing cards; 95 unit + 12 E2E tests | ~95% agent | 2h |
-| **Total** | | | ~80% agent / ~20% manual | **20h** |
+| phase-4-discovery | 2026-07-13 | Listing sort + pagination on `/search` and `/category/[slug]`; code-review hardening; 110+ unit + 13 E2E tests | ~95% agent | 1h |
+| **Total** | | | ~80% agent / ~20% manual | **21h** |
 
 ---
 
@@ -81,8 +82,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-1-scaffold | 2h | 10% |
 | phase-2-core | 12h | 60% |
 | phase-3-demo | 1.5h | 8% |
-| phase-4-discovery | 2h | 10% |
-| **Total** | **20h** | 100% |
+| phase-4-discovery | 3h | 14% |
+| **Total** | **21h** | 100% |
 
 ---
 
@@ -93,10 +94,11 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Working B2C storefront (browse → cart → checkout → account) | Done |
 | Category navigation + Category Listing Page (`/category/[slug]`) | Done (Phase 4 partial) |
 | Homepage New Arrivals section | Done |
+| Search / category sort + pagination | Done |
 | Custom `not-found` page | Done |
 | Customer authentication + order history | Done |
-| Unit tests (CI) — 95 tests | Done |
-| E2E discovery + cart/checkout (local) — 12 tests | Done |
+| Unit tests (CI) — 110+ tests | Done |
+| E2E discovery + cart/checkout (local) — 13 tests | Done |
 | Sales demo script | Done — [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) |
 | Product roadmap | Done — [ROADMAP.md](./ROADMAP.md) |
 | Deploy to Vercel/Netlify | Pending (human) — [DEPLOY.md](./DEPLOY.md) |
@@ -106,7 +108,7 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 
 ## Caveats
 
-- **2026-07-13** has no git commits yet; 2h is user-reported for Phase 4 category discovery slice plus review fixes and unified product listing UI (see BUILD_LOG).
+- **2026-07-13** has no git commits yet; 3h is user-reported for Phase 4 category discovery slice (2h) plus listing sort/pagination slice 2a (1h); see BUILD_LOG.
 - **2026-07-09** has no git commits; 7h is inferred from BUILD_LOG (Stripe connector, Checkout Applications, MC configuration).
 - **2026-07-10** total may increase if work continues past 17:00 or if morning activity is added.
 - Milestone split within a day is approximate; use Clockify/WakaTime for audit-grade numbers.

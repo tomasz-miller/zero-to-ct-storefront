@@ -2,7 +2,7 @@
 
 Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on commercetools sample data. Complements [BUILD_LOG.md](../BUILD_LOG.md) (history) and [AGENT_CODING.md](./AGENT_CODING.md) (phases 0–3).
 
-**Last updated:** 2026-07-13 (Phase 4 partial — category discovery + listing UI polish)
+**Last updated:** 2026-07-13 (Phase 4 slice 2a — listing sort + pagination + review hardening)
 
 ---
 
@@ -14,10 +14,10 @@ Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on comm
 | Phase 1 — Next.js scaffold | Done |
 | Phase 2 — Discovery, cart, checkout, auth | Done |
 | Phase 3 — Deploy, demo script, time report | **In progress** (E2E, docs done; deploy pending human) |
-| Phase 4 — Discovery completeness | **In progress** (category nav, CLP, New Arrivals, unified listing cards done; facets/sort/pagination/autocomplete pending) |
+| Phase 4 — Discovery completeness | **In progress** (category nav, CLP, New Arrivals, unified listing cards, sort + pagination done; facets/autocomplete pending) |
 | Phase 5+ — Feature expansion | Planned |
 
-The storefront covers the core B2C purchase path (browse → cart → checkout → account) and category-based discovery. It still lacks faceted search, sorting, pagination UI, and several capabilities from the [commercetools B2C Retail demo flow](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail).
+The storefront covers the core B2C purchase path (browse → cart → checkout → account) and category-based discovery with sortable, paginated listings. It still lacks faceted search, search autocomplete, and several capabilities from the [commercetools B2C Retail demo flow](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail).
 
 ---
 
@@ -29,7 +29,7 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 - **TypeScript SDK v3** (`ClientBuilder`) in [`lib/commercetools/`](../lib/commercetools/)
 - **coss ui** + Tailwind v4, dark/light theme (`next-themes`)
 - **CI** (`.github/workflows/ci.yml`): `lint`, `typecheck`, `test:unit`, `build` (with GitHub secrets)
-- **~95 unit tests** (Vitest) + **12 E2E tests** (Playwright: discovery + cart/checkout + API smoke, local with `CTP_*`)
+- **~110 unit tests** (Vitest) + **13 E2E tests** (Playwright: discovery + cart/checkout + API smoke, local with `CTP_*`)
 
 ### Product discovery
 
@@ -40,6 +40,7 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 | Category navigation (nested menu) | header `CategoryNav` | [Categories API](https://docs.commercetools.com/api/projects/categories) |
 | Category Listing Page | `/category/[slug]` | Product Search (`categoriesSubTree`) + Product Projections |
 | Full-text search | `/search?q=` | Product Search API |
+| Search / category listing sort + pagination | `/search`, `/category/[slug]` | Product Search `sort`, `limit`, `offset` |
 | Product Detail Page (images, variants) | `/product/[slug]` | Product Projections |
 | Unified compact product cards + add-to-cart | `ProductCardCompact` on `/`, `/search`, `/category/[slug]` | — |
 | Custom not-found page | `app/not-found.tsx` | — |
@@ -132,13 +133,13 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 
 | CT reference capability | Project status |
 |-------------------------|----------------|
-| Category navigation + Category Listing Page | **Partial** — nav, CLP, unified cards; filters pending |
+| Category navigation + Category Listing Page | **Partial** — nav, CLP, unified cards, sort, pagination; facets pending |
 | New Arrivals homepage section | Done |
 | Unified product listing cards (homepage, search, category) | Done |
 | Custom not-found page | Done |
 | Search suggestions / autocomplete | Missing |
 | Faceted filters (price, attributes) | Missing |
-| Sorting and pagination on listings | Missing |
+| Sorting and pagination on listings | Done |
 | Quick View on product listing | Missing |
 | Wishlist (heart icon) | Missing |
 | Multi-language / country switcher | Env defaults only |
@@ -177,8 +178,8 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 | Category tree in navigation | done | [Categories API](https://docs.commercetools.com/api/projects/categories) | `lib/commercetools/categories.ts`, `components/layout/site-header.tsx` | — |
 | Category Listing Page `/category/[slug]` | done | [Product Search](https://docs.commercetools.com/api/projects/product-search) | `app/category/[slug]/page.tsx`, `/api/categories` | Categories module |
 | Faceted filters (price, color, brand) | planned | [Product Search faceting](https://docs.commercetools.com/api/storefront-search-overview#faceting) | search + category pages | Product Search |
-| Sorting (price, newest) | planned | Product Search `sort` | listing components | — |
-| Pagination | planned | `limit` + `offset` | search, category pages | — |
+| Sorting (price, newest) | done | Product Search `sort` | `lib/commercetools/products.ts`, `components/product/product-listing-controls.tsx` | — |
+| Pagination | done | `limit` + `offset` | `app/search/page.tsx`, `app/category/[slug]/page.tsx` | — |
 | Search autocomplete | planned | [Search Term Suggestions API](https://docs.commercetools.com/api/projects/search-term-suggestions) | `components/search/search-form.tsx`, `/api/search/suggestions` | — |
 | New Arrivals section on homepage | done | Categories + Product Search | `app/page.tsx` | Categories module |
 | Unified product listing cards | done | — | `components/product/product-card-compact.tsx`, `product-grid-compact.tsx` | Used on `/`, `/search`, `/category/[slug]` |
@@ -293,11 +294,12 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 | Deploy + demo script | P0 | S | partial (deploy pending) | — |
 | E2E checkout flow | P0 | S | done | Carts, Checkout Sessions |
 | CI production build | P0 | S | done | — |
-| Category pages + navigation | P1 | M | **partial** (nav, CLP, cards done; facets pending) | Categories, Product Search |
+| Category pages + navigation | P1 | M | **partial** (nav, CLP, cards, sort, pagination done; facets pending) | Categories, Product Search |
 | New Arrivals homepage section | P1 | S | **done** | Categories, Product Search |
 | Unified listing product cards | P1 | S | **done** | — |
 | Custom not-found page | P1 | S | **done** | — |
-| Search facets, sort, pagination | P1 | M | planned | Product Search |
+| Search facets | P1 | M | planned | Product Search |
+| Search sort + pagination | P1 | M | **done** | Product Search |
 | Search autocomplete | P1 | S | planned | Search Term Suggestions |
 | Order detail page | P2 | S | planned | `GET /me/orders/{id}` |
 | Profile edit / change password | P2 | M | planned | `POST /me` |
@@ -309,6 +311,7 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 | Homepage bestsellers | — | — | **done** | Product Projections |
 | Homepage new arrivals | — | — | **done** | Product Search |
 | Category navigation + CLP | — | — | **partial** | Categories, Product Search |
+| Search / category sort + pagination | — | — | **done** | Product Search |
 | Unified listing cards | — | — | **done** | — |
 | Custom not-found | — | — | **done** | — |
 | Full-text search | — | — | **done** | Product Search |
@@ -343,7 +346,7 @@ quadrantChart
 ### Recommended implementation order
 
 1. **Phase 3** — Demo readiness (P0) — deploy remains human step
-2. **Phase 4** — Search facets, sort, pagination (P1) — next slice
+2. **Phase 4** — Search facets (P1) — next slice
 3. **Phase 4** — Search autocomplete (P1)
 4. **Phase 5** — Order detail + account polish (P2)
 5. **Phase 6** — Wishlist (P2)
@@ -353,6 +356,8 @@ quadrantChart
 9. **Phase 10** — Agentic commerce assistant (Future)
 
 **Phase 4 slice 1 (done):** category module, `/api/categories`, header category nav, `/category/[slug]`, New Arrivals, custom `not-found`, unified `ProductCardCompact` listings, review hardening (layout fallback, slug validation, paginated category fetch).
+
+**Phase 4 slice 2a (done):** Product Search sort (`relevance`, `newest`, `price-asc`, `price-desc`), URL-driven pagination on `/search` and `/category/[slug]`, shared `ProductListingControls` (sort toolbar above grid, pagination below), page clamp/redirect and CT offset cap, BFF `sort` param on `/api/products`, unit + E2E coverage.
 
 ---
 
