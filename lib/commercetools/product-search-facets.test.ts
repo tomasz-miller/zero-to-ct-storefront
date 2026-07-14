@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { SearchableAttributeFacetConfig } from './searchable-product-attributes';
+import type { SearchableAttributeFacetConfig } from './searchable-product-attribute-configs';
 import {
   buildFilterQuery,
   buildProductSearchFacetDefinitions,

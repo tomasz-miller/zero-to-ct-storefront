@@ -1,4 +1,4 @@
-import type { SearchableAttributeFacetConfig } from './searchable-product-attributes';
+import type { SearchableAttributeFacetConfig } from './searchable-product-attribute-configs';
 
 export const PRODUCT_LISTING_ATTRIBUTE_PARAM_PREFIX = 'attr.';
 

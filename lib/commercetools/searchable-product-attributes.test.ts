@@ -2,9 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { AttributeDefinition } from '@commercetools/platform-sdk';
 
-import {
-  collectSearchableAttributeFacetConfigs,
-} from './searchable-product-attributes';
+import { collectSearchableAttributeFacetConfigs } from './searchable-product-attribute-configs';
 
 function createAttribute(
   overrides: Partial<AttributeDefinition> & Pick<AttributeDefinition, 'name' | 'type'>,
