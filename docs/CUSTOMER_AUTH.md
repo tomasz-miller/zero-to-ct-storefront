@@ -42,6 +42,8 @@ Tokens never reach the client JavaScript bundle.
 | `/api/auth/reset-password` | POST | Set new password from token |
 | `/api/customer/orders` | GET | Authenticated order history (`limit`, `offset`) |
 
+Order detail is loaded server-side on `/account/orders/[id]` via `GET /me/orders/{id}` (no separate BFF route).
+
 ## Required API client scopes
 
 Add these to the **Frontend application** API client in Merchant Center (in addition to existing cart/checkout scopes):
@@ -60,6 +62,7 @@ Update `CTP_SCOPES` in `.env.local` accordingly.
 | Customer session token | OAuth `/customers/token` | Grantable customer scopes on client |
 | Profile | `GET /me` | Customer token (`manage_my_profile`) |
 | Order history | `GET /me/orders` | Customer token (`manage_my_orders`) |
+| Order detail | `GET /me/orders/{id}` | Customer token (`manage_my_orders`) |
 
 ## Cart merge
 
@@ -72,7 +75,7 @@ On login and register, the BFF passes `anonymousCartId` from `ct_guest_cart`. Lo
 - **Sign in / Register** — header dialog; stays on the current page after success (`router.refresh()`).
 - **Forgot password** — dialog step; generic success message (no email enumeration).
 - **Reset password** — `/reset-password?token=...` page.
-- **Account** — `/account` (profile + order table); unauthenticated users redirect to `/?login=1` to open the sign-in dialog.
+- **Account** — `/account` (profile with member since and addresses + linked order history); `/account/orders/[id]` (order detail with line items, addresses, and totals). Unauthenticated users redirect to `/?login=1` to open the sign-in dialog.
 
 ## Development-only password reset
 
@@ -82,7 +85,6 @@ When `NODE_ENV !== 'production'`, `POST /api/auth/forgot-password` may include `
 
 - Email delivery (ESP)
 - Profile editing / change password on account page
-- Single order detail page (`/account/orders/[id]`)
 - Email verification
 - Store-scoped customers
 

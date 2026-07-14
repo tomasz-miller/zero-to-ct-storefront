@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { checkoutFlow } from '@commercetools/checkout-browser-sdk';
 
+import { useCart } from '@/components/cart/cart-context';
 import { resolveCheckoutErrorMessage } from '@/lib/checkout-error-messages';
 
 function handleCheckoutSdkMessage(
@@ -31,7 +32,10 @@ export function CheckoutEmbed({
 }: CheckoutEmbedProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const paymentReference = searchParams.get('paymentReference') ?? undefined;
+  const { refreshCart, syncCartItemCount } = useCart();
   const containerRef = useRef<HTMLDivElement>(null);
+  const checkoutCompletedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -64,18 +68,39 @@ export function CheckoutEmbed({
           locale,
           logError: true,
           skipPaymentSuccessPage: true,
-          paymentReference: searchParams.get('paymentReference') ?? undefined,
+          paymentReference,
           onInfo: (message) => {
             if (message.code === 'checkout_completed') {
+              if (checkoutCompletedRef.current) {
+                return;
+              }
+
+              checkoutCompletedRef.current = true;
               const payload = message.payload as {
                 order?: { id?: string };
               };
               const orderId = payload.order?.id;
-              router.push(
-                orderId
-                  ? `/order-confirmation?orderId=${orderId}`
-                  : '/order-confirmation',
-              );
+              void (async () => {
+                try {
+                  const response = await fetch('/api/cart/complete', {
+                    method: 'POST',
+                  });
+
+                  if (response.ok) {
+                    syncCartItemCount(0);
+                  } else {
+                    await refreshCart();
+                  }
+                } catch {
+                  await refreshCart();
+                }
+
+                router.push(
+                  orderId
+                    ? `/order-confirmation?orderId=${orderId}`
+                    : '/order-confirmation',
+                );
+              })();
               return;
             }
 
@@ -105,7 +130,15 @@ export function CheckoutEmbed({
     return () => {
       cancelled = true;
     };
-  }, [locale, projectKey, region, router, searchParams]);
+  }, [
+    locale,
+    projectKey,
+    region,
+    router,
+    paymentReference,
+    refreshCart,
+    syncCartItemCount,
+  ]);
 
   return (
     <div className="flex flex-col gap-4">

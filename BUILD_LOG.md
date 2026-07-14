@@ -103,4 +103,17 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Phase:** phase-4-discovery
 - **Milestone:** Product Search sort (`relevance`, `newest`, `price-asc`, `price-desc`) in `lib/commercetools/products.ts`; URL params `?sort=` and `?page=` on `/search` and `/category/[slug]`; shared `ProductListingControls` (sort toolbar + bottom pagination); BFF `sort` on `/api/products`; code-review fixes (page clamp/redirect, CT offset cap, category relevance guard, a11y); unit + E2E coverage.
 - **Agent vs manual:** ~95% agent
-- **Notes:** Facets and search autocomplete remain next Phase 4 slices. Production deploy still pending (human) — follow `docs/DEPLOY.md` post-deploy checklist before sales demos.
+### 2026-07-14 — Phase 5 slice 1 — order detail + extended profile
+- **Time:** 1h
+- **Phase:** phase-5-account
+- **Milestone:** Extended `StorefrontCustomer` (member since, addresses) and `StorefrontOrderDetail` mappers; `getMyOrder()` via `GET /me/orders/{id}`; `/account/orders/[id]` detail page with line items, addresses, and shipping summary; linked order history on `/account`; unit tests for mappers and `getMyOrder`; E2E account flow (`e2e/account.spec.ts`).
+- **Agent vs manual:** ~95% agent
+- **Notes:** Profile edit and change password remain Phase 5b. Deploy still human step per `docs/DEPLOY.md`.
+
+### 2026-07-14 — Checkout cart session cleanup
+- **Time:** 0.25h
+- **Phase:** phase-2-core
+- **Milestone:** Clear `ct_guest_cart` through `POST /api/cart/complete` and reset the cart badge when the Checkout Browser SDK reports `checkout_completed`.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Prevents an ordered cart from remaining visible in the storefront header.
+

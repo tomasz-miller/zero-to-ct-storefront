@@ -2,7 +2,7 @@
 
 Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on commercetools sample data. Complements [BUILD_LOG.md](../BUILD_LOG.md) (history) and [AGENT_CODING.md](./AGENT_CODING.md) (phases 0–3).
 
-**Last updated:** 2026-07-13 (Phase 4 complete — facets + search autocomplete)
+**Last updated:** 2026-07-14 (Phase 5 slice 1 — order detail + extended profile)
 
 ---
 
@@ -15,7 +15,7 @@ Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on comm
 | Phase 2 — Discovery, cart, checkout, auth | Done |
 | Phase 3 — Deploy, demo script, time report | **In progress** (E2E, docs done; deploy pending human) |
 | Phase 4 — Discovery completeness | **done** (category nav, CLP, listings, sort, pagination, facets, autocomplete) |
-| Phase 5+ — Feature expansion | Planned |
+| Phase 5 — Account and post-purchase | **partial** (order detail + extended profile done; profile edit pending) |
 
 The storefront covers the core B2C purchase path (browse → cart → checkout → account) and category-based discovery with sortable, paginated, faceted listings and search autocomplete. Remaining gaps vs the [commercetools B2C Retail demo flow](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail) are wishlist, Quick View, and multi-market switcher.
 
@@ -146,8 +146,8 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 | Quick View on product listing | Missing |
 | Wishlist (heart icon) | Missing |
 | Multi-language / country switcher | Env defaults only |
-| Profile edit / change password | Documented out of scope |
-| Single order detail page | Documented out of scope |
+| Profile edit / change password | Planned (Phase 5) |
+| Single order detail page | **done** — `/account/orders/[id]` |
 | Discount codes in storefront UI | Handled by Checkout SDK only |
 | Stock availability on PDP/PLP | Not displayed |
 | Real bestseller ranking | Requires `view_orders` or external analytics |
@@ -200,8 +200,8 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 
 | Feature | Status | CT API | Suggested files | Dependencies |
 |---------|--------|--------|-----------------|--------------|
-| Order detail `/account/orders/[id]` | planned | `GET /me/orders/{id}` | `app/account/orders/[id]/page.tsx` | Customer session |
-| Extended profile view (addresses, registration date) | planned | `GET /me` | `app/account/page.tsx` | — |
+| Order detail `/account/orders/[id]` | **done** | `GET /me/orders/{id}` | `app/account/orders/[id]/page.tsx` | Customer session |
+| Extended profile view (addresses, registration date) | **done** | `GET /me` | `app/account/page.tsx` | — |
 | Profile edit | planned | `POST /me` | `/api/customer/profile` | Validation, tests |
 | Change password on account page | planned | Customer password change | account components | — |
 | Email delivery (ESP) | future | — | — | Connect/ESP integration; production only |
@@ -281,7 +281,7 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 |---------|--------|-------|
 | SDK middleware (concurrent modification) | done | `withConcurrentModificationMiddleware()` in `lib/commercetools/client.ts` |
 | SDK middleware (correlation ID) | planned | Mentioned in [TECH_STACK.md](./TECH_STACK.md) |
-| E2E auth + account flows | planned | Playwright |
+| E2E auth + account flows | **done** | Playwright `e2e/account.spec.ts` |
 | Cart/checkout unit tests | partial | `POST /api/cart/items` covered; `cart-mappers` and other routes pending |
 | `commerce-mcp` integration | future | Live project API from agents |
 | Commerce MCP shopping assistant | future | Explicit non-goal for PoC |
@@ -304,7 +304,7 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 | Search facets | P1 | M | **done** | Product Search |
 | Search sort + pagination | P1 | M | **done** | Product Search |
 | Search autocomplete | P1 | S | **done** | Search Term Suggestions |
-| Order detail page | P2 | S | planned | `GET /me/orders/{id}` |
+| Order detail page | P2 | S | **done** | `GET /me/orders/{id}` |
 | Profile edit / change password | P2 | M | planned | `POST /me` |
 | Wishlist | P2 | M | planned | Shopping Lists |
 | Discount codes in cart UI | P3 | M | planned | Carts `addDiscountCode` |
@@ -323,6 +323,7 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 | CT Checkout + Stripe | — | — | **done** | Checkout Sessions |
 | Customer auth | — | — | **done** | Customers, OAuth |
 | Account + order history | — | — | **done** | `GET /me/orders` |
+| Order detail page | — | — | **done** | `GET /me/orders/{id}` |
 
 ### Priority matrix
 

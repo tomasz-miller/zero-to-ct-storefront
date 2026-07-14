@@ -38,7 +38,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | 2026-07-09 | No commits; BUILD_LOG Stripe/Connect/MC manual work → full day estimate | **7h** |
 | 2026-07-10 | Partial day: first commit 12:52 (post-lunch) through ~17:00 incl. Phase 3 docs/tests | **4h** |
 | 2026-07-13 | Phase 4 discovery slices incl. facets + autocomplete (user-reported) | **3.5h** |
-| **Total** | | **21.5h** |
+| 2026-07-14 | Checkout cart-session cleanup and review fixes | **0.25h** |
+| **Total** | | **21.75h** |
 
 ---
 
@@ -46,8 +47,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 
 | Metric | Value |
 |--------|-------|
-| Project duration | 4 working days (2026-07-08 → 2026-07-13) |
-| Total estimated time | **21.5h** net |
+| Project duration | 5 working days (2026-07-08 → 2026-07-14) |
+| Total estimated time | **21.75h** net |
 | Current phase | phase-3-demo (deploy pending); phase-4-discovery done |
 | Developer profile | Backend-focused, agent-assisted (Cursor + commercetools AI plugin) |
 | Agent contribution | ~85–95% of storefront code; human owns CT project, Stripe/Connect, MC config |
@@ -71,7 +72,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-4-discovery | 2026-07-13 | Category module, CLP, header nav, New Arrivals, custom 404; code review fixes; unified product listing cards; 95 unit + 12 E2E tests | ~95% agent | 2h |
 | phase-4-discovery | 2026-07-13 | Listing sort + pagination on `/search` and `/category/[slug]`; code-review hardening; 110+ unit + 13 E2E tests | ~95% agent | 1h |
 | phase-4-discovery | 2026-07-13 | Faceted filters + search autocomplete; 128 unit + 15 E2E tests | ~95% agent | 0.5h |
-| **Total** | | | ~80% agent / ~20% manual | **21.5h** |
+| phase-2-core | 2026-07-14 | Checkout completion cart-session cleanup; prevent false badge reset on failed cleanup; duplicate-event guard; unit coverage | ~95% agent | 0.25h |
+| **Total** | | | ~80% agent / ~20% manual | **21.75h** |
 
 ---
 
@@ -79,12 +81,12 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 
 | Phase | Hours | Share |
 |-------|-------|-------|
-| phase-0-setup | 2.5h | 13% |
-| phase-1-scaffold | 2h | 10% |
-| phase-2-core | 12h | 60% |
-| phase-3-demo | 1.5h | 8% |
+| phase-0-setup | 2.5h | 11% |
+| phase-1-scaffold | 2h | 9% |
+| phase-2-core | 12.25h | 56% |
+| phase-3-demo | 1.5h | 7% |
 | phase-4-discovery | 3.5h | 16% |
-| **Total** | **21.5h** | 100% |
+| **Total** | **21.75h** | 100% |
 
 ---
 
@@ -113,6 +115,7 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 - **2026-07-13** has no git commits yet; 3.5h is user-reported for Phase 4 category discovery slice (2h), listing sort/pagination slice 2a (1h), and facets + autocomplete slice 2b+2c (0.5h); see BUILD_LOG.
 - **2026-07-09** has no git commits; 7h is inferred from BUILD_LOG (Stripe connector, Checkout Applications, MC configuration).
 - **2026-07-10** total may increase if work continues past 17:00 or if morning activity is added.
+- **2026-07-14** includes 0.25h for checkout cart-session cleanup and the related code-review fixes.
 - Milestone split within a day is approximate; use Clockify/WakaTime for audit-grade numbers.
 
 ### How to refine

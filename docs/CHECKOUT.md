@@ -23,6 +23,10 @@ Browser → BFF (/api/checkout/*) → Checkout Session API
 Checkout UI (Browser SDK) → Stripe connector (Connect) → Stripe API
 ```
 
+When Checkout emits `checkout_completed`, the Browser SDK calls
+`POST /api/cart/complete`. The BFF clears the `ct_guest_cart` cookie and the
+client cart badge is reset before redirecting to `/order-confirmation`.
+
 Official references:
 
 - [Set up Checkout](https://docs.commercetools.com/learning-implement-checkout/implement-commercetools-checkout/set-up-checkout.md)
