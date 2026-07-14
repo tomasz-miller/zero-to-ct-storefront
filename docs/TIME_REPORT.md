@@ -42,8 +42,10 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | 2026-07-14 | Phase 5 slice 2 — profile edit, address CRUD, change password; 170 unit + 21 E2E tests | **1.5h** |
 | 2026-07-14 | Account UX polish — dismissible alerts, address dialog, wide-screen account layout | **40min** |
 | 2026-07-14 | Phase 6 wishlist — shopping lists, BFF, UI, tests | **1.5h** |
-| 2026-07-14 | Phase 3 production deploy — Vercel env sync + smoke test | **0.5h** |
-| **Total** | | **25.92h** |
+| 2026-07-14 | Phase 7 remainder — mobile cart drawer | **1h** |
+| 2026-07-14 | Phase 8 — inventory availability (badges, block add-to-cart, BFF guard) | **1.5h** |
+| 2026-07-14 | Phase 7 promotions core (retroactive entry) | **1.5h** |
+| **Total** | | **29.92h** |
 
 ---
 
@@ -52,8 +54,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Metric | Value |
 |--------|-------|
 | Project duration | 5 working days (2026-07-08 → 2026-07-14) |
-| Total estimated time | **25.92h** net |
-| Current phase | phase-3-demo done; phase-6-wishlist done |
+| Total estimated time | **29.92h** net |
+| Current phase | phase-8-inventory done |
 | Developer profile | Backend-focused, agent-assisted (Cursor + commercetools AI plugin) |
 | Agent contribution | ~85–95% of storefront code; human owns CT project, Stripe/Connect, MC config |
 
@@ -82,7 +84,10 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-5-account | 2026-07-14 | Phase 5 slice 2 — profile edit, address CRUD, change password; 170 unit + 21 E2E tests | ~95% agent | 1.5h |
 | phase-5-account | 2026-07-14 | Account UX polish — dismissible alerts (auto-dismiss + close), address add/edit dialog, responsive wide-screen layout on `/account` | ~95% agent | 40min |
 | phase-6-wishlist | 2026-07-14 | Phase 6 — shopping lists, BFF, UI, move-to-cart, guest merge; 183 unit + 24 E2E tests | ~95% agent | 1.5h |
-| **Total** | | | ~80% agent / ~20% manual | **25.92h** |
+| phase-7-promotions | 2026-07-14 | Phase 7 slice 1 — product discounts + cart discount codes; 193 unit + 27 E2E tests | ~95% agent | 1.5h |
+| phase-7-promotions | 2026-07-14 | Phase 7 slice 2 — mobile cart drawer (coss Sheet, responsive header) | ~95% agent | 1h |
+| phase-8-inventory | 2026-07-14 | Phase 8 — stock availability badges, block add-to-cart, BFF OutOfStockError; 207 unit + 33 E2E tests | ~95% agent | 1.5h |
+| **Total** | | | ~80% agent / ~20% manual | **29.92h** |
 
 ---
 
@@ -92,12 +97,14 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 |-------|-------|-------|
 | phase-0-setup | 2.5h | 10% |
 | phase-1-scaffold | 2h | 8% |
-| phase-2-core | 12.25h | 51% |
-| phase-3-demo | 2h | 8% |
-| phase-4-discovery | 3.5h | 14% |
-| phase-5-account | 3.17h | 12% |
-| phase-6-wishlist | 1.5h | 6% |
-| **Total** | **25.92h** | 100% |
+| phase-2-core | 12.25h | 41% |
+| phase-3-demo | 2h | 7% |
+| phase-4-discovery | 3.5h | 12% |
+| phase-5-account | 3.17h | 11% |
+| phase-6-wishlist | 1.5h | 5% |
+| phase-7-promotions | 2.5h | 8% |
+| phase-8-inventory | 1.5h | 5% |
+| **Total** | **29.92h** | 100% |
 
 ---
 
@@ -116,8 +123,10 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Account UX polish (dismissible alerts, wide-screen layout) | Done |
 | Wishlist (heart icon, `/wishlist`, move to cart) | Done |
 | Product discounts on PLP/PDP + discount codes in cart | Done |
-| Unit tests (CI) — 193 tests | Done |
-| E2E discovery + cart/checkout + account + wishlist + promotions (local) — 27 tests | Done |
+| Stock availability on PDP/PLP + block add-to-cart | Done |
+| Mobile cart drawer (header, `< md`) | Done |
+| Unit tests (CI) — 207 tests | Done |
+| E2E discovery + cart/checkout + account + wishlist + promotions + inventory (local) — 33 tests | Done |
 | Sales demo script | Done — [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) |
 | Product roadmap | Done — [ROADMAP.md](./ROADMAP.md) |
 | Deploy to Vercel/Netlify | Done — https://zero-to-ct-storefront.vercel.app ([DEPLOY.md](./DEPLOY.md)) |
@@ -130,7 +139,7 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 - **2026-07-13** has no git commits yet; 3.5h is user-reported for Phase 4 category discovery slice (2h), listing sort/pagination slice 2a (1h), and facets + autocomplete slice 2b+2c (0.5h); see BUILD_LOG.
 - **2026-07-09** has no git commits; 7h is inferred from BUILD_LOG (Stripe connector, Checkout Applications, MC configuration).
 - **2026-07-10** total may increase if work continues past 17:00 or if morning activity is added.
-- **2026-07-14** includes 0.25h checkout cart-session cleanup, 1.5h Phase 5 slice 2, 40min account UX polish, 1.5h Phase 6 wishlist, and 0.5h Vercel production deploy.
+- **2026-07-14** includes 0.25h checkout cart-session cleanup, 1.5h Phase 5 slice 2, 40min account UX polish, 1.5h Phase 6 wishlist, 0.5h Vercel production deploy, 1.5h Phase 7 promotions core, 1h Phase 7 mobile cart drawer, and 1.5h Phase 8 inventory availability.
 - Milestone split within a day is approximate; use Clockify/WakaTime for audit-grade numbers.
 
 ### How to refine

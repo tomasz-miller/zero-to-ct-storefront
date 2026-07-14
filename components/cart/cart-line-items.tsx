@@ -15,9 +15,15 @@ import type { StorefrontCart } from '@/lib/commercetools/cart-mappers';
 
 type CartLineItemsProps = {
   cart: StorefrontCart;
+  onCartUpdated?: (cart: StorefrontCart) => void;
+  onCheckoutClick?: () => void;
 };
 
-export function CartLineItems({ cart }: CartLineItemsProps) {
+export function CartLineItems({
+  cart,
+  onCartUpdated,
+  onCheckoutClick,
+}: CartLineItemsProps) {
   const router = useRouter();
   const { syncCartItemCount } = useCart();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -43,7 +49,11 @@ export function CartLineItems({ cart }: CartLineItemsProps) {
       }
 
       syncCartItemCount(body?.cart?.itemCount ?? 0);
-      router.refresh();
+      if (onCartUpdated && body?.cart) {
+        onCartUpdated(body.cart);
+      } else {
+        router.refresh();
+      }
     } catch {
       setError('Could not update item quantity.');
     } finally {
@@ -69,7 +79,11 @@ export function CartLineItems({ cart }: CartLineItemsProps) {
       }
 
       syncCartItemCount(body?.cart?.itemCount ?? 0);
-      router.refresh();
+      if (onCartUpdated && body?.cart) {
+        onCartUpdated(body.cart);
+      } else {
+        router.refresh();
+      }
     } catch {
       setError('Could not remove item.');
     } finally {
@@ -166,9 +180,15 @@ export function CartLineItems({ cart }: CartLineItemsProps) {
           );
         })}
       </ul>
-      <CartDiscountForm cart={cart} />
+      <CartDiscountForm cart={cart} onCartUpdated={onCartUpdated} />
       <CartSummary cart={cart} className="border-t pt-4" />
-      <Button render={<Link href="/checkout" />}>Proceed to checkout</Button>
+      <Button
+        render={
+          <Link href="/checkout" onClick={onCheckoutClick} />
+        }
+      >
+        Proceed to checkout
+      </Button>
     </div>
   );
 }

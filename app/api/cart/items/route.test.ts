@@ -12,9 +12,16 @@ vi.mock('@/lib/commercetools/cart', () => ({
   addLineItem: mockAddLineItem,
   CartAccessError: class CartAccessError extends Error {},
   CartNotFoundError: class CartNotFoundError extends Error {},
+  OutOfStockError: class OutOfStockError extends Error {
+    constructor(message = 'This product is out of stock') {
+      super(message);
+      this.name = 'OutOfStockError';
+    }
+  },
 }));
 
 import { POST } from './route';
+import { OutOfStockError } from '@/lib/commercetools/cart';
 
 function createRequest(body: unknown): NextRequest {
   return new NextRequest('http://localhost/api/cart/items', {
@@ -80,5 +87,16 @@ describe('POST /api/cart/items', () => {
     const body = await response.json();
     expect(body.cart.id).toBe('cart-1');
     expect(body.cart.lineItems).toHaveLength(1);
+  });
+
+  it('returns 409 when product is out of stock', async () => {
+    mockAddLineItem.mockRejectedValue(new OutOfStockError());
+
+    const response = await POST(createRequest({ sku: 'SKU-OOS', quantity: 1 }));
+
+    expect(response.status).toBe(409);
+
+    const body = await response.json();
+    expect(body.error).toMatch(/out of stock/i);
   });
 });

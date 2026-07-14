@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildSlugWhere,
   isNewArrivalProduct,
+  mapAvailability,
   mapProjection,
   mapProjectionDetail,
   pickLocalized,
@@ -80,6 +81,55 @@ describe('pickPrice', () => {
   });
 });
 
+describe('mapAvailability', () => {
+  it('returns in stock when availability is missing', () => {
+    const projection = createProductProjection();
+    expect(mapAvailability(projection.masterVariant)).toEqual({ isOnStock: true });
+  });
+
+  it('maps explicit isOnStock false', () => {
+    const projection = createProductProjection({
+      masterVariant: {
+        ...createProductProjection().masterVariant,
+        availability: {
+          isOnStock: false,
+          availableQuantity: 0,
+        },
+      },
+    });
+
+    expect(mapAvailability(projection.masterVariant)).toEqual({
+      isOnStock: false,
+      availableQuantity: 0,
+    });
+  });
+
+  it('maps channel availability when top-level isOnStock is absent', () => {
+    const projection = createProductProjection({
+      masterVariant: {
+        ...createProductProjection().masterVariant,
+        availability: {
+          channels: {
+            'channel-1': {
+              isOnStock: true,
+              availableQuantity: 5,
+            } as never,
+            'channel-2': {
+              isOnStock: false,
+              availableQuantity: 0,
+            } as never,
+          },
+        },
+      },
+    });
+
+    expect(mapAvailability(projection.masterVariant)).toEqual({
+      isOnStock: true,
+      availableQuantity: 5,
+    });
+  });
+});
+
 describe('mapProjection', () => {
   it('maps a valid projection to storefront product', () => {
     const result = mapProjection(createProductProjection(), 'en-GB', 'EUR');
@@ -91,6 +141,7 @@ describe('mapProjection', () => {
       sku: 'ORION-BED',
       imageUrl: 'https://example.com/orion.jpg',
       price: { centAmount: 49900, currencyCode: 'EUR' },
+      availability: { isOnStock: true },
     });
   });
 

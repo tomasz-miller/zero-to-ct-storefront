@@ -18,6 +18,7 @@ const {
   mockGetCustomerSession,
   mockClearCartSession,
   mockCreateAnonymousId,
+  mockGetProductAvailabilityBySku,
 } = vi.hoisted(() => ({
   mockExecute: vi.fn(),
   mockCartGet: vi.fn(() => ({ execute: mockExecute })),
@@ -33,10 +34,16 @@ const {
   mockGetCustomerSession: vi.fn(),
   mockClearCartSession: vi.fn(),
   mockCreateAnonymousId: vi.fn(() => 'anon-new'),
+  mockGetProductAvailabilityBySku: vi.fn(async () => ({ isOnStock: true })),
 }));
 
 vi.mock('./storefront-context', () => ({
   getStorefrontContext: () => ({ currency: 'EUR', country: 'DE', locale: 'de-DE' }),
+  getCatalogContext: () => ({ currency: 'EUR', country: 'DE', locale: 'en-GB' }),
+}));
+
+vi.mock('./products', () => ({
+  getProductAvailabilityBySku: mockGetProductAvailabilityBySku,
 }));
 
 vi.mock('./cart-session', () => ({
@@ -60,7 +67,7 @@ vi.mock('./api-root', () => ({
   },
 }));
 
-import { addLineItem, findCustomerCart, getCartForCheckout, reconcileCartOnAuth, restoreCustomerCartSession } from './cart';
+import { addLineItem, findCustomerCart, getCartForCheckout, OutOfStockError, reconcileCartOnAuth, restoreCustomerCartSession } from './cart';
 
 function emptyGuestCart(overrides: Partial<Cart> = {}): Cart {
   return createCartFixture({
@@ -83,6 +90,14 @@ describe('cart session resolver', () => {
   afterEach(() => {
     vi.clearAllMocks();
     mockExecute.mockReset();
+    mockGetProductAvailabilityBySku.mockResolvedValue({ isOnStock: true });
+  });
+
+  it('throws OutOfStockError before cart mutation when sku is unavailable', async () => {
+    mockGetProductAvailabilityBySku.mockResolvedValueOnce({ isOnStock: false });
+
+    await expect(addLineItem('SKU-OOS', 1)).rejects.toThrow(OutOfStockError);
+    expect(mockCartsPost).not.toHaveBeenCalled();
   });
 
   it('creates a guest cart when no customer session exists', async () => {

@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 type AddToCartButtonProps = {
   sku: string;
   disabled?: boolean;
+  outOfStock?: boolean;
   size?: 'default' | 'sm' | 'lg';
   className?: string;
 };
@@ -19,6 +20,7 @@ type AddToCartButtonProps = {
 export function AddToCartButton({
   sku,
   disabled,
+  outOfStock = false,
   size = 'default',
   className,
 }: AddToCartButtonProps) {
@@ -60,7 +62,7 @@ export function AddToCartButton({
     <div className={cn('flex flex-col gap-2', className)}>
       <Button
         size={size}
-        disabled={disabled || isLoading || !sku}
+        disabled={disabled || outOfStock || isLoading || !sku}
         onClick={handleClick}
       >
         {isLoading ? (
@@ -68,6 +70,8 @@ export function AddToCartButton({
             <Spinner className="size-4" />
             Adding…
           </>
+        ) : outOfStock ? (
+          'Out of stock'
         ) : (
           'Add to cart'
         )}

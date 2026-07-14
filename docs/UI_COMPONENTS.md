@@ -69,10 +69,9 @@ Install on demand as features are built:
 | Product grid / PDP | `card`, `badge`, `skeleton`, `separator` |
 | Search | `input`, `input-group`, `button` |
 | Navigation | `breadcrumb`, `menu` |
-| Cart | `button`, `table` or `card`, `number-field` |
+| Cart | `button`, `table` or `card`, `number-field`, `sheet` |
 | Filters (later) | `checkbox`, `select`, `accordion` |
 | Feedback | `toast`, `alert` |
-| Mobile cart (later) | `sheet`, `drawer` |
 | Checkout embed wrapper | `frame`, `spinner` |
 
 Full index: `.agents/skills/coss/references/component-registry.md`

@@ -23,6 +23,7 @@ const product: StorefrontProduct = {
   sku: 'ORION-BED',
   imageUrl: 'https://example.com/orion.jpg',
   price: { centAmount: 49900, currencyCode: 'EUR' },
+  availability: { isOnStock: true },
 };
 
 describe('ProductCardCompact', () => {
@@ -55,6 +56,12 @@ describe('ProductCardCompact', () => {
     expect(
       screen.getByRole('button', { name: /add to cart/i }),
     ).toBeInTheDocument();
+  });
+
+  it('disables add to cart when out of stock', () => {
+    renderCard({ ...product, availability: { isOnStock: false } });
+    expect(screen.getByRole('button', { name: /out of stock/i })).toBeDisabled();
+    expect(screen.getAllByText('Out of stock')).toHaveLength(2);
   });
 
   it('disables add to cart when sku is missing', () => {

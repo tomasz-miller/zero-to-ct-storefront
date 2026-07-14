@@ -15,6 +15,20 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-07-14 — Phase 8 — inventory availability
+- **Time:** 1.5h
+- **Phase:** phase-8-inventory
+- **Milestone:** `StorefrontAvailability` + `mapAvailability` from Product Projections; `ProductAvailability` badge on PDP/PLP; disabled add-to-cart + `OutOfStockError` BFF guard (HTTP 409); `demo-inventory.ts` fixtures; 207 unit + 33 E2E tests; docs sync (ROADMAP, DEMO_SCRIPT, TESTING, TIME_REPORT).
+- **Agent vs manual:** ~95% agent
+- **Notes:** Uses eventually consistent `ProductVariant.availability` for display; low stock messaging remains future.
+
+### 2026-07-14 — Phase 7 — mobile cart drawer
+- **Time:** 1h
+- **Phase:** phase-7-promotions
+- **Milestone:** coss Sheet installed; `CartDrawer` with `CartLineItems` reuse; responsive `CartNavLink` (Sheet on `< md`, link to `/cart` on desktop); checkout CTA closes drawer; unit + E2E mobile coverage.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Completes Phase 7 remainder from ROADMAP.
+
 ### 2026-07-08 — Repository bootstrap
 - **Time:** 1h
 - **Phase:** phase-0-setup
@@ -143,7 +157,7 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Phase:** phase-7-promotions
 - **Milestone:** Product Discount display on PLP/PDP (`priceCountry` + `StorefrontPrice`); cart discount code apply/remove (`/api/cart/discount-code`); cart summary with savings; demo fixtures `CARM-023` + `BOGO`; 193 unit + 27 E2E tests; docs sync (ROADMAP, DEMO_SCRIPT, TESTING, TIME_REPORT).
 - **Agent vs manual:** ~95% agent
-- **Notes:** Mobile cart drawer remains Phase 7 planned. Discount codes must be applied before checkout session creation.
+- **Notes:** Discount codes must be applied before checkout session creation.
 
 ### 2026-07-14 — Phase 3 — production deploy (Vercel)
 - **Time:** 0.5h

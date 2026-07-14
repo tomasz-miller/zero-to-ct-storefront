@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 
 import { AddToCartButton } from '@/components/cart/add-to-cart-button';
 import { WishlistButton } from '@/components/wishlist/wishlist-button';
+import { ProductAvailability } from '@/components/product/product-availability';
 import { ProductPrice } from '@/components/product/product-price';
 import { Button } from '@/components/ui/button';
 import {
@@ -83,8 +84,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl">{product.name}</CardTitle>
-              <CardDescription className="text-base">
+              <CardDescription className="flex flex-col gap-2 text-base">
                 <ProductPrice price={product.price} />
+                {!hasMultipleVariants ? (
+                  <ProductAvailability
+                    availability={product.availability}
+                    showInStock
+                  />
+                ) : null}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
@@ -107,15 +114,22 @@ export default async function ProductPage({ params }: ProductPageProps) {
                         key={variant.id}
                         className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
                       >
-                        <div className="flex flex-col">
+                        <div className="flex flex-col gap-1">
                           <span>{variant.name ?? `Variant ${variant.id}`}</span>
                           <span className="text-muted-foreground">
                             <ProductPrice price={variant.price} />
                           </span>
+                          <ProductAvailability
+                            availability={variant.availability}
+                            showInStock
+                          />
                         </div>
                         {variant.sku ? (
                           <div className="flex items-center gap-2">
-                            <AddToCartButton sku={variant.sku} />
+                            <AddToCartButton
+                              sku={variant.sku}
+                              outOfStock={!variant.availability.isOnStock}
+                            />
                             <WishlistButton sku={variant.sku} showLabel />
                           </div>
                         ) : (
@@ -131,7 +145,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
               {!hasMultipleVariants ? (
                 <div className="flex flex-wrap items-center gap-3">
-                  <AddToCartButton sku={defaultSku ?? ''} disabled={!defaultSku} />
+                  <AddToCartButton
+                    sku={defaultSku ?? ''}
+                    disabled={!defaultSku}
+                    outOfStock={!product.availability.isOnStock}
+                  />
                   <WishlistButton
                     sku={defaultSku ?? ''}
                     disabled={!defaultSku}

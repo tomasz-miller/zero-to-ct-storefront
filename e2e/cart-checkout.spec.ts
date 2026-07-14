@@ -25,10 +25,12 @@ async function getProductSkuWithStock(
   expect(response.ok()).toBeTruthy();
 
   const body = (await response.json()) as {
-    products: Array<{ sku?: string; name: string }>;
+    products: Array<{ sku?: string; name: string; availability?: { isOnStock: boolean } }>;
   };
 
-  const product = body.products.find((item) => item.sku);
+  const product = body.products.find(
+    (item) => item.sku && item.availability?.isOnStock !== false,
+  );
   if (!product?.sku) {
     throw new Error('No product with SKU found in catalog');
   }

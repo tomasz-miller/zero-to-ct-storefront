@@ -155,10 +155,11 @@ test.describe('Discovery flow', () => {
     );
   });
 
-  test('product detail page shows title and add to cart', async ({ page }) => {
+  test('product detail page shows title, stock badge, and add to cart', async ({ page }) => {
     await page.goto('/product/orion-double-bed');
 
     await expect(page.getByRole('img', { name: /orion double bed/i })).toBeVisible();
+    await expect(page.getByText('In stock')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add to cart' })).toBeVisible();
   });
 });

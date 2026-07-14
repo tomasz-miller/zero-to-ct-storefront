@@ -4,6 +4,7 @@ import {
   addLineItem,
   CartAccessError,
   CartNotFoundError,
+  OutOfStockError,
 } from '@/lib/commercetools/cart';
 
 export async function POST(request: NextRequest) {
@@ -38,6 +39,9 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof CartNotFoundError) {
       return NextResponse.json({ error: 'Cart not found' }, { status: 404 });
+    }
+    if (error instanceof OutOfStockError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
     }
 
     console.error('[api/cart/items]', error);

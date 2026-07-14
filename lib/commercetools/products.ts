@@ -10,8 +10,10 @@ import {
 import {
   buildSlugWhere,
   isNewArrivalProduct,
+  mapAvailability,
   mapProjection,
   mapProjectionDetail,
+  type StorefrontAvailability,
   type StorefrontProduct,
   type StorefrontProductDetail,
 } from './product-mappers';
@@ -29,6 +31,7 @@ import { buildProductSearchSort } from './product-search-sort';
 import { getSearchableAttributeFacetConfigsForQuery } from './searchable-product-attributes';
 
 export type {
+  StorefrontAvailability,
   StorefrontProduct,
   StorefrontProductDetail,
   StorefrontProductVariant,
@@ -410,4 +413,57 @@ export async function getProductBySlug(
   }
 
   return mapProjectionDetail(projection, resolvedLocale, resolvedCurrency, country);
+}
+
+export async function getProductAvailabilityBySku(
+  sku: string,
+): Promise<StorefrontAvailability | null> {
+  const { locale, currency, country } = getCatalogContext();
+
+  const searchResponse = await apiRoot
+    .products()
+    .search()
+    .post({
+      body: {
+        query: {
+          exact: {
+            field: 'variants.sku',
+            fieldType: 'keyword',
+            value: sku,
+          },
+        },
+        limit: 1,
+      },
+    })
+    .execute();
+
+  const productId = searchResponse.body.results[0]?.id;
+  if (!productId) {
+    return null;
+  }
+
+  const response = await apiRoot
+    .productProjections()
+    .withId({ ID: productId })
+    .get({
+      queryArgs: {
+        staged: false,
+        localeProjection: locale,
+        priceCurrency: currency,
+        priceCountry: country,
+      },
+    })
+    .execute();
+
+  const allVariants = [
+    response.body.masterVariant,
+    ...response.body.variants,
+  ];
+  const variant = allVariants.find((entry) => entry.sku === sku);
+
+  if (!variant) {
+    return null;
+  }
+
+  return mapAvailability(variant);
 }

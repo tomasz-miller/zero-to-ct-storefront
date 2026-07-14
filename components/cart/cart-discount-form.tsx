@@ -15,9 +15,10 @@ import type { StorefrontCart } from '@/lib/commercetools/cart-mappers';
 
 type CartDiscountFormProps = {
   cart: StorefrontCart;
+  onCartUpdated?: (cart: StorefrontCart) => void;
 };
 
-export function CartDiscountForm({ cart }: CartDiscountFormProps) {
+export function CartDiscountForm({ cart, onCartUpdated }: CartDiscountFormProps) {
   const router = useRouter();
   const [code, setCode] = useState('');
   const [pending, setPending] = useState(false);
@@ -38,6 +39,7 @@ export function CartDiscountForm({ cart }: CartDiscountFormProps) {
       });
 
       const body = (await response.json().catch(() => null)) as {
+        cart?: StorefrontCart;
         error?: string;
       } | null;
 
@@ -47,7 +49,11 @@ export function CartDiscountForm({ cart }: CartDiscountFormProps) {
 
       setCode('');
       setSuccess('Discount code applied.');
-      router.refresh();
+      if (onCartUpdated && body?.cart) {
+        onCartUpdated(body.cart);
+      } else {
+        router.refresh();
+      }
     } catch (applyError) {
       setError(
         applyError instanceof Error
@@ -72,6 +78,7 @@ export function CartDiscountForm({ cart }: CartDiscountFormProps) {
       });
 
       const body = (await response.json().catch(() => null)) as {
+        cart?: StorefrontCart;
         error?: string;
       } | null;
 
@@ -80,7 +87,11 @@ export function CartDiscountForm({ cart }: CartDiscountFormProps) {
       }
 
       setSuccess('Discount code removed.');
-      router.refresh();
+      if (onCartUpdated && body?.cart) {
+        onCartUpdated(body.cart);
+      } else {
+        router.refresh();
+      }
     } catch (removeError) {
       setError(
         removeError instanceof Error

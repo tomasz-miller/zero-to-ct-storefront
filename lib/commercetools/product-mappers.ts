@@ -7,6 +7,11 @@ export type StorefrontPrice = {
   isDiscounted?: boolean;
 };
 
+export type StorefrontAvailability = {
+  isOnStock: boolean;
+  availableQuantity?: number;
+};
+
 export type StorefrontProduct = {
   id: string;
   key?: string;
@@ -15,6 +20,7 @@ export type StorefrontProduct = {
   sku?: string;
   imageUrl?: string;
   price?: StorefrontPrice;
+  availability: StorefrontAvailability;
 };
 
 export type StorefrontProductVariant = {
@@ -23,6 +29,7 @@ export type StorefrontProductVariant = {
   name?: string;
   imageUrl?: string;
   price?: StorefrontPrice;
+  availability: StorefrontAvailability;
 };
 
 export type StorefrontProductDetail = StorefrontProduct & {
@@ -93,6 +100,40 @@ export function pickPrice(
   return mapPriceValue(match.value, match.discounted?.value);
 }
 
+export function mapAvailability(variant: ProductVariant): StorefrontAvailability {
+  const availability = variant.availability;
+
+  if (!availability) {
+    return { isOnStock: true };
+  }
+
+  if (typeof availability.isOnStock === 'boolean') {
+    return {
+      isOnStock: availability.isOnStock,
+      availableQuantity: availability.availableQuantity,
+    };
+  }
+
+  const channelEntries = availability.channels
+    ? Object.values(availability.channels)
+    : [];
+
+  if (channelEntries.length > 0) {
+    const isOnStock = channelEntries.some((entry) => entry.isOnStock);
+    const availableQuantity = channelEntries.reduce(
+      (total, entry) => total + (entry.availableQuantity ?? 0),
+      0,
+    );
+
+    return {
+      isOnStock,
+      availableQuantity: availableQuantity > 0 ? availableQuantity : undefined,
+    };
+  }
+
+  return { isOnStock: true };
+}
+
 export function mapVariant(
   variant: ProductVariant,
   locale: string,
@@ -110,6 +151,7 @@ export function mapVariant(
     name: colorLabel ?? finishLabel ?? variant.sku,
     imageUrl: variant.images?.[0]?.url,
     price: pickPrice(variant, currency, country),
+    availability: mapAvailability(variant),
   };
 }
 
@@ -136,6 +178,7 @@ export function mapProjection(
     sku: variant.sku,
     imageUrl,
     price,
+    availability: mapAvailability(variant),
   };
 }
 

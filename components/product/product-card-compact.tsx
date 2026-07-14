@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { AddToCartButton } from '@/components/cart/add-to-cart-button';
 import { WishlistButton } from '@/components/wishlist/wishlist-button';
+import { ProductAvailability } from '@/components/product/product-availability';
 import { ProductPrice } from '@/components/product/product-price';
 import type { StorefrontProduct } from '@/lib/commercetools/products';
 
@@ -11,6 +12,8 @@ type ProductCardCompactProps = {
 };
 
 export function ProductCardCompact({ product }: ProductCardCompactProps) {
+  const outOfStock = !product.availability.isOnStock;
+
   return (
     <article className="group flex h-full flex-col gap-2 rounded-xl border bg-card p-3 shadow-xs/5 transition-colors hover:bg-accent/30">
       <div className="flex min-h-0 flex-1 flex-col gap-2">
@@ -36,6 +39,12 @@ export function ProductCardCompact({ product }: ProductCardCompactProps) {
             disabled={!product.sku}
             className="absolute top-1 right-1 z-10"
           />
+          {outOfStock ? (
+            <ProductAvailability
+              availability={product.availability}
+              className="absolute bottom-1 left-1 z-10"
+            />
+          ) : null}
         </div>
         <Link
           href={`/product/${product.slug}`}
@@ -52,6 +61,7 @@ export function ProductCardCompact({ product }: ProductCardCompactProps) {
       <AddToCartButton
         sku={product.sku ?? ''}
         disabled={!product.sku}
+        outOfStock={outOfStock}
         size="sm"
         className="mt-auto w-full shrink-0"
       />

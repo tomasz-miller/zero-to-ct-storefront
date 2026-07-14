@@ -18,6 +18,7 @@ import {
 } from './cart-session';
 import { getCustomerSession } from './customer-session';
 import { getStorefrontContext } from './storefront-context';
+import { getProductAvailabilityBySku } from './products';
 
 export class CartAccessError extends Error {
   constructor(message = 'Cart access denied') {
@@ -30,6 +31,13 @@ export class CartNotFoundError extends Error {
   constructor(message = 'Cart not found') {
     super(message);
     this.name = 'CartNotFoundError';
+  }
+}
+
+export class OutOfStockError extends Error {
+  constructor(message = 'This product is out of stock') {
+    super(message);
+    this.name = 'OutOfStockError';
   }
 }
 
@@ -449,6 +457,11 @@ export async function addLineItem(
   sku: string,
   quantity: number,
 ): Promise<StorefrontCart> {
+  const availability = await getProductAvailabilityBySku(sku);
+  if (availability && !availability.isOnStock) {
+    throw new OutOfStockError();
+  }
+
   const { cart } = await loadResolvedCart();
 
   const response = await apiRoot

@@ -138,6 +138,21 @@ Demonstrates Product Discounts on discovery and Cart Discount codes before check
 
 **Demo fixtures:** see `lib/commercetools/demo-promotions.ts` (`CARM-023`, `BOGO`).
 
+### 3. Stock availability
+
+1. Open a product PDP (e.g. **Charlie Armchair** `/product/charlie-armchair`).
+2. Point out the **In stock** badge below the price.
+3. If an out-of-stock product exists in the catalog, show the **Out of stock** badge and disabled add-to-cart button on PLP/PDP.
+
+**Demo fixtures:** see `lib/commercetools/demo-inventory.ts`.
+
+### 4. Mobile cart drawer
+
+1. Resize the browser to mobile width (or use device toolbar).
+2. Add a product to cart from the homepage.
+3. Tap the **Cart** button in the header — a side drawer opens with line items, discount form, and **Proceed to checkout**.
+4. On desktop (`≥ md`), the cart icon still links to the full `/cart` page.
+
 ---
 
 ## Talking points summary
@@ -150,14 +165,15 @@ Demonstrates Product Discounts on discovery and Cart Discount codes before check
 | **Agent-assisted delivery** | ~85–95% agent-generated code; human owns MC/Stripe setup and commerce review |
 | **Timeline** | ~2-week PoC by a backend-focused developer (see [TIME_REPORT.md](./TIME_REPORT.md)) |
 | **Promotions** | Product Discounts on PLP/PDP; Cart Discount codes via BFF before Checkout session |
+| **Inventory** | Stock badges from `ProductVariant.availability`; add-to-cart blocked when out of stock |
+| **Mobile UX** | Cart drawer (Sheet) on viewports `< md` |
 
 ---
 
 ## Known limitations (honest demo close)
 
-Refer to [ROADMAP.md](./ROADMAP.md) Phase 8+ for planned work:
+Refer to [ROADMAP.md](./ROADMAP.md) Phase 9+ for planned work:
 
-- No **mobile cart drawer** (Phase 7 remainder)
 - No **Quick View** on listing pages
 - No **multi-country switcher** in UI (env-driven `DE` / `EUR` defaults)
 - **Best sellers** use a catalog heuristic (not real sales ranking)

@@ -11,7 +11,7 @@ Testing strategy for **zero-to-ct-storefront**. Unit tests run in CI without com
 | Unit — lib | Vitest | `format`, product/category mappers, mocked `products`/`categories` | Yes |
 | Unit — API | Vitest (node) | `/api/health`, `/api/products`, `/api/categories`, `/api/cart/items`, `/api/cart/discount-code`, `/api/customer/profile`, `/api/customer/password`, `/api/wishlist`, `/api/wishlist/items` | Yes |
 | Unit — UI | Vitest + Testing Library | product cards, search form | Yes |
-| E2E | Playwright | discovery + cart/checkout + account + wishlist + API smoke against live CT | No (local only) |
+| E2E | Playwright | discovery + cart/checkout + account + wishlist + inventory + API smoke against live CT | No (local only) |
 
 ---
 
@@ -78,6 +78,7 @@ pnpm lint && pnpm typecheck && pnpm test:unit
 | `cart-checkout.spec.ts` | Add to cart from homepage, cart page line items, checkout embed load, cart API, product discount PDP, BOGO discount code |
 | `account.spec.ts` | Auth redirect, register, profile edit, address CRUD, change password, order detail (conditional) |
 | `wishlist.spec.ts` | Guest save/view/remove, move-to-cart badge sync |
+| `inventory.spec.ts` | Stock badges on PDP/PLP, out-of-stock API guard (409), mobile cart drawer |
 | `api.spec.ts` | `GET /api/health`, `GET /api/categories` |
 
 **E2E boundaries:** Tests verify cart and checkout **session load** (order summary + `[data-ctc]` embed container). **Full Stripe payment** is not automated — the Checkout Browser SDK iframe is flaky in CI and requires manual card entry. Use [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) for payment demo steps.
