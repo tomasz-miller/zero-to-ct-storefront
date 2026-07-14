@@ -26,7 +26,7 @@ Copy from [`.env.example`](../.env.example). Set these in the hosting provider (
 | `CTP_AUTH_URL` | `https://auth.europe-west1.gcp.commercetools.com` (EU GCP) |
 | `CTP_API_URL` | `https://api.europe-west1.gcp.commercetools.com` |
 | `CTP_SESSION_URL` | `https://session.europe-west1.gcp.commercetools.com` |
-| `CTP_SCOPES` | Space-separated scopes — see `.env.example` |
+| `CTP_SCOPES` | Space-separated scopes — see `.env.example` (includes `manage_shopping_lists` for wishlist) |
 
 ### Public (safe for browser / Checkout SDK)
 
@@ -67,7 +67,7 @@ Optional: `CTP_CHECKOUT_APPLICATION_KEY` — override checkout app (see [CHECKOU
 
 ### Stripe connector CORS
 
-After deploy, ensure the Stripe connector `ALLOWED_ORIGINS` includes your production URL (e.g. `https://your-app.vercel.app`). See [CHECKOUT.md](./CHECKOUT.md).
+After deploy, ensure the Stripe connector `ALLOWED_ORIGINS` includes your production URL (e.g. `https://zero-to-ct-storefront.vercel.app`). See [CHECKOUT.md](./CHECKOUT.md).
 
 ---
 
@@ -86,16 +86,23 @@ CI runs `pnpm build` with live CT credentials ([`.github/workflows/ci.yml`](../.
 
 ---
 
+## Production URL (current)
+
+**https://zero-to-ct-storefront.vercel.app** — deployed 2026-07-14 via Vercel CLI (`pnpm dlx vercel --prod`).
+
+---
+
 ## Post-deploy checklist
 
 | Check | How |
 |-------|-----|
-| Health | `GET https://your-app.vercel.app/api/health` → `{ "ok": true }` |
+| Health | `GET https://zero-to-ct-storefront.vercel.app/api/health` → `{ "ok": true }` |
 | Products | Homepage loads Best Sellers grid |
 | Add to cart | Add item from homepage; cart badge updates |
 | Checkout embed | `/checkout` loads without `no_payment_integrations` error |
 | Test payment | Stripe card `4242 4242 4242 4242` → order confirmation |
 | Auth | Register, sign in, view `/account` order history |
+| Wishlist | Save item from homepage, view `/wishlist`, move to cart |
 
 Run through [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) on the production URL before a sales call.
 

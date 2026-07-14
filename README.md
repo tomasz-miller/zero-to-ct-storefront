@@ -2,9 +2,15 @@
 
 A minimal B2C storefront on [commercetools](https://commercetools.com) Composable Commerce — built by a backend developer in ~2 weeks using AI agents and official CT tooling.
 
+## Live demo
+
+**https://zero-to-ct-storefront.vercel.app/**
+
+[![Homepage — Best Sellers grid with wishlist and cart](./docs/zero-to-ct-storefront.vercel.app_.png)](https://zero-to-ct-storefront.vercel.app/)
+
 ## Status
 
-🚧 **Work in progress** — PoC for agent-assisted commerce delivery.
+✅ **Live demo** — B2C PoC deployed on Vercel (discovery, cart, checkout, account, wishlist). See [docs/ROADMAP.md](./docs/ROADMAP.md) for backlog.
 
 ## Documentation
 
@@ -16,6 +22,9 @@ A minimal B2C storefront on [commercetools](https://commercetools.com) Composabl
 | [docs/UI_COMPONENTS.md](./docs/UI_COMPONENTS.md) | coss ui primitives and conventions |
 | [docs/CURSOR_SETUP.md](./docs/CURSOR_SETUP.md) | `.cursor/` directory setup (rules, MCP) |
 | [docs/CHECKOUT.md](./docs/CHECKOUT.md) | Checkout + Stripe connector (MC, Connect, API client scopes) |
+| [docs/DEMO_SCRIPT.md](./docs/DEMO_SCRIPT.md) | Sales demo script (use live URL above) |
+| [docs/DEPLOY.md](./docs/DEPLOY.md) | Vercel deployment guide |
+| [docs/ROADMAP.md](./docs/ROADMAP.md) | Product roadmap and phase status |
 | [BUILD_LOG.md](./BUILD_LOG.md) | Chronological development log |
 
 ## Stack

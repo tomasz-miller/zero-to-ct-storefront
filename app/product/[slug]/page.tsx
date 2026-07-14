@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { AddToCartButton } from '@/components/cart/add-to-cart-button';
+import { WishlistButton } from '@/components/wishlist/wishlist-button';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -123,7 +124,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
                           </span>
                         </div>
                         {variant.sku ? (
-                          <AddToCartButton sku={variant.sku} />
+                          <div className="flex items-center gap-2">
+                            <AddToCartButton sku={variant.sku} />
+                            <WishlistButton sku={variant.sku} showLabel />
+                          </div>
                         ) : (
                           <Button disabled size="sm">
                             Unavailable
@@ -136,7 +140,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
               ) : null}
 
               {!hasMultipleVariants ? (
-                <AddToCartButton sku={defaultSku ?? ''} disabled={!defaultSku} />
+                <div className="flex flex-wrap items-center gap-3">
+                  <AddToCartButton sku={defaultSku ?? ''} disabled={!defaultSku} />
+                  <WishlistButton
+                    sku={defaultSku ?? ''}
+                    disabled={!defaultSku}
+                    showLabel
+                  />
+                </div>
               ) : null}
             </CardContent>
           </Card>

@@ -124,3 +124,17 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Agent vs manual:** ~95% agent
 - **Notes:** Password change clears customer session and prompts re-login. Email verification remains out of scope without ESP.
 
+### 2026-07-14 — Phase 6 — wishlist / shopping lists
+- **Time:** 1.5h
+- **Phase:** phase-6-wishlist
+- **Milestone:** Shopping Lists module (`lib/commercetools/shopping-lists.ts`), wishlist session cookie, BFF `/api/wishlist/*`, heart icon on PLP/PDP, `/wishlist` page, move-to-cart orchestration, guest→customer merge on auth; 183 unit + 24 E2E tests; docs sync (ROADMAP, TESTING, DEMO_SCRIPT, DEPLOY, CUSTOMER_AUTH).
+- **Agent vs manual:** ~95% agent
+- **Notes:** Requires `manage_shopping_lists` scope on Frontend API client.
+
+### 2026-07-14 — Phase 3 — production deploy (Vercel)
+- **Time:** 0.5h
+- **Phase:** phase-3-demo
+- **Milestone:** Production deployment to Vercel (`zero-to-ct-storefront.vercel.app`); env vars synced; post-deploy smoke test passed (health, pages, guest wishlist add/move-to-cart, checkout session).
+- **Agent vs manual:** ~70% agent / 30% human (Vercel auth, env approval)
+- **Notes:** Add production URL to Stripe connector `ALLOWED_ORIGINS` if checkout CORS errors appear. GitHub↔Vercel auto-connect optional follow-up.
+

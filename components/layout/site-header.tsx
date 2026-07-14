@@ -8,6 +8,7 @@ import { CartNavLink } from '@/components/cart/cart-nav-link';
 import { AccountNav } from '@/components/auth/account-nav';
 import { CategoryNav } from '@/components/layout/category-nav';
 import { StoreBrand } from '@/components/layout/store-brand';
+import { WishlistNavLink } from '@/components/wishlist/wishlist-nav-link';
 import type { StorefrontCategory } from '@/lib/commercetools/categories';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -69,6 +70,7 @@ export function SiteHeader({ categories = [] }: SiteHeaderProps) {
               </span>
             </Button>
             <AccountNav compact={isScrolled} />
+            <WishlistNavLink compact={isScrolled} />
             <CartNavLink compact={isScrolled} />
           </nav>
         </div>

@@ -9,9 +9,9 @@ Testing strategy for **zero-to-ct-storefront**. Unit tests run in CI without com
 | Layer | Tool | Scope | CI |
 |-------|------|-------|-----|
 | Unit — lib | Vitest | `format`, product/category mappers, mocked `products`/`categories` | Yes |
-| Unit — API | Vitest (node) | `/api/health`, `/api/products`, `/api/categories`, `/api/cart/items`, `/api/customer/profile`, `/api/customer/password` | Yes |
+| Unit — API | Vitest (node) | `/api/health`, `/api/products`, `/api/categories`, `/api/cart/items`, `/api/customer/profile`, `/api/customer/password`, `/api/wishlist`, `/api/wishlist/items` | Yes |
 | Unit — UI | Vitest + Testing Library | product cards, search form | Yes |
-| E2E | Playwright | discovery + cart/checkout + account + API smoke against live CT | No (local only) |
+| E2E | Playwright | discovery + cart/checkout + account + wishlist + API smoke against live CT | No (local only) |
 
 ---
 
@@ -77,6 +77,7 @@ pnpm lint && pnpm typecheck && pnpm test:unit
 | `discovery.spec.ts` | Homepage best sellers + new arrivals, category nav → CLP, custom 404, search for `bed`, PDP |
 | `cart-checkout.spec.ts` | Add to cart from homepage, cart page line items, checkout embed load, cart API |
 | `account.spec.ts` | Auth redirect, register, profile edit, address CRUD, change password, order detail (conditional) |
+| `wishlist.spec.ts` | Guest save/view/remove, move-to-cart badge sync |
 | `api.spec.ts` | `GET /api/health`, `GET /api/categories` |
 
 **E2E boundaries:** Tests verify cart and checkout **session load** (order summary + `[data-ctc]` embed container). **Full Stripe payment** is not automated — the Checkout Browser SDK iframe is flaky in CI and requires manual card entry. Use [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) for payment demo steps.

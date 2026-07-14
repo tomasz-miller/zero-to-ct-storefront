@@ -27,6 +27,7 @@ sequenceDiagram
 |--------|---------|
 | `ct_customer_session` | httpOnly customer OAuth tokens + `customerId` + `expiresAt` |
 | `ct_guest_cart` | Guest cart `anonymousId` + `cartId` (updated after login/register merge) |
+| `ct_wishlist` | Wishlist `anonymousId` + `shoppingListId` (updated after login/register merge) |
 
 Tokens never reach the client JavaScript bundle.
 
@@ -56,6 +57,7 @@ Add these to the **Frontend application** API client in Merchant Center (in addi
 manage_customers:{projectKey}
 manage_my_profile:{projectKey}
 manage_my_orders:{projectKey}
+manage_shopping_lists:{projectKey}
 ```
 
 Update `CTP_SCOPES` in `.env.local` accordingly.
@@ -73,7 +75,7 @@ Update `CTP_SCOPES` in `.env.local` accordingly.
 
 On login and register, the BFF passes `anonymousCartId` from `ct_guest_cart`. Login uses `anonymousCartSignInMode: MergeWithExistingCustomerCart`. After success, `ct_guest_cart` is updated with the merged cart id and a **fresh** `anonymousId` (the previous one is consumed by commercetools).
 
-**Logout:** `ct_guest_cart` is cleared. The customer cart remains on the commercetools account and is restored on the next login. Logged-out visitors start a new guest cart when they add items. If a stale cookie points at an inaccessible cart, the BFF clears it and returns an empty cart instead of erroring.
+**Logout:** `ct_guest_cart` and `ct_wishlist` are cleared. The customer cart and wishlist remain on the commercetools account and are restored on the next login.
 
 ## UI flows
 

@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { useAuth } from '@/components/auth/auth-context';
 import { useCart } from '@/components/cart/cart-context';
+import { useWishlist } from '@/components/wishlist/wishlist-context';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,6 +46,7 @@ export function LoginDialog() {
     setAuthView,
   } = useAuth();
   const { refreshCart } = useCart();
+  const { refreshWishlist } = useWishlist();
 
   const [form, setForm] = useState<FormState>(initialFormState);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +76,7 @@ export function LoginDialog() {
   async function handleAuthSuccess() {
     await refreshSession();
     await refreshCart();
+    await refreshWishlist();
     closeLoginDialog();
     resetForm();
     router.refresh();

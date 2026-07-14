@@ -2,14 +2,17 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { CartProvider } from '@/components/cart/cart-context';
+import { WishlistProvider } from '@/components/wishlist/wishlist-context';
 import { ProductCardCompact } from './product-card-compact';
 import type { StorefrontProduct } from '@/lib/commercetools/products';
 
 function renderCard(product: StorefrontProduct) {
   return render(
-    <CartProvider>
-      <ProductCardCompact product={product} />
-    </CartProvider>,
+    <WishlistProvider>
+      <CartProvider>
+        <ProductCardCompact product={product} />
+      </CartProvider>
+    </WishlistProvider>,
   );
 }
 
@@ -25,8 +28,11 @@ const product: StorefrontProduct = {
 describe('ProductCardCompact', () => {
   it('links to the product detail page', () => {
     renderCard(product);
-    const link = screen.getByRole('link', { name: /orion double bed/i });
-    expect(link).toHaveAttribute('href', '/product/orion-double-bed');
+    const links = screen.getAllByRole('link', { name: /orion double bed/i });
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', '/product/orion-double-bed');
+    }
   });
 
   it('renders formatted price', () => {

@@ -10,6 +10,8 @@ Quick entry point for AI coding agents working in this repository.
 
 Minimal B2C storefront on commercetools — agent-assisted, backend-developer-led PoC.
 
+**Live demo:** https://zero-to-ct-storefront.vercel.app/
+
 ## Hard rules
 
 1. **pnpm only** — never npm or yarn; commit `pnpm-lock.yaml`

@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { AddToCartButton } from '@/components/cart/add-to-cart-button';
+import { WishlistButton } from '@/components/wishlist/wishlist-button';
 import { formatPrice } from '@/lib/format';
 import type { StorefrontProduct } from '@/lib/commercetools/products';
 
@@ -12,27 +13,34 @@ type ProductCardCompactProps = {
 export function ProductCardCompact({ product }: ProductCardCompactProps) {
   return (
     <article className="group flex h-full flex-col gap-2 rounded-xl border bg-card p-3 shadow-xs/5 transition-colors hover:bg-accent/30">
-      <Link
-        href={`/product/${product.slug}`}
-        className="flex min-h-0 flex-1 flex-col gap-2"
-      >
-        <div className="aspect-square overflow-hidden rounded-lg bg-muted">
-          {product.imageUrl ? (
-            <Image
-              src={product.imageUrl}
-              alt={product.name}
-              width={200}
-              height={200}
-              className="size-full object-cover transition-transform group-hover:scale-[1.02]"
-              loading="eager"
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
-              No image
-            </div>
-          )}
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
+        <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+          <Link href={`/product/${product.slug}`} className="block size-full">
+            {product.imageUrl ? (
+              <Image
+                src={product.imageUrl}
+                alt={product.name}
+                width={200}
+                height={200}
+                className="size-full object-cover transition-transform group-hover:scale-[1.02]"
+                loading="eager"
+              />
+            ) : (
+              <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
+                No image
+              </div>
+            )}
+          </Link>
+          <WishlistButton
+            sku={product.sku ?? ''}
+            disabled={!product.sku}
+            className="absolute top-1 right-1 z-10"
+          />
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-0.5">
+        <Link
+          href={`/product/${product.slug}`}
+          className="flex min-h-0 flex-1 flex-col gap-0.5"
+        >
           <p className="line-clamp-2 min-h-11 text-sm font-medium leading-snug">
             {product.name}
           </p>
@@ -41,8 +49,8 @@ export function ProductCardCompact({ product }: ProductCardCompactProps) {
               ? formatPrice(product.price.centAmount, product.price.currencyCode)
               : 'Price unavailable'}
           </p>
-        </div>
-      </Link>
+        </Link>
+      </div>
       <AddToCartButton
         sku={product.sku ?? ''}
         disabled={!product.sku}

@@ -2,6 +2,7 @@
 
 Step-by-step script for demonstrating **zero-to-ct-storefront** to prospects. Aligned with the [commercetools B2C Retail demo flow](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail).
 
+**Production URL:** https://zero-to-ct-storefront.vercel.app/  
 **Duration:** ~10–15 minutes (Scenarios A + B).  
 **Audience:** Technical buyers, solution architects, backend leads evaluating agent-assisted delivery.
 
@@ -11,18 +12,18 @@ Step-by-step script for demonstrating **zero-to-ct-storefront** to prospects. Al
 
 Before the demo, verify:
 
-1. **Local or deployed app** is running (`pnpm dev` or production URL).
-2. **`.env.local`** is configured — see [`.env.example`](../.env.example) and [CHECKOUT.md](./CHECKOUT.md).
+1. **Production demo** is live at https://zero-to-ct-storefront.vercel.app/ (or run locally with `pnpm dev`).
+2. **`.env.local`** is configured for local runs — see [`.env.example`](../.env.example) and [CHECKOUT.md](./CHECKOUT.md).
 3. **Payment Integrations** are **Active** in Merchant Center (Checkout → Applications). If checkout shows `no_payment_integrations`, see [CHECKOUT.md troubleshooting](./CHECKOUT.md).
 4. **Stripe test mode** is enabled on the connector (test keys in CT Connect).
 
 Quick health check:
 
 ```bash
-curl -s http://localhost:3000/api/health | jq .
+curl -s https://zero-to-ct-storefront.vercel.app/api/health | jq .
 ```
 
-Expect `"ok": true` and a valid `projectKey`.
+Expect `"ok": true` and a valid `projectKey`. For local dev, use `http://localhost:3000/api/health`.
 
 ---
 
@@ -131,9 +132,8 @@ Demonstrates customer auth, cart merge, and order history.
 
 ## Known limitations (honest demo close)
 
-Refer to [ROADMAP.md](./ROADMAP.md) Phase 6+ for planned work:
+Refer to [ROADMAP.md](./ROADMAP.md) Phase 7+ for planned work:
 
-- No **wishlist** / shopping lists
 - No **Quick View** on listing pages
 - No **multi-country switcher** in UI (env-driven `DE` / `EUR` defaults)
 - **Best sellers** use a catalog heuristic (not real sales ranking)

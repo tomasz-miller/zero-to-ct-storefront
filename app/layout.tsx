@@ -8,6 +8,7 @@ import { CartProvider } from '@/components/cart/cart-context';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { SiteHeader } from '@/components/layout/site-header';
 import { ThemeProvider } from '@/components/theme-provider';
+import { WishlistProvider } from '@/components/wishlist/wishlist-context';
 import { getNavigationCategories } from '@/lib/commercetools/categories';
 import { getStoreBrandConfig } from '@/lib/store-brand';
 import { cn } from '@/lib/utils';
@@ -51,12 +52,14 @@ export default async function RootLayout({
           <Suspense fallback={null}>
             <AuthProvider>
               <CartProvider>
-                <div className="flex min-h-svh flex-col bg-background">
-                  <SiteHeader categories={categories} />
-                  {children}
-                  <SiteFooter />
-                </div>
-                <LoginDialog />
+                <WishlistProvider>
+                  <div className="flex min-h-svh flex-col bg-background">
+                    <SiteHeader categories={categories} />
+                    {children}
+                    <SiteFooter />
+                  </div>
+                  <LoginDialog />
+                </WishlistProvider>
               </CartProvider>
             </AuthProvider>
           </Suspense>

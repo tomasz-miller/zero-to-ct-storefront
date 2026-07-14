@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { CartProvider } from '@/components/cart/cart-context';
+import { WishlistProvider } from '@/components/wishlist/wishlist-context';
 import { ProductGridCompact } from './product-grid-compact';
 import type { StorefrontProduct } from '@/lib/commercetools/products';
 
@@ -30,9 +31,11 @@ describe('ProductGridCompact', () => {
 
   it('renders a card for each product', () => {
     render(
-      <CartProvider>
-        <ProductGridCompact products={products} />
-      </CartProvider>,
+      <WishlistProvider>
+        <CartProvider>
+          <ProductGridCompact products={products} />
+        </CartProvider>
+      </WishlistProvider>,
     );
     expect(screen.getByRole('link', { name: /orion double bed/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /luna table/i })).toBeInTheDocument();

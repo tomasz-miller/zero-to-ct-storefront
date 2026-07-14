@@ -54,6 +54,11 @@ vi.mock('./customer-session', () => ({
   clearCustomerSession: mockClearCustomerSession,
 }));
 
+vi.mock('./shopping-lists', () => ({
+  reconcileWishlistOnAuth: vi.fn(),
+  clearWishlistOnLogout: vi.fn(),
+}));
+
 vi.mock('./env', () => ({
   commercetoolsEnv: {
     authUrl: 'https://auth.example.com',
@@ -72,6 +77,7 @@ import {
   requestPasswordReset,
   resetCustomerPassword,
 } from './customer-auth';
+import { clearWishlistOnLogout, reconcileWishlistOnAuth } from './shopping-lists';
 
 describe('customer-auth', () => {
   afterEach(() => {
@@ -155,6 +161,7 @@ describe('customer-auth', () => {
         customerId: 'cust-1',
       }),
     );
+    expect(reconcileWishlistOnAuth).toHaveBeenCalledWith('cust-1');
   });
 
   it('maps invalid credentials to CustomerAuthError', async () => {
@@ -254,10 +261,11 @@ describe('customer-auth', () => {
     });
   });
 
-  it('clears customer and cart sessions on logout', async () => {
+  it('clears customer, cart, and wishlist sessions on logout', async () => {
     await logoutCustomer();
     expect(mockClearCustomerSession).toHaveBeenCalled();
     expect(mockClearCartSession).toHaveBeenCalled();
+    expect(clearWishlistOnLogout).toHaveBeenCalled();
   });
 
   it('returns password reset token value in dev flow helper', async () => {

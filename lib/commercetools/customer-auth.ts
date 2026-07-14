@@ -18,6 +18,10 @@ import {
 } from './customer-session';
 import { mapCustomer, type StorefrontCustomer } from './customer-mappers';
 import { commercetoolsEnv } from './env';
+import {
+  clearWishlistOnLogout,
+  reconcileWishlistOnAuth,
+} from './shopping-lists';
 
 const TOKEN_REFRESH_BUFFER_MS = 60_000;
 
@@ -335,6 +339,7 @@ export async function loginCustomer(
   );
 
   await syncCartAfterAuth(response.body);
+  await reconcileWishlistOnAuth(response.body.customer.id);
 
   const session = await exchangePasswordForCustomerToken(email, password);
   await setCustomerSession(session);
@@ -363,6 +368,8 @@ export async function registerCustomer(input: {
     await rotateCartSessionAnonymousId();
   }
 
+  await reconcileWishlistOnAuth(customer.id);
+
   const session = await exchangePasswordForCustomerToken(input.email, input.password);
   await setCustomerSession(session);
 
@@ -373,6 +380,7 @@ export async function logoutCustomer(): Promise<void> {
   await clearCustomerSession();
   // Customer cart belongs to the account — drop browser cart cookie so guest session starts fresh.
   await clearCartSession();
+  await clearWishlistOnLogout();
 }
 
 export async function requestPasswordReset(email: string): Promise<{

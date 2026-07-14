@@ -2,7 +2,9 @@
 
 Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on commercetools sample data. Complements [BUILD_LOG.md](../BUILD_LOG.md) (history) and [AGENT_CODING.md](./AGENT_CODING.md) (phases 0–3).
 
-**Last updated:** 2026-07-14 (Phase 5 complete — account management)
+**Last updated:** 2026-07-14 (Phase 6 wishlist + Phase 3 production deploy complete)
+
+**Live demo:** https://zero-to-ct-storefront.vercel.app/
 
 ---
 
@@ -13,11 +15,12 @@ Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on comm
 | Phase 0 — CT project setup | Done |
 | Phase 1 — Next.js scaffold | Done |
 | Phase 2 — Discovery, cart, checkout, auth | Done |
-| Phase 3 — Deploy, demo script, time report | **In progress** (E2E, docs done; deploy pending human) |
+| Phase 3 — Deploy, demo script, time report | **done** (Vercel production + smoke test) |
 | Phase 4 — Discovery completeness | **done** (category nav, CLP, listings, sort, pagination, facets, autocomplete) |
 | Phase 5 — Account and post-purchase | **done** (profile edit, address CRUD, change password) |
+| Phase 6 — Wishlist / Shopping Lists | **done** (heart icon, `/wishlist`, move to cart, guest merge on auth) |
 
-The storefront covers the core B2C purchase path (browse → cart → checkout → account) and category-based discovery with sortable, paginated, faceted listings and search autocomplete. Remaining gaps vs the [commercetools B2C Retail demo flow](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail) are wishlist, Quick View, and multi-market switcher.
+The storefront covers the core B2C purchase path (browse → cart → checkout → account) and category-based discovery with sortable, paginated, faceted listings, search autocomplete, and wishlist. Remaining gaps vs the [commercetools B2C Retail demo flow](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail) are Quick View and multi-market switcher.
 
 ---
 
@@ -29,7 +32,7 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 - **TypeScript SDK v3** (`ClientBuilder`) in [`lib/commercetools/`](../lib/commercetools/)
 - **coss ui** + Tailwind v4, dark/light theme (`next-themes`)
 - **CI** (`.github/workflows/ci.yml`): `lint`, `typecheck`, `test:unit`, `build` (with GitHub secrets)
-- **~170 unit tests** (Vitest) + **21 E2E tests** (Playwright: discovery + cart/checkout + account + API smoke, local with `CTP_*`)
+- **~183 unit tests** (Vitest) + **24 E2E tests** (Playwright: discovery + cart/checkout + account + wishlist + API smoke, local with `CTP_*`)
 
 ### Product discovery
 
@@ -78,7 +81,7 @@ See [CUSTOMER_AUTH.md](./CUSTOMER_AUTH.md) for architecture and scopes.
 - Configurable store branding (`NEXT_PUBLIC_STORE_NAME`)
 - Catalog copy in `en-GB`; purchase defaults `en-GB` / `DE` / `EUR` (see `storefront-context.ts`)
 
-### BFF API endpoints (20 route files)
+### BFF API endpoints (24 route files)
 
 | Endpoint | Methods |
 |----------|---------|
@@ -102,6 +105,10 @@ See [CUSTOMER_AUTH.md](./CUSTOMER_AUTH.md) for architecture and scopes.
 | `/api/customer/addresses` | POST |
 | `/api/customer/addresses/[addressId]` | PATCH, DELETE |
 | `/api/customer/password` | POST |
+| `/api/wishlist` | GET |
+| `/api/wishlist/items` | POST |
+| `/api/wishlist/items/[lineItemId]` | DELETE |
+| `/api/wishlist/items/[lineItemId]/move-to-cart` | POST |
 
 ### Architecture overview
 
@@ -149,7 +156,7 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 | Faceted filters (price, attributes) | Done |
 | Sorting and pagination on listings | Done |
 | Quick View on product listing | Missing |
-| Wishlist (heart icon) | Missing |
+| Wishlist (heart icon) | **done** — `/wishlist`, `/api/wishlist/*`, guest merge on auth |
 | Multi-language / country switcher | Env defaults only |
 | Profile edit / change password | **done** — `/account` forms + `/api/customer/profile`, `/api/customer/password` |
 | Single order detail page | **done** — `/account/orders/[id]` |
@@ -167,7 +174,7 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 
 | Feature | Status | CT API | Suggested files | Dependencies |
 |---------|--------|--------|-----------------|--------------|
-| Deploy (Vercel/Netlify) | planned (human) | — | — | CT AI plugin `/deploy-vercel`; see [DEPLOY.md](./DEPLOY.md) |
+| Deploy (Vercel/Netlify) | done | — | — | https://zero-to-ct-storefront.vercel.app; see [DEPLOY.md](./DEPLOY.md) |
 | Sales demo script | done | — | [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) | — |
 | Time report | done | — | [TIME_REPORT.md](./TIME_REPORT.md) | `BUILD_LOG.md` entries |
 | E2E: add-to-cart + checkout | done | Carts, Checkout Sessions | `e2e/cart-checkout.spec.ts` | Local `CTP_*` credentials |
@@ -222,9 +229,9 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 
 | Feature | Status | CT API | Suggested files | Dependencies |
 |---------|--------|--------|-----------------|--------------|
-| Wishlist (add, remove, view) | planned | [Shopping Lists API](https://docs.commercetools.com/api/projects/shoppingLists), [My Shopping Lists](https://docs.commercetools.com/api/projects/me-shoppingLists) | `lib/commercetools/shopping-lists.ts`, `/api/wishlist/*` | Guest `anonymousId`; merge on login |
-| Move wishlist item to cart | planned | Carts + Shopping Lists update | BFF orchestration | Cart + wishlist modules |
-| Wishlist page `/wishlist` | planned | — | `app/wishlist/page.tsx` | coss ui |
+| Wishlist (add, remove, view) | **done** | [Shopping Lists API](https://docs.commercetools.com/api/projects/shoppingLists) | `lib/commercetools/shopping-lists.ts`, `/api/wishlist/*` | Guest `anonymousId`; merge on login |
+| Move wishlist item to cart | **done** | Carts + Shopping Lists update | BFF orchestration | Cart + wishlist modules |
+| Wishlist page `/wishlist` | **done** | — | `app/wishlist/page.tsx` | coss ui |
 
 **Effort:** M | **Value:** Medium (good demo differentiator)
 
@@ -300,7 +307,7 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 
 | Feature | Priority | Effort | Status | CT API |
 |---------|----------|--------|--------|--------|
-| Deploy + demo script | P0 | S | partial (deploy pending) | — |
+| Deploy + demo script | P0 | S | **done** | — |
 | E2E checkout flow | P0 | S | done | Carts, Checkout Sessions |
 | CI production build | P0 | S | done | — |
 | Category pages + navigation | P1 | M | **done** | Categories, Product Search |
@@ -312,7 +319,7 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 | Search autocomplete | P1 | S | **done** | Search Term Suggestions |
 | Order detail page | P2 | S | **done** | `GET /me/orders/{id}` |
 | Profile edit / change password | P2 | M | **done** | `POST /me`, `/me/password` |
-| Wishlist | P2 | M | planned | Shopping Lists |
+| Wishlist | P2 | M | **done** | Shopping Lists |
 | Discount codes in cart UI | P3 | M | planned | Carts `addDiscountCode` |
 | Inventory display | P3 | M | planned | ProductVariant.availability |
 | Multi-market switcher | P4 | L | future | Price selection, Stores |
@@ -355,12 +362,13 @@ quadrantChart
 
 ### Recommended implementation order
 
-1. **Phase 3** — Demo readiness (P0) — deploy remains human step
-2. **Phase 6** — Wishlist (P2)
-3. **Phase 7** — Discount codes + promotion display (P3)
-4. **Phase 8** — Inventory availability (P3)
-5. **Phase 9** — Multi-market (P4, post-PoC)
-6. **Phase 10** — Agentic commerce assistant (Future)
+1. **Phase 3** — Demo readiness (P0) — **done** (production URL live)
+2. **Phase 7** — Discount codes + promotion display (P3)
+3. **Phase 8** — Inventory availability (P3)
+4. **Phase 9** — Multi-market (P4, post-PoC)
+5. **Phase 10** — Agentic commerce assistant (Future)
+
+**Phase 6 slice 1 (done):** Shopping Lists module, `/api/wishlist/*`, heart icon on PLP/PDP, `/wishlist` page, move-to-cart orchestration, guest→customer merge on auth, unit + E2E coverage.
 
 **Phase 4 slice 1 (done):** category module, `/api/categories`, header category nav, `/category/[slug]`, New Arrivals, custom `not-found`, unified `ProductCardCompact` listings, review hardening (layout fallback, slug validation, paginated category fetch).
 
