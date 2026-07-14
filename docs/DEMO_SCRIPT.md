@@ -98,8 +98,11 @@ Demonstrates customer auth, cart merge, and order history.
 ### 3. Account and order history
 
 1. Navigate to **Account** (`/account`).
-2. Show profile summary and **order history** table (includes Scenario A order if same session).
-3. Sign out via the account menu.
+2. Edit **profile** (name/email) and save — mention email uniqueness check.
+3. **Add an address**, set default shipping, edit city, then delete.
+4. **Change password** — sign in again with the new password.
+5. Show **order history** table (includes Scenario A order if same session); open an order detail link when available.
+6. Sign out via the account menu.
 
 ---
 
@@ -128,13 +131,13 @@ Demonstrates customer auth, cart merge, and order history.
 
 ## Known limitations (honest demo close)
 
-Refer to [ROADMAP.md](./ROADMAP.md) Phase 5+ for planned work:
+Refer to [ROADMAP.md](./ROADMAP.md) Phase 6+ for planned work:
 
 - No **wishlist** / shopping lists
 - No **Quick View** on listing pages
 - No **multi-country switcher** in UI (env-driven `DE` / `EUR` defaults)
 - **Best sellers** use a catalog heuristic (not real sales ranking)
-- **Order detail page** not implemented (`/account` shows list only)
+- **Email verification** after email change (no ESP in PoC)
 - **Brand facet** only appears when `variants.attributes.brand` exists in the CT project
 
 These gaps are intentional PoC scope — the roadmap shows how to extend toward full B2C Retail parity.

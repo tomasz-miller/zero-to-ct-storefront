@@ -39,7 +39,9 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | 2026-07-10 | Partial day: first commit 12:52 (post-lunch) through ~17:00 incl. Phase 3 docs/tests | **4h** |
 | 2026-07-13 | Phase 4 discovery slices incl. facets + autocomplete (user-reported) | **3.5h** |
 | 2026-07-14 | Checkout cart-session cleanup and review fixes | **0.25h** |
-| **Total** | | **21.75h** |
+| 2026-07-14 | Phase 5 slice 2 — profile edit, address CRUD, change password; 170 unit + 21 E2E tests | **1.5h** |
+| 2026-07-14 | Account UX polish — dismissible alerts, address dialog, wide-screen account layout | **40min** |
+| **Total** | | **23.92h** |
 
 ---
 
@@ -48,8 +50,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Metric | Value |
 |--------|-------|
 | Project duration | 5 working days (2026-07-08 → 2026-07-14) |
-| Total estimated time | **21.75h** net |
-| Current phase | phase-3-demo (deploy pending); phase-4-discovery done |
+| Total estimated time | **23.92h** net |
+| Current phase | phase-3-demo (deploy pending); phase-4-discovery done; phase-5-account done |
 | Developer profile | Backend-focused, agent-assisted (Cursor + commercetools AI plugin) |
 | Agent contribution | ~85–95% of storefront code; human owns CT project, Stripe/Connect, MC config |
 
@@ -73,7 +75,10 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-4-discovery | 2026-07-13 | Listing sort + pagination on `/search` and `/category/[slug]`; code-review hardening; 110+ unit + 13 E2E tests | ~95% agent | 1h |
 | phase-4-discovery | 2026-07-13 | Faceted filters + search autocomplete; 128 unit + 15 E2E tests | ~95% agent | 0.5h |
 | phase-2-core | 2026-07-14 | Checkout completion cart-session cleanup; prevent false badge reset on failed cleanup; duplicate-event guard; unit coverage | ~95% agent | 0.25h |
-| **Total** | | | ~80% agent / ~20% manual | **21.75h** |
+| phase-5-account | 2026-07-14 | Phase 5 slice 1 — order detail + extended profile | ~95% agent | 1h |
+| phase-5-account | 2026-07-14 | Phase 5 slice 2 — profile edit, address CRUD, change password; 170 unit + 21 E2E tests | ~95% agent | 1.5h |
+| phase-5-account | 2026-07-14 | Account UX polish — dismissible alerts (auto-dismiss + close), address add/edit dialog, responsive wide-screen layout on `/account` | ~95% agent | 40min |
+| **Total** | | | ~80% agent / ~20% manual | **23.92h** |
 
 ---
 
@@ -81,12 +86,13 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 
 | Phase | Hours | Share |
 |-------|-------|-------|
-| phase-0-setup | 2.5h | 11% |
-| phase-1-scaffold | 2h | 9% |
-| phase-2-core | 12.25h | 56% |
-| phase-3-demo | 1.5h | 7% |
-| phase-4-discovery | 3.5h | 16% |
-| **Total** | **21.75h** | 100% |
+| phase-0-setup | 2.5h | 10% |
+| phase-1-scaffold | 2h | 8% |
+| phase-2-core | 12.25h | 51% |
+| phase-3-demo | 1.5h | 6% |
+| phase-4-discovery | 3.5h | 15% |
+| phase-5-account | 3.17h | 13% |
+| **Total** | **23.92h** | 100% |
 
 ---
 
@@ -101,8 +107,10 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Faceted filters + search autocomplete | Done |
 | Custom `not-found` page | Done |
 | Customer authentication + order history | Done |
-| Unit tests (CI) — 128 tests | Done |
-| E2E discovery + cart/checkout (local) — 15 tests | Done |
+| Account profile edit + address CRUD + change password | Done |
+| Account UX polish (dismissible alerts, wide-screen layout) | Done |
+| Unit tests (CI) — 170 tests | Done |
+| E2E discovery + cart/checkout + account (local) — 21 tests | Done |
 | Sales demo script | Done — [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) |
 | Product roadmap | Done — [ROADMAP.md](./ROADMAP.md) |
 | Deploy to Vercel/Netlify | Pending (human) — [DEPLOY.md](./DEPLOY.md) |
@@ -115,7 +123,7 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 - **2026-07-13** has no git commits yet; 3.5h is user-reported for Phase 4 category discovery slice (2h), listing sort/pagination slice 2a (1h), and facets + autocomplete slice 2b+2c (0.5h); see BUILD_LOG.
 - **2026-07-09** has no git commits; 7h is inferred from BUILD_LOG (Stripe connector, Checkout Applications, MC configuration).
 - **2026-07-10** total may increase if work continues past 17:00 or if morning activity is added.
-- **2026-07-14** includes 0.25h for checkout cart-session cleanup and the related code-review fixes.
+- **2026-07-14** includes 0.25h for checkout cart-session cleanup, 1.5h for Phase 5 slice 2 (profile/addresses/password), and 40min for account UX polish (dismissible alerts, address dialog, wide-screen layout).
 - Milestone split within a day is approximate; use Clockify/WakaTime for audit-grade numbers.
 
 ### How to refine

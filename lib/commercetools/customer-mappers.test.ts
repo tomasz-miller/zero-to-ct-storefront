@@ -148,6 +148,8 @@ describe('mapCustomer', () => {
     expect(mapped.addresses).toHaveLength(2);
     expect(mapped.addresses[0]).toMatchObject({
       id: 'addr-ship',
+      streetName: 'Main Street',
+      streetNumber: '42',
       street: 'Main Street 42',
       city: 'Berlin',
       postalCode: '10115',

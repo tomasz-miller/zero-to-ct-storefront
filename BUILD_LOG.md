@@ -117,3 +117,10 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Agent vs manual:** ~95% agent
 - **Notes:** Prevents an ordered cart from remaining visible in the storefront header.
 
+### 2026-07-14 — Phase 5 slice 2 — account management
+- **Time:** 1.5h
+- **Phase:** phase-5-account
+- **Milestone:** Profile edit (`PATCH /api/customer/profile`), address CRUD (`/api/customer/addresses/*`), change password (`POST /api/customer/password`); email pre-check via `lowercaseEmail` + `DuplicateField` handling; account UI on `/account`; unit + E2E account coverage; docs sync (ROADMAP, CUSTOMER_AUTH, DEMO_SCRIPT, TESTING, TIME_REPORT).
+- **Agent vs manual:** ~95% agent
+- **Notes:** Password change clears customer session and prompts re-login. Email verification remains out of scope without ESP.
+

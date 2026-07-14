@@ -13,6 +13,10 @@ export type FormattedMoney = {
 
 export type StorefrontCustomerAddress = {
   id: string;
+  firstName?: string;
+  lastName?: string;
+  streetName: string;
+  streetNumber?: string;
   street: string;
   city: string;
   postalCode: string;
@@ -106,6 +110,10 @@ function mapCustomerAddress(
 
   return {
     id: address.id ?? '',
+    firstName: address.firstName,
+    lastName: address.lastName,
+    streetName: address.streetName ?? mapped.street,
+    streetNumber: address.streetNumber,
     street: mapped.street,
     city: mapped.city,
     postalCode: mapped.postalCode,

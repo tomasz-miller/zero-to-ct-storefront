@@ -41,6 +41,10 @@ Tokens never reach the client JavaScript bundle.
 | `/api/auth/forgot-password` | POST | Request password reset token |
 | `/api/auth/reset-password` | POST | Set new password from token |
 | `/api/customer/orders` | GET | Authenticated order history (`limit`, `offset`) |
+| `/api/customer/profile` | PATCH | Update first name, last name, email (`POST /me`) |
+| `/api/customer/addresses` | POST | Add customer address |
+| `/api/customer/addresses/[addressId]` | PATCH, DELETE | Update or remove address |
+| `/api/customer/password` | POST | Change password (`POST /me/password`); clears session |
 
 Order detail is loaded server-side on `/account/orders/[id]` via `GET /me/orders/{id}` (no separate BFF route).
 
@@ -60,7 +64,8 @@ Update `CTP_SCOPES` in `.env.local` accordingly.
 |-----------|-------------|-------|
 | Register / login / password reset | Platform API (`/customers`, `/login`) | `manage_customers` |
 | Customer session token | OAuth `/customers/token` | Grantable customer scopes on client |
-| Profile | `GET /me` | Customer token (`manage_my_profile`) |
+| Profile | `GET /me`, `POST /me` | Customer token (`manage_my_profile`) |
+| Change password | `POST /me/password` | Customer token (`manage_my_profile`) |
 | Order history | `GET /me/orders` | Customer token (`manage_my_orders`) |
 | Order detail | `GET /me/orders/{id}` | Customer token (`manage_my_orders`) |
 
@@ -75,7 +80,15 @@ On login and register, the BFF passes `anonymousCartId` from `ct_guest_cart`. Lo
 - **Sign in / Register** — header dialog; stays on the current page after success (`router.refresh()`).
 - **Forgot password** — dialog step; generic success message (no email enumeration).
 - **Reset password** — `/reset-password?token=...` page.
-- **Account** — `/account` (profile with member since and addresses + linked order history); `/account/orders/[id]` (order detail with line items, addresses, and totals). Unauthenticated users redirect to `/?login=1` to open the sign-in dialog.
+- **Account** — `/account` (editable profile, address CRUD, change password, linked order history); `/account/orders/[id]` (order detail with line items, addresses, and totals). Unauthenticated users redirect to `/?login=1` to open the sign-in dialog.
+
+### Email change
+
+Before updating email, the BFF checks `lowercaseEmail` via the Customers API (excluding the current customer). The update still relies on commercetools `changeEmail`, which enforces uniqueness atomically (`DuplicateField` → HTTP 409). Changing email resets `isEmailVerified` in commercetools (email verification remains out of scope without an ESP).
+
+### Change password on account
+
+`POST /api/customer/password` calls `POST /me/password` with the current customer token. On success, `ct_customer_session` and `ct_guest_cart` are cleared and the UI prompts for sign-in again (CT invalidates prior customer tokens).
 
 ## Development-only password reset
 
@@ -84,8 +97,7 @@ When `NODE_ENV !== 'production'`, `POST /api/auth/forgot-password` may include `
 ## Out of scope (PoC)
 
 - Email delivery (ESP)
-- Profile editing / change password on account page
-- Email verification
+- Email verification after profile email change
 - Store-scoped customers
 
 ## Related docs
