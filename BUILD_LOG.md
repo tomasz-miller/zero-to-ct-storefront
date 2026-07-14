@@ -131,6 +131,20 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Agent vs manual:** ~95% agent
 - **Notes:** Requires `manage_shopping_lists` scope on Frontend API client.
 
+### 2026-07-14 — Fix order–customer linking for logged-in checkout
+- **Time:** 0.75h
+- **Phase:** phase-7-promotions
+- **Milestone:** Customer-aware cart session resolution (`findCustomerCart`, `setCustomerId`, merge into existing customer cart); `reconcileCartOnAuth` on login/register; resolve before checkout and cart mutations; guest cart cleanup after merge; 203 unit tests; docs sync (CUSTOMER_AUTH).
+- **Agent vs manual:** ~95% agent
+- **Notes:** Follow-up to code review — `getCartForCheckout` and cart mutations now call the same resolve path as `addLineItem`.
+
+### 2026-07-14 — Phase 7 — promotions core
+- **Time:** 1.5h
+- **Phase:** phase-7-promotions
+- **Milestone:** Product Discount display on PLP/PDP (`priceCountry` + `StorefrontPrice`); cart discount code apply/remove (`/api/cart/discount-code`); cart summary with savings; demo fixtures `CARM-023` + `BOGO`; 193 unit + 27 E2E tests; docs sync (ROADMAP, DEMO_SCRIPT, TESTING, TIME_REPORT).
+- **Agent vs manual:** ~95% agent
+- **Notes:** Mobile cart drawer remains Phase 7 planned. Discount codes must be applied before checkout session creation.
+
 ### 2026-07-14 — Phase 3 — production deploy (Vercel)
 - **Time:** 0.5h
 - **Phase:** phase-3-demo

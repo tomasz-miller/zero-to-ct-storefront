@@ -1,5 +1,12 @@
 import type { ProductProjection, ProductVariant } from '@commercetools/platform-sdk';
 
+export type StorefrontPrice = {
+  centAmount: number;
+  currencyCode: string;
+  originalCentAmount?: number;
+  isDiscounted?: boolean;
+};
+
 export type StorefrontProduct = {
   id: string;
   key?: string;
@@ -7,10 +14,7 @@ export type StorefrontProduct = {
   slug: string;
   sku?: string;
   imageUrl?: string;
-  price?: {
-    centAmount: number;
-    currencyCode: string;
-  };
+  price?: StorefrontPrice;
 };
 
 export type StorefrontProductVariant = {
@@ -18,10 +22,7 @@ export type StorefrontProductVariant = {
   sku?: string;
   name?: string;
   imageUrl?: string;
-  price?: {
-    centAmount: number;
-    currencyCode: string;
-  };
+  price?: StorefrontPrice;
 };
 
 export type StorefrontProductDetail = StorefrontProduct & {
@@ -44,26 +45,59 @@ export function pickLocalized(
   );
 }
 
+function mapPriceValue(
+  baseValue: { centAmount: number; currencyCode: string },
+  discountedValue?: { centAmount: number; currencyCode: string },
+): StorefrontPrice {
+  if (discountedValue && discountedValue.centAmount < baseValue.centAmount) {
+    return {
+      centAmount: discountedValue.centAmount,
+      currencyCode: discountedValue.currencyCode,
+      originalCentAmount: baseValue.centAmount,
+      isDiscounted: true,
+    };
+  }
+
+  return {
+    centAmount: baseValue.centAmount,
+    currencyCode: baseValue.currencyCode,
+  };
+}
+
 export function pickPrice(
   variant: ProductVariant,
   currency: string,
-): { centAmount: number; currencyCode: string } | undefined {
-  const price =
-    variant.prices?.find((p) => p.value.currencyCode === currency)?.value ??
-    variant.prices?.[0]?.value;
+  country?: string,
+): StorefrontPrice | undefined {
+  if (variant.price?.value) {
+    return mapPriceValue(
+      variant.price.value,
+      variant.price.discounted?.value,
+    );
+  }
 
-  return price
-    ? {
-        centAmount: price.centAmount,
-        currencyCode: price.currencyCode,
-      }
-    : undefined;
+  const prices = variant.prices ?? [];
+  const match =
+    prices.find(
+      (price) =>
+        price.value.currencyCode === currency &&
+        (!country || price.country === country),
+    ) ??
+    prices.find((price) => price.value.currencyCode === currency) ??
+    prices[0];
+
+  if (!match) {
+    return undefined;
+  }
+
+  return mapPriceValue(match.value, match.discounted?.value);
 }
 
 export function mapVariant(
   variant: ProductVariant,
   locale: string,
   currency: string,
+  country?: string,
 ): StorefrontProductVariant {
   const colorLabel = variant.attributes?.find((a) => a.name === 'color-label')
     ?.value as string | undefined;
@@ -75,7 +109,7 @@ export function mapVariant(
     sku: variant.sku,
     name: colorLabel ?? finishLabel ?? variant.sku,
     imageUrl: variant.images?.[0]?.url,
-    price: pickPrice(variant, currency),
+    price: pickPrice(variant, currency, country),
   };
 }
 
@@ -83,6 +117,7 @@ export function mapProjection(
   projection: ProductProjection,
   locale: string,
   currency: string,
+  country?: string,
 ): StorefrontProduct | null {
   const name = pickLocalized(projection.name, locale);
   const slug = pickLocalized(projection.slug, locale);
@@ -90,7 +125,7 @@ export function mapProjection(
   if (!name || !slug) return null;
 
   const variant = projection.masterVariant;
-  const price = pickPrice(variant, currency);
+  const price = pickPrice(variant, currency, country);
   const imageUrl = variant.images?.[0]?.url;
 
   return {
@@ -108,8 +143,9 @@ export function mapProjectionDetail(
   projection: ProductProjection,
   locale: string,
   currency: string,
+  country?: string,
 ): StorefrontProductDetail | null {
-  const base = mapProjection(projection, locale, currency);
+  const base = mapProjection(projection, locale, currency, country);
   if (!base) return null;
 
   const allVariants = [projection.masterVariant, ...projection.variants];
@@ -123,7 +159,9 @@ export function mapProjectionDetail(
     ...base,
     description: pickLocalized(projection.description, locale),
     images,
-    variants: allVariants.map((variant) => mapVariant(variant, locale, currency)),
+    variants: allVariants.map((variant) =>
+      mapVariant(variant, locale, currency, country),
+    ),
   };
 }
 

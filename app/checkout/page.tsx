@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 
 import { CheckoutEmbed } from '@/components/checkout/checkout-embed';
+import { CartSummary } from '@/components/cart/cart-summary';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -10,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { formatPrice } from '@/lib/format';
 import { getGuestCart } from '@/lib/commercetools/cart';
 import { getPublicCheckoutConfig, getStorefrontContext } from '@/lib/commercetools/storefront-context';
 
@@ -64,28 +64,8 @@ export default async function CheckoutPage() {
           <CardHeader>
             <CardTitle className="text-lg">Order summary</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <ul className="flex flex-col gap-2 text-sm">
-              {cart.lineItems.map((item) => (
-                <li key={item.id} className="flex justify-between gap-4">
-                  <span>
-                    {item.name} × {item.quantity}
-                  </span>
-                  <span>
-                    {formatPrice(
-                      item.totalPrice.centAmount,
-                      item.totalPrice.currencyCode,
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div className="flex justify-between border-t pt-3 font-medium">
-              <span>Total</span>
-              <span>
-                {formatPrice(cart.total.centAmount, cart.total.currencyCode)}
-              </span>
-            </div>
+          <CardContent>
+            <CartSummary cart={cart} showLineItems />
           </CardContent>
         </Card>
       </section>

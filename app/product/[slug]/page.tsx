@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 
 import { AddToCartButton } from '@/components/cart/add-to-cart-button';
 import { WishlistButton } from '@/components/wishlist/wishlist-button';
+import { ProductPrice } from '@/components/product/product-price';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -12,7 +13,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { formatPrice } from '@/lib/format';
 import { getProductBySlug } from '@/lib/commercetools/products';
 
 type ProductPageProps = {
@@ -84,12 +84,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <CardHeader>
               <CardTitle className="text-2xl">{product.name}</CardTitle>
               <CardDescription className="text-base">
-                {product.price
-                  ? formatPrice(
-                      product.price.centAmount,
-                      product.price.currencyCode,
-                    )
-                  : 'Price unavailable'}
+                <ProductPrice price={product.price} />
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
@@ -115,12 +110,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                         <div className="flex flex-col">
                           <span>{variant.name ?? `Variant ${variant.id}`}</span>
                           <span className="text-muted-foreground">
-                            {variant.price
-                              ? formatPrice(
-                                  variant.price.centAmount,
-                                  variant.price.currencyCode,
-                                )
-                              : '—'}
+                            <ProductPrice price={variant.price} />
                           </span>
                         </div>
                         {variant.sku ? (

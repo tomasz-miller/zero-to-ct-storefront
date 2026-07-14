@@ -37,10 +37,11 @@ describe('getStorefrontContext', () => {
 });
 
 describe('getCatalogContext', () => {
-  it('uses English catalog locale with storefront currency', () => {
+  it('uses English catalog locale with storefront price context', () => {
     expect(getCatalogContext()).toEqual({
       locale: CATALOG_LOCALE,
       currency: DEFAULT_STOREFRONT_CURRENCY,
+      country: DEFAULT_STOREFRONT_COUNTRY,
     });
   });
 });

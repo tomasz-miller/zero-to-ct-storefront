@@ -115,8 +115,9 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Account profile edit + address CRUD + change password | Done |
 | Account UX polish (dismissible alerts, wide-screen layout) | Done |
 | Wishlist (heart icon, `/wishlist`, move to cart) | Done |
-| Unit tests (CI) — 183 tests | Done |
-| E2E discovery + cart/checkout + account + wishlist (local) — 24 tests | Done |
+| Product discounts on PLP/PDP + discount codes in cart | Done |
+| Unit tests (CI) — 193 tests | Done |
+| E2E discovery + cart/checkout + account + wishlist + promotions (local) — 27 tests | Done |
 | Sales demo script | Done — [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) |
 | Product roadmap | Done — [ROADMAP.md](./ROADMAP.md) |
 | Deploy to Vercel/Netlify | Done — https://zero-to-ct-storefront.vercel.app ([DEPLOY.md](./DEPLOY.md)) |

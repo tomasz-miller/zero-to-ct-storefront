@@ -34,11 +34,13 @@ const sampleCart = {
       name: 'Sample product',
       sku: 'SKU-001',
       quantity: 1,
+      unitPrice: { centAmount: 1999, currencyCode: 'EUR' },
       price: { centAmount: 1999, currencyCode: 'EUR' },
       totalPrice: { centAmount: 1999, currencyCode: 'EUR' },
     },
   ],
   itemCount: 1,
+  discountCodes: [],
   subtotal: { centAmount: 1999, currencyCode: 'EUR' },
   total: { centAmount: 1999, currencyCode: 'EUR' },
 };

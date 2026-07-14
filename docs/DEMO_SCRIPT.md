@@ -51,7 +51,7 @@ Demonstrates the core B2C path: discover → cart → checkout → order confirm
 ### 3. Cart review
 
 1. Navigate to **Cart** (`/cart`).
-2. Show line items, quantity controls, and subtotal.
+2. Show line items, quantity controls, **discount code form**, and **subtotal / savings / total** summary.
 3. Click **Proceed to checkout**.
 
 ### 4. Checkout (manual payment step)
@@ -117,6 +117,29 @@ Demonstrates customer auth, cart merge, and order history.
 
 ---
 
+## Scenario D — Promotions (~3 min)
+
+Demonstrates Product Discounts on discovery and Cart Discount codes before checkout.
+
+### 1. Product discount on PDP
+
+1. Open **Charlie Armchair** (`/product/charlie-armchair`).
+2. Point out the **strikethrough price**: €499.00 → **€424.15** (15% off armchairs via Product Discount `NewArrivals15pctOff`).
+3. Add to cart.
+
+**Talking point:** Product Discounts are pre-calculated on Product Projections with `priceCountry=DE` — the storefront displays CT-selected prices, it does not recalculate promotions.
+
+### 2. Cart discount code (BOGO)
+
+1. Open **Cart** (`/cart`) with **two** qualifying furniture items (e.g. add **Bruno Chair** `BARM-03` twice, or one Charlie + one Bruno).
+2. Enter discount code **`BOGO`** and click **Apply**.
+3. Show **Savings** line and updated **Total** (Buy One Get One Free on furniture — cheapest item free).
+4. Proceed to checkout and confirm the **order summary** matches cart totals.
+
+**Demo fixtures:** see `lib/commercetools/demo-promotions.ts` (`CARM-023`, `BOGO`).
+
+---
+
 ## Talking points summary
 
 | Topic | Message |
@@ -126,14 +149,15 @@ Demonstrates customer auth, cart merge, and order history.
 | **Auth** | Customer OAuth via BFF; cart merge on login/register |
 | **Agent-assisted delivery** | ~85–95% agent-generated code; human owns MC/Stripe setup and commerce review |
 | **Timeline** | ~2-week PoC by a backend-focused developer (see [TIME_REPORT.md](./TIME_REPORT.md)) |
-| **Testing** | Unit tests in CI; E2E cart/checkout locally with live CT project |
+| **Promotions** | Product Discounts on PLP/PDP; Cart Discount codes via BFF before Checkout session |
 
 ---
 
 ## Known limitations (honest demo close)
 
-Refer to [ROADMAP.md](./ROADMAP.md) Phase 7+ for planned work:
+Refer to [ROADMAP.md](./ROADMAP.md) Phase 8+ for planned work:
 
+- No **mobile cart drawer** (Phase 7 remainder)
 - No **Quick View** on listing pages
 - No **multi-country switcher** in UI (env-driven `DE` / `EUR` defaults)
 - **Best sellers** use a catalog heuristic (not real sales ranking)

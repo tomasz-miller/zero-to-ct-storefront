@@ -3,7 +3,7 @@ import Link from 'next/link';
 
 import { AddToCartButton } from '@/components/cart/add-to-cart-button';
 import { WishlistButton } from '@/components/wishlist/wishlist-button';
-import { formatPrice } from '@/lib/format';
+import { ProductPrice } from '@/components/product/product-price';
 import type { StorefrontProduct } from '@/lib/commercetools/products';
 
 type ProductCardCompactProps = {
@@ -45,9 +45,7 @@ export function ProductCardCompact({ product }: ProductCardCompactProps) {
             {product.name}
           </p>
           <p className="shrink-0 text-xs text-muted-foreground">
-            {product.price
-              ? formatPrice(product.price.centAmount, product.price.currencyCode)
-              : 'Price unavailable'}
+            <ProductPrice price={product.price} className="text-xs" />
           </p>
         </Link>
       </div>

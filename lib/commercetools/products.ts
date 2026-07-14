@@ -70,6 +70,8 @@ async function fetchProjectionsForIds(
   options: {
     limit: number;
     locale: string;
+    currency: string;
+    country: string;
   },
 ): Promise<ProductProjection[]> {
   if (ids.length === 0) {
@@ -84,6 +86,8 @@ async function fetchProjectionsForIds(
         limit: options.limit,
         staged: false,
         localeProjection: options.locale,
+        priceCurrency: options.currency,
+        priceCountry: options.country,
       },
     })
     .execute();
@@ -175,6 +179,7 @@ async function mapSearchResultsToProducts(
     limit: number;
     locale: string;
     currency: string;
+    country: string;
   },
 ): Promise<{
   products: StorefrontProduct[];
@@ -194,9 +199,13 @@ async function mapSearchResultsToProducts(
   const projections = await fetchProjectionsForIds(searchResult.ids, {
     limit: options.limit,
     locale: options.locale,
+    currency: options.currency,
+    country: options.country,
   });
   const products = projections
-    .map((projection) => mapProjection(projection, options.locale, options.currency))
+    .map((projection) =>
+      mapProjection(projection, options.locale, options.currency, options.country),
+    )
     .filter((product): product is StorefrontProduct => product !== null);
 
   return {
@@ -217,7 +226,7 @@ export async function listProducts(
 }> {
   const limit = options?.limit ?? 12;
   const offset = options?.offset ?? 0;
-  const { locale, currency } = getCatalogContext();
+  const { locale, currency, country } = getCatalogContext();
   const resolvedLocale = options?.locale ?? locale;
   const resolvedCurrency = options?.currency ?? currency;
   const query = options?.query?.trim();
@@ -238,6 +247,7 @@ export async function listProducts(
       limit,
       locale: resolvedLocale,
       currency: resolvedCurrency,
+      country,
     });
   }
 
@@ -264,6 +274,7 @@ export async function listProducts(
       limit,
       locale: resolvedLocale,
       currency: resolvedCurrency,
+      country,
     });
   }
 
@@ -275,6 +286,8 @@ export async function listProducts(
         offset,
         staged: false,
         localeProjection: resolvedLocale,
+        priceCurrency: resolvedCurrency,
+        priceCountry: country,
         sort: 'createdAt desc',
       },
     })
@@ -282,7 +295,7 @@ export async function listProducts(
 
   const products = projectionsResponse.body.results
     .map((projection) =>
-      mapProjection(projection, resolvedLocale, resolvedCurrency),
+      mapProjection(projection, resolvedLocale, resolvedCurrency, country),
     )
     .filter((product): product is StorefrontProduct => product !== null);
 
@@ -328,7 +341,7 @@ export async function listBestSellingProducts(options?: {
   currency?: string;
 }): Promise<{ products: StorefrontProduct[]; total: number }> {
   const limit = options?.limit ?? 12;
-  const { locale, currency } = getCatalogContext();
+  const { locale, currency, country } = getCatalogContext();
   const resolvedLocale = options?.locale ?? locale;
   const resolvedCurrency = options?.currency ?? currency;
 
@@ -342,6 +355,8 @@ export async function listBestSellingProducts(options?: {
         limit: 500,
         staged: false,
         localeProjection: resolvedLocale,
+        priceCurrency: resolvedCurrency,
+        priceCountry: country,
         sort: 'createdAt asc',
       },
     })
@@ -354,7 +369,7 @@ export async function listBestSellingProducts(options?: {
   const products = bestSellingProjections
     .slice(0, limit)
     .map((projection) =>
-      mapProjection(projection, resolvedLocale, resolvedCurrency),
+      mapProjection(projection, resolvedLocale, resolvedCurrency, country),
     )
     .filter((product): product is StorefrontProduct => product !== null);
 
@@ -371,7 +386,7 @@ export async function getProductBySlug(
     currency?: string;
   },
 ): Promise<StorefrontProductDetail | null> {
-  const { locale, currency } = getCatalogContext();
+  const { locale, currency, country } = getCatalogContext();
   const resolvedLocale = options?.locale ?? locale;
   const resolvedCurrency = options?.currency ?? currency;
 
@@ -383,6 +398,8 @@ export async function getProductBySlug(
         limit: 1,
         staged: false,
         localeProjection: resolvedLocale,
+        priceCurrency: resolvedCurrency,
+        priceCountry: country,
       },
     })
     .execute();
@@ -392,5 +409,5 @@ export async function getProductBySlug(
     return null;
   }
 
-  return mapProjectionDetail(projection, resolvedLocale, resolvedCurrency);
+  return mapProjectionDetail(projection, resolvedLocale, resolvedCurrency, country);
 }

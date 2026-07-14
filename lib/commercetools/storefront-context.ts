@@ -39,13 +39,17 @@ export function getStorefrontContext(): StorefrontContext {
   };
 }
 
-/** Product catalog — English copy from sample data, EUR prices. */
-export function getCatalogContext(): Pick<StorefrontContext, 'locale' | 'currency'> {
-  const { currency } = getStorefrontContext();
+/** Product catalog — English copy from sample data, storefront price context. */
+export function getCatalogContext(): Pick<
+  StorefrontContext,
+  'locale' | 'currency' | 'country'
+> {
+  const { currency, country } = getStorefrontContext();
 
   return {
     locale: CATALOG_LOCALE,
     currency,
+    country,
   };
 }
 

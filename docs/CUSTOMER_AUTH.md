@@ -75,6 +75,10 @@ Update `CTP_SCOPES` in `.env.local` accordingly.
 
 On login and register, the BFF passes `anonymousCartId` from `ct_guest_cart`. Login uses `anonymousCartSignInMode: MergeWithExistingCustomerCart`. After success, `ct_guest_cart` is updated with the merged cart id and a **fresh** `anonymousId` (the previous one is consumed by commercetools).
 
+When a customer is already signed in, cart operations in `lib/commercetools/cart.ts` resolve the active cart against their `customerId`: the BFF finds or creates a customer cart, assigns `customerId` to any anonymous cart in the browser session, or merges line items into an existing customer cart. This resolution runs before checkout (`getCartForCheckout`), cart mutations, and cart display — not only when adding a new line item. Orders created from Checkout therefore inherit `customerId` and appear in `/account` order history.
+
+On login or register without a CT cart merge response, `reconcileCartOnAuth()` assigns the guest cart from the cookie to the customer (or restores their existing customer cart).
+
 **Logout:** `ct_guest_cart` and `ct_wishlist` are cleared. The customer cart and wishlist remain on the commercetools account and are restored on the next login.
 
 ## UI flows

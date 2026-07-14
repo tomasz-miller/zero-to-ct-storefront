@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useCart } from '@/components/cart/cart-context';
+import { CartDiscountForm } from '@/components/cart/cart-discount-form';
+import { CartSummary } from '@/components/cart/cart-summary';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { formatPrice } from '@/lib/format';
@@ -106,12 +108,29 @@ export function CartLineItems({ cart }: CartLineItemsProps) {
                       <p className="text-sm text-muted-foreground">{item.sku}</p>
                     ) : null}
                   </div>
-                  <p className="text-sm font-medium">
-                    {formatPrice(
-                      item.totalPrice.centAmount,
-                      item.totalPrice.currencyCode,
+                  <div className="text-sm font-medium">
+                    {item.originalUnitPrice ? (
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span>
+                          {formatPrice(
+                            item.totalPrice.centAmount,
+                            item.totalPrice.currencyCode,
+                          )}
+                        </span>
+                        <span className="text-xs font-normal text-muted-foreground line-through">
+                          {formatPrice(
+                            item.originalUnitPrice.centAmount * item.quantity,
+                            item.originalUnitPrice.currencyCode,
+                          )}
+                        </span>
+                      </div>
+                    ) : (
+                      formatPrice(
+                        item.totalPrice.centAmount,
+                        item.totalPrice.currencyCode,
+                      )
                     )}
-                  </p>
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
@@ -147,12 +166,8 @@ export function CartLineItems({ cart }: CartLineItemsProps) {
           );
         })}
       </ul>
-      <div className="flex items-center justify-between border-t pt-4">
-        <span className="font-medium">Subtotal</span>
-        <span className="font-medium">
-          {formatPrice(cart.total.centAmount, cart.total.currencyCode)}
-        </span>
-      </div>
+      <CartDiscountForm cart={cart} />
+      <CartSummary cart={cart} className="border-t pt-4" />
       <Button render={<Link href="/checkout" />}>Proceed to checkout</Button>
     </div>
   );

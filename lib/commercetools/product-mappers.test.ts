@@ -41,6 +41,43 @@ describe('pickPrice', () => {
     const price = pickPrice(projection.masterVariant, 'USD');
     expect(price).toEqual({ centAmount: 49900, currencyCode: 'EUR' });
   });
+
+  it('maps CT-selected discounted price from variant.price', () => {
+    const projection = createProductProjection({
+      masterVariant: {
+        ...createProductProjection().masterVariant,
+        price: {
+          id: 'selected-price',
+          value: {
+            type: 'centPrecision',
+            currencyCode: 'EUR',
+            centAmount: 49900,
+            fractionDigits: 2,
+          },
+          discounted: {
+            value: {
+              type: 'centPrecision',
+              currencyCode: 'EUR',
+              centAmount: 42415,
+              fractionDigits: 2,
+            },
+            discount: {
+              typeId: 'product-discount',
+              id: 'pd-1',
+            },
+          },
+        },
+      },
+    });
+
+    const price = pickPrice(projection.masterVariant, 'EUR', 'DE');
+    expect(price).toEqual({
+      centAmount: 42415,
+      currencyCode: 'EUR',
+      originalCentAmount: 49900,
+      isDiscounted: true,
+    });
+  });
 });
 
 describe('mapProjection', () => {

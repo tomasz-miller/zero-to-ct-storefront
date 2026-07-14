@@ -15,6 +15,8 @@ const {
   mockSetCustomerSession,
   mockClearCustomerSession,
   mockClearCartSession,
+  mockRestoreCustomerCartSession,
+  mockReconcileCartOnAuth,
 } = vi.hoisted(() => ({
   mockExecute: vi.fn(),
   mockLoginPost: vi.fn(() => ({ execute: mockExecute })),
@@ -27,6 +29,13 @@ const {
   mockSetCustomerSession: vi.fn(),
   mockClearCustomerSession: vi.fn(),
   mockClearCartSession: vi.fn(),
+  mockRestoreCustomerCartSession: vi.fn(),
+  mockReconcileCartOnAuth: vi.fn(),
+}));
+
+vi.mock('./cart', () => ({
+  reconcileCartOnAuth: mockReconcileCartOnAuth,
+  restoreCustomerCartSession: mockRestoreCustomerCartSession,
 }));
 
 vi.mock('./api-root', () => ({
@@ -162,6 +171,53 @@ describe('customer-auth', () => {
       }),
     );
     expect(reconcileWishlistOnAuth).toHaveBeenCalledWith('cust-1');
+  });
+
+  it('restores customer cart session on login when no guest cart merge occurred', async () => {
+    mockGetCartSession.mockResolvedValue(null);
+
+    mockExecute.mockResolvedValueOnce({
+      body: {
+        customer: {
+          id: 'cust-1',
+          email: 'jane@example.com',
+          firstName: 'Jane',
+          lastName: 'Doe',
+          version: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          lastModifiedAt: '2026-01-01T00:00:00.000Z',
+          addresses: [],
+          isEmailVerified: false,
+          authenticationMode: 'Password',
+        },
+      },
+    });
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            access_token: 'access-token',
+            refresh_token: 'refresh-token',
+            expires_in: 3600,
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            id: 'cust-1',
+            email: 'jane@example.com',
+          }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await loginCustomer('jane@example.com', 'password123');
+
+    expect(mockReconcileCartOnAuth).toHaveBeenCalledWith('cust-1');
+    expect(mockSetCartSession).not.toHaveBeenCalled();
   });
 
   it('maps invalid credentials to CustomerAuthError', async () => {

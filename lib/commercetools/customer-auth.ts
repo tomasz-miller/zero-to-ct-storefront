@@ -3,6 +3,7 @@ import 'server-only';
 import type { Customer, CustomerSignInResult } from '@commercetools/platform-sdk';
 
 import { apiRoot } from './api-root';
+import { reconcileCartOnAuth } from './cart';
 import {
   clearCartSession,
   createAnonymousId,
@@ -237,15 +238,16 @@ export async function getValidCustomerAccessToken(): Promise<string | null> {
 
 async function syncCartAfterAuth(result: CustomerSignInResult): Promise<void> {
   const mergedCart = result.cart;
-  if (!mergedCart?.id) {
+  if (mergedCart?.id) {
+    // CT marks anonymousId as consumed after sign-in/sign-up — rotate for future guest sessions.
+    await setCartSession({
+      anonymousId: createAnonymousId(),
+      cartId: mergedCart.id,
+    });
     return;
   }
 
-  // CT marks anonymousId as consumed after sign-in/sign-up — rotate for future guest sessions.
-  await setCartSession({
-    anonymousId: createAnonymousId(),
-    cartId: mergedCart.id,
-  });
+  await reconcileCartOnAuth(result.customer.id);
 }
 
 type CartMigrationRefs = {
@@ -365,7 +367,7 @@ export async function registerCustomer(input: {
       cart: response.body.cart,
     });
   } else {
-    await rotateCartSessionAnonymousId();
+    await reconcileCartOnAuth(customer.id);
   }
 
   await reconcileWishlistOnAuth(customer.id);

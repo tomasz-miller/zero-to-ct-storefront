@@ -1,5 +1,15 @@
 import { expect, test } from '@playwright/test';
 
+import {
+  DEMO_CART_DISCOUNT_BOGO_SKU,
+  DEMO_CART_DISCOUNT_CODE,
+  DEMO_PRODUCT_DISCOUNTED_CENT_AMOUNT,
+  DEMO_PRODUCT_DISCOUNT_CURRENCY,
+  DEMO_PRODUCT_DISCOUNT_SKU,
+  DEMO_PRODUCT_DISCOUNT_SLUG,
+  DEMO_PRODUCT_ORIGINAL_CENT_AMOUNT,
+} from '../lib/commercetools/demo-promotions';
+
 test.beforeEach(({}, testInfo) => {
   test.skip(
     !process.env.CTP_PROJECT_KEY,
@@ -118,5 +128,68 @@ test.describe('Cart API', () => {
 
     const body = (await response.json()) as { error: string };
     expect(body.error).toMatch(/sku/i);
+  });
+});
+
+test.describe('Promotions', () => {
+  test('product discount is visible on PDP', async ({ page }) => {
+    await page.goto(`/product/${DEMO_PRODUCT_DISCOUNT_SLUG}`);
+
+    await expect(page.getByText('€424.15')).toBeVisible();
+    await expect(page.getByText('€499.00')).toBeVisible();
+  });
+
+  test('discount code BOGO applies to qualifying cart', async ({ page }) => {
+    await page.request.post('/api/cart/items', {
+      data: { sku: DEMO_CART_DISCOUNT_BOGO_SKU, quantity: 2 },
+    });
+
+    const applyResponse = await page.request.post('/api/cart/discount-code', {
+      data: { code: DEMO_CART_DISCOUNT_CODE },
+    });
+    expect(applyResponse.ok()).toBeTruthy();
+
+    const body = (await applyResponse.json()) as {
+      cart: {
+        discountCodes: Array<{ code: string; state: string }>;
+        total: { centAmount: number };
+      };
+    };
+
+    expect(
+      body.cart.discountCodes.some(
+        (entry) =>
+          entry.code === DEMO_CART_DISCOUNT_CODE && entry.state === 'MatchesCart',
+      ),
+    ).toBe(true);
+    expect(body.cart.total.centAmount).toBeLessThan(7999 * 2);
+
+    await page.goto('/cart');
+    await expect(page.getByRole('listitem').filter({ hasText: DEMO_CART_DISCOUNT_CODE })).toBeVisible();
+    await expect(page.getByText('Savings')).toBeVisible();
+  });
+
+  test('discounted product price is returned by products API', async ({ page }) => {
+    const response = await page.request.get('/api/products?limit=120');
+    expect(response.ok()).toBeTruthy();
+
+    const body = (await response.json()) as {
+      products: Array<{
+        sku?: string;
+        price?: { centAmount: number; originalCentAmount?: number };
+      }>;
+    };
+
+    const product = body.products.find(
+      (item) => item.sku === DEMO_PRODUCT_DISCOUNT_SKU,
+    );
+    expect(product?.price?.centAmount).toBe(DEMO_PRODUCT_DISCOUNTED_CENT_AMOUNT);
+    expect(product?.price?.originalCentAmount).toBe(
+      DEMO_PRODUCT_ORIGINAL_CENT_AMOUNT,
+    );
+    expect(product?.price?.centAmount).toBeLessThan(
+      DEMO_PRODUCT_ORIGINAL_CENT_AMOUNT,
+    );
+    expect(DEMO_PRODUCT_DISCOUNT_CURRENCY).toBe('EUR');
   });
 });
