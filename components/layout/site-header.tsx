@@ -39,7 +39,7 @@ export function SiteHeader({ categories = [] }: SiteHeaderProps) {
     <>
       <header
         className={cn(
-          'fixed inset-x-0 top-0 z-50 border-b transition-[height,background-color,box-shadow] duration-300 ease-out',
+          'fixed inset-x-0 top-0 z-50 overflow-hidden border-b transition-[height,background-color,box-shadow] duration-300 ease-out',
           isScrolled
             ? 'border-border/80 bg-muted/90 shadow-sm backdrop-blur-md'
             : 'border-border/60 bg-background/95 backdrop-blur-sm',
@@ -48,14 +48,18 @@ export function SiteHeader({ categories = [] }: SiteHeaderProps) {
       >
         <div
           className={cn(
-            'mx-auto flex h-full max-w-6xl items-center justify-between gap-4 px-4 transition-[padding] duration-300 ease-out sm:px-6',
+            'mx-auto flex h-full max-w-6xl items-center justify-between gap-2 overflow-hidden px-4 transition-[padding] duration-300 ease-out sm:gap-4 sm:px-6',
             isScrolled ? 'py-2' : 'py-3',
           )}
         >
-          <StoreBrand compact={isScrolled} />
+          <StoreBrand
+            compact={isScrolled}
+            hideTextBelowSm
+            className="min-w-0 shrink md:shrink-0"
+          />
           <nav
             aria-label="Store navigation"
-            className="flex items-center gap-1.5 sm:gap-2"
+            className="flex shrink-0 items-center gap-1 sm:gap-1.5 md:gap-2"
           >
             <CategoryNav categories={categories} compact={isScrolled} />
             <Button

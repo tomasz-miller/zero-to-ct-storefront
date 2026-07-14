@@ -15,6 +15,20 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-07-14 — Quick View code review fixes
+- **Time:** 0.5h
+- **Phase:** phase-4-discovery, phase-10-quality
+- **Milestone:** Touch-friendly Quick View visibility (`pointer: coarse`), OOS badge repositioned, multi-variant guard in dialog, dialog closes after add-to-cart, expanded unit/E2E tests, correlation ID client test; 220 unit tests.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Follow-up to code review; no production redeploy in this pass.
+
+### 2026-07-14 — Phase 4 slice 3 + Phase 10 slice 1 — Quick View and quality
+- **Time:** 1.5h
+- **Phase:** phase-4-discovery, phase-10-quality
+- **Milestone:** `ProductQuickViewDialog` (coss Dialog) on `ProductCardCompact`; image, price, availability, wishlist, add-to-cart, link to PDP; `withCorrelationIdMiddleware()` in CT client; unit tests for `POST /api/checkout/session`; 216 unit + 34 E2E tests; docs sync (ROADMAP, DEMO_SCRIPT, TESTING, TIME_REPORT). Production deploy pending manual `pnpm dlx vercel --prod`.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Quick View reuses listing `StorefrontProduct` — no extra BFF. Correlation ID visible in CT API response headers during build. E2E Quick View scenario passes; deploy requires manual Vercel approval.
+
 ### 2026-07-14 — Phase 8 — inventory availability
 - **Time:** 1.5h
 - **Phase:** phase-8-inventory

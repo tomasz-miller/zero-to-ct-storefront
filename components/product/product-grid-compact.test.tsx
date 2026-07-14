@@ -14,6 +14,7 @@ const products: StorefrontProduct[] = [
     sku: 'ORION-BED',
     price: { centAmount: 49900, currencyCode: 'EUR' },
     availability: { isOnStock: true },
+    hasMultipleVariants: false,
   },
   {
     id: 'prod-2',
@@ -22,6 +23,7 @@ const products: StorefrontProduct[] = [
     sku: 'LUNA-TABLE',
     price: { centAmount: 19900, currencyCode: 'EUR' },
     availability: { isOnStock: true },
+    hasMultipleVariants: false,
   },
 ];
 

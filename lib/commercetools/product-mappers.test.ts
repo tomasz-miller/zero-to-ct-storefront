@@ -142,7 +142,24 @@ describe('mapProjection', () => {
       imageUrl: 'https://example.com/orion.jpg',
       price: { centAmount: 49900, currencyCode: 'EUR' },
       availability: { isOnStock: true },
+      hasMultipleVariants: false,
     });
+  });
+
+  it('flags products with additional variants', () => {
+    const projection = createProductProjection({
+      variants: [
+        {
+          id: 2,
+          sku: 'ORION-BED-QUEEN',
+          prices: [],
+          images: [],
+          attributes: [],
+        },
+      ],
+    });
+
+    expect(mapProjection(projection, 'en-GB', 'EUR')?.hasMultipleVariants).toBe(true);
   });
 
   it('returns null when name or slug is missing', () => {

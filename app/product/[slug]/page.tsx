@@ -112,7 +112,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                     {product.variants.map((variant) => (
                       <li
                         key={variant.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+                        className="flex flex-col gap-3 rounded-lg border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="flex flex-col gap-1">
                           <span>{variant.name ?? `Variant ${variant.id}`}</span>
@@ -125,10 +125,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
                           />
                         </div>
                         {variant.sku ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                             <AddToCartButton
                               sku={variant.sku}
                               outOfStock={!variant.availability.isOnStock}
+                              fullWidthOnMobile
                             />
                             <WishlistButton sku={variant.sku} showLabel />
                           </div>
@@ -144,11 +145,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
               ) : null}
 
               {!hasMultipleVariants ? (
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <AddToCartButton
                     sku={defaultSku ?? ''}
                     disabled={!defaultSku}
                     outOfStock={!product.availability.isOnStock}
+                    fullWidthOnMobile
                   />
                   <WishlistButton
                     sku={defaultSku ?? ''}

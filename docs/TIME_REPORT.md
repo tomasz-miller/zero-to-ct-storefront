@@ -45,7 +45,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | 2026-07-14 | Phase 7 remainder — mobile cart drawer | **1h** |
 | 2026-07-14 | Phase 8 — inventory availability (badges, block add-to-cart, BFF guard) | **1.5h** |
 | 2026-07-14 | Phase 7 promotions core (retroactive entry) | **1.5h** |
-| **Total** | | **29.92h** |
+| 2026-07-14 | Phase 4 slice 3 + Phase 10 slice 1 — Quick View, correlation ID, checkout session tests | **1.5h** |
+| **Total** | | **31.42h** |
 
 ---
 
@@ -54,8 +55,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Metric | Value |
 |--------|-------|
 | Project duration | 5 working days (2026-07-08 → 2026-07-14) |
-| Total estimated time | **29.92h** net |
-| Current phase | phase-8-inventory done |
+| Total estimated time | **31.42h** net |
+| Current phase | phase-4-discovery + phase-10-quality slice done |
 | Developer profile | Backend-focused, agent-assisted (Cursor + commercetools AI plugin) |
 | Agent contribution | ~85–95% of storefront code; human owns CT project, Stripe/Connect, MC config |
 
@@ -87,7 +88,9 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-7-promotions | 2026-07-14 | Phase 7 slice 1 — product discounts + cart discount codes; 193 unit + 27 E2E tests | ~95% agent | 1.5h |
 | phase-7-promotions | 2026-07-14 | Phase 7 slice 2 — mobile cart drawer (coss Sheet, responsive header) | ~95% agent | 1h |
 | phase-8-inventory | 2026-07-14 | Phase 8 — stock availability badges, block add-to-cart, BFF OutOfStockError; 207 unit + 33 E2E tests | ~95% agent | 1.5h |
-| **Total** | | | ~80% agent / ~20% manual | **29.92h** |
+| phase-4-discovery | 2026-07-14 | Phase 4 slice 3 — Quick View on listing cards (coss Dialog); 216 unit + 34 E2E tests | ~95% agent | 1h |
+| phase-10-quality | 2026-07-14 | Phase 10 slice 1 — correlation ID middleware + checkout session route unit tests | ~95% agent | 0.5h |
+| **Total** | | | ~80% agent / ~20% manual | **31.42h** |
 
 ---
 
@@ -99,12 +102,13 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-1-scaffold | 2h | 8% |
 | phase-2-core | 12.25h | 41% |
 | phase-3-demo | 2h | 7% |
-| phase-4-discovery | 3.5h | 12% |
-| phase-5-account | 3.17h | 11% |
+| phase-4-discovery | 4.5h | 14% |
+| phase-5-account | 3.17h | 10% |
 | phase-6-wishlist | 1.5h | 5% |
 | phase-7-promotions | 2.5h | 8% |
 | phase-8-inventory | 1.5h | 5% |
-| **Total** | **29.92h** | 100% |
+| phase-10-quality | 0.5h | 2% |
+| **Total** | **31.42h** | 100% |
 
 ---
 
@@ -117,6 +121,7 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Homepage New Arrivals section | Done |
 | Search / category sort + pagination | Done |
 | Faceted filters + search autocomplete | Done |
+| Quick View on product listings | Done |
 | Custom `not-found` page | Done |
 | Customer authentication + order history | Done |
 | Account profile edit + address CRUD + change password | Done |
@@ -125,8 +130,9 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Product discounts on PLP/PDP + discount codes in cart | Done |
 | Stock availability on PDP/PLP + block add-to-cart | Done |
 | Mobile cart drawer (header, `< md`) | Done |
-| Unit tests (CI) — 207 tests | Done |
-| E2E discovery + cart/checkout + account + wishlist + promotions + inventory (local) — 33 tests | Done |
+| Unit tests (CI) — 216 tests | Done |
+| E2E discovery + cart/checkout + account + wishlist + promotions + inventory (local) — 34 tests | Done |
+| SDK correlation ID middleware | Done |
 | Sales demo script | Done — [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) |
 | Product roadmap | Done — [ROADMAP.md](./ROADMAP.md) |
 | Deploy to Vercel/Netlify | Done — https://zero-to-ct-storefront.vercel.app ([DEPLOY.md](./DEPLOY.md)) |
@@ -139,7 +145,7 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 - **2026-07-13** has no git commits yet; 3.5h is user-reported for Phase 4 category discovery slice (2h), listing sort/pagination slice 2a (1h), and facets + autocomplete slice 2b+2c (0.5h); see BUILD_LOG.
 - **2026-07-09** has no git commits; 7h is inferred from BUILD_LOG (Stripe connector, Checkout Applications, MC configuration).
 - **2026-07-10** total may increase if work continues past 17:00 or if morning activity is added.
-- **2026-07-14** includes 0.25h checkout cart-session cleanup, 1.5h Phase 5 slice 2, 40min account UX polish, 1.5h Phase 6 wishlist, 0.5h Vercel production deploy, 1.5h Phase 7 promotions core, 1h Phase 7 mobile cart drawer, and 1.5h Phase 8 inventory availability.
+- **2026-07-14** includes 0.25h checkout cart-session cleanup, 1.5h Phase 5 slice 2, 40min account UX polish, 1.5h Phase 6 wishlist, 0.5h Vercel production deploy, 1.5h Phase 7 promotions core, 1h Phase 7 mobile cart drawer, 1.5h Phase 8 inventory availability, and 1.5h Phase 4 Quick View + Phase 10 quality slice (correlation ID, checkout session tests). Production redeploy of Quick View pending manual Vercel CLI.
 - Milestone split within a day is approximate; use Clockify/WakaTime for audit-grade numbers.
 
 ### How to refine

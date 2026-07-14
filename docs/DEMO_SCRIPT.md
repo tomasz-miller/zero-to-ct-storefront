@@ -35,12 +35,13 @@ Demonstrates the core B2C path: discover → cart → checkout → order confirm
 
 1. Open the **homepage** (`/`).
 2. Point out the **Best Sellers** grid — live data from commercetools Product Projections (117 products in B2C sample data).
-3. Use **search** (`/search`): type `bed` and watch **autocomplete suggestions** (Search Term Suggestions API).
-4. Submit search or pick a suggestion to open results.
-5. On the results page, refine with **facet filters** (price, color, brand when present in sample data).
-6. Open a product from search results (e.g. a bed or mattress).
+3. Hover a product card and click **Quick view** — show the modal with image, price, stock badge, wishlist, add-to-cart, and **View full details** link to PDP.
+4. Use **search** (`/search`): type `bed` and watch **autocomplete suggestions** (Search Term Suggestions API).
+5. Submit search or pick a suggestion to open results.
+6. On the results page, refine with **facet filters** (price, color, brand when present in sample data).
+7. Open a product from search results (e.g. a bed or mattress), or use **Quick view** from the listing.
 
-**Talking point:** Full-text search and **faceted filters** use the **Product Search API** via a Next.js BFF — no commercetools credentials in the browser. Autocomplete uses **Search Term Suggestions** from product `searchKeywords`.
+**Talking point:** Full-text search, **Quick View**, and **faceted filters** use the **Product Search API** via a Next.js BFF — no commercetools credentials in the browser. Autocomplete uses **Search Term Suggestions** from product `searchKeywords`.
 
 ### 2. Add to cart
 
@@ -166,6 +167,7 @@ Demonstrates Product Discounts on discovery and Cart Discount codes before check
 | **Timeline** | ~2-week PoC by a backend-focused developer (see [TIME_REPORT.md](./TIME_REPORT.md)) |
 | **Promotions** | Product Discounts on PLP/PDP; Cart Discount codes via BFF before Checkout session |
 | **Inventory** | Stock badges from `ProductVariant.availability`; add-to-cart blocked when out of stock |
+| **Quick View** | coss Dialog on listing cards — preview product without leaving PLP |
 | **Mobile UX** | Cart drawer (Sheet) on viewports `< md` |
 
 ---
@@ -174,7 +176,6 @@ Demonstrates Product Discounts on discovery and Cart Discount codes before check
 
 Refer to [ROADMAP.md](./ROADMAP.md) Phase 9+ for planned work:
 
-- No **Quick View** on listing pages
 - No **multi-country switcher** in UI (env-driven `DE` / `EUR` defaults)
 - **Best sellers** use a catalog heuristic (not real sales ranking)
 - **Email verification** after email change (no ESP in PoC)

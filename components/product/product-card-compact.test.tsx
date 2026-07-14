@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { CartProvider } from '@/components/cart/cart-context';
 import { WishlistProvider } from '@/components/wishlist/wishlist-context';
@@ -24,9 +25,14 @@ const product: StorefrontProduct = {
   imageUrl: 'https://example.com/orion.jpg',
   price: { centAmount: 49900, currencyCode: 'EUR' },
   availability: { isOnStock: true },
+  hasMultipleVariants: false,
 };
 
 describe('ProductCardCompact', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('links to the product detail page', () => {
     renderCard(product);
     const links = screen.getAllByRole('link', { name: /orion double bed/i });
@@ -80,5 +86,77 @@ describe('ProductCardCompact', () => {
     );
     expect(title).toHaveClass('line-clamp-2');
     expect(title).toHaveClass('min-h-11');
+  });
+
+  it('opens quick view dialog with product details', async () => {
+    const user = userEvent.setup();
+    renderCard(product);
+
+    await user.click(
+      screen.getByRole('button', { name: /quick view orion double bed/i }),
+    );
+
+    const dialog = screen.getByRole('dialog', { name: /orion double bed/i });
+    expect(within(dialog).getByText('In stock')).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('link', { name: /view full details/i }),
+    ).toHaveAttribute('href', '/product/orion-double-bed');
+    expect(
+      within(dialog).getByRole('button', { name: /add to cart/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('closes quick view after a successful add to cart', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ cart: { itemCount: 1 } }),
+    } as Response);
+
+    renderCard(product);
+
+    await user.click(
+      screen.getByRole('button', { name: /quick view orion double bed/i }),
+    );
+
+    const dialog = screen.getByRole('dialog', { name: /orion double bed/i });
+    await user.click(
+      within(dialog).getByRole('button', { name: /add to cart/i }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows disabled add to cart in quick view when out of stock', async () => {
+    const user = userEvent.setup();
+    renderCard({ ...product, availability: { isOnStock: false } });
+
+    await user.click(
+      screen.getByRole('button', { name: /quick view orion double bed/i }),
+    );
+
+    const dialog = screen.getByRole('dialog', { name: /orion double bed/i });
+    expect(
+      within(dialog).getByRole('button', { name: /out of stock/i }),
+    ).toBeDisabled();
+  });
+
+  it('hides quick view add to cart for multi-variant products', async () => {
+    const user = userEvent.setup();
+    renderCard({ ...product, hasMultipleVariants: true });
+
+    await user.click(
+      screen.getByRole('button', { name: /quick view orion double bed/i }),
+    );
+
+    const dialog = screen.getByRole('dialog', { name: /orion double bed/i });
+    expect(
+      within(dialog).queryByRole('button', { name: /add to cart/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/showing the default variant/i),
+    ).toBeInTheDocument();
   });
 });

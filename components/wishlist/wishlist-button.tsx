@@ -19,7 +19,7 @@ type WishlistButtonProps = {
 export function WishlistButton({
   sku,
   disabled,
-  size = 'icon-sm',
+  size,
   className,
   showLabel = false,
 }: WishlistButtonProps) {
@@ -28,6 +28,7 @@ export function WishlistButton({
   const [error, setError] = useState<string | null>(null);
 
   const saved = isInWishlist(sku);
+  const buttonSize = size ?? (showLabel ? 'sm' : 'icon-sm');
 
   async function handleClick() {
     if (!sku || saved) {
@@ -68,11 +69,12 @@ export function WishlistButton({
       <Button
         type="button"
         variant={saved ? 'secondary' : 'outline'}
-        size={size}
+        size={buttonSize}
         disabled={disabled || isLoading || !sku || saved}
         aria-label={label}
         aria-pressed={saved}
         onClick={handleClick}
+        className={showLabel ? 'w-full sm:w-auto' : undefined}
       >
         {isLoading ? (
           <Spinner className="size-4" />

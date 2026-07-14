@@ -162,4 +162,48 @@ test.describe('Discovery flow', () => {
     await expect(page.getByText('In stock')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add to cart' })).toBeVisible();
   });
+
+  test('quick view is hidden on fine-pointer desktop until card hover', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('/');
+
+    const card = page.locator('article').first();
+    const quickViewButton = card.getByRole('button', { name: /quick view/i });
+
+    await expect(quickViewButton).toHaveCSS('opacity', '0');
+
+    await card.hover();
+    await expect(quickViewButton).toHaveCSS('opacity', '1');
+  });
+
+  test('quick view opens from homepage listing, adds to cart, and links to PDP', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const quickViewButton = page
+      .getByRole('button', { name: /quick view/i })
+      .first();
+    await quickViewButton.click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+
+    const addToCartButton = dialog.getByRole('button', { name: 'Add to cart' });
+    if (await addToCartButton.isVisible()) {
+      await addToCartButton.click();
+      await expect(dialog).toBeHidden();
+      await expect(page.getByRole('link', { name: /Cart, 1 item/i })).toBeVisible();
+    }
+
+    await page
+      .getByRole('button', { name: /quick view/i })
+      .first()
+      .click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await dialog.getByRole('link', { name: 'View full details' }).click();
+    await expect(page).toHaveURL(/\/product\//);
+  });
 });

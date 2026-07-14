@@ -28,6 +28,7 @@ export const ctpClient = new ClientBuilder()
   .withProjectKey(commercetoolsEnv.projectKey)
   .withClientCredentialsFlow(authMiddlewareOptions)
   .withHttpMiddleware(httpMiddlewareOptions)
+  .withCorrelationIdMiddleware({ generate: () => crypto.randomUUID() })
   .withConcurrentModificationMiddleware()
   .withLoggerMiddleware()
   .build();

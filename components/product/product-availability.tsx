@@ -23,8 +23,8 @@ export function ProductAvailability({
       className={cn(
         'inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium',
         availability.isOnStock
-          ? 'bg-muted text-muted-foreground'
-          : 'bg-destructive/10 text-destructive',
+          ? 'bg-success/10 text-success-foreground'
+          : 'bg-destructive/10 text-destructive-foreground',
         className,
       )}
     >

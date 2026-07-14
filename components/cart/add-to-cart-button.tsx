@@ -15,6 +15,8 @@ type AddToCartButtonProps = {
   outOfStock?: boolean;
   size?: 'default' | 'sm' | 'lg';
   className?: string;
+  fullWidthOnMobile?: boolean;
+  onAdded?: () => void;
 };
 
 export function AddToCartButton({
@@ -23,6 +25,8 @@ export function AddToCartButton({
   outOfStock = false,
   size = 'default',
   className,
+  fullWidthOnMobile = false,
+  onAdded,
 }: AddToCartButtonProps) {
   const router = useRouter();
   const { syncCartItemCount } = useCart();
@@ -50,6 +54,7 @@ export function AddToCartButton({
       }
 
       syncCartItemCount(body?.cart?.itemCount ?? 0);
+      onAdded?.();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add to cart');
@@ -64,6 +69,7 @@ export function AddToCartButton({
         size={size}
         disabled={disabled || outOfStock || isLoading || !sku}
         onClick={handleClick}
+        className={fullWidthOnMobile ? 'w-full sm:w-auto' : undefined}
       >
         {isLoading ? (
           <>

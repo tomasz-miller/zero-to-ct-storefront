@@ -21,6 +21,7 @@ export type StorefrontProduct = {
   imageUrl?: string;
   price?: StorefrontPrice;
   availability: StorefrontAvailability;
+  hasMultipleVariants: boolean;
 };
 
 export type StorefrontProductVariant = {
@@ -179,6 +180,7 @@ export function mapProjection(
     imageUrl,
     price,
     availability: mapAvailability(variant),
+    hasMultipleVariants: projection.variants.length > 0,
   };
 }
 

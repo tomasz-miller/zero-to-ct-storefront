@@ -2,9 +2,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { AddToCartButton } from '@/components/cart/add-to-cart-button';
-import { WishlistButton } from '@/components/wishlist/wishlist-button';
 import { ProductAvailability } from '@/components/product/product-availability';
 import { ProductPrice } from '@/components/product/product-price';
+import { ProductQuickViewDialog } from '@/components/product/product-quick-view-dialog';
+import { WishlistButton } from '@/components/wishlist/wishlist-button';
 import type { StorefrontProduct } from '@/lib/commercetools/products';
 
 type ProductCardCompactProps = {
@@ -42,9 +43,13 @@ export function ProductCardCompact({ product }: ProductCardCompactProps) {
           {outOfStock ? (
             <ProductAvailability
               availability={product.availability}
-              className="absolute bottom-1 left-1 z-10"
+              className="absolute top-1 left-1 z-10"
             />
           ) : null}
+          <ProductQuickViewDialog
+            product={product}
+            className="absolute bottom-1 left-1/2 z-10 -translate-x-1/2 opacity-100 transition-opacity [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 focus-within:opacity-100"
+          />
         </div>
         <Link
           href={`/product/${product.slug}`}

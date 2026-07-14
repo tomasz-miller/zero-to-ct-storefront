@@ -9,8 +9,8 @@ Testing strategy for **zero-to-ct-storefront**. Unit tests run in CI without com
 | Layer | Tool | Scope | CI |
 |-------|------|-------|-----|
 | Unit — lib | Vitest | `format`, product/category mappers, mocked `products`/`categories` | Yes |
-| Unit — API | Vitest (node) | `/api/health`, `/api/products`, `/api/categories`, `/api/cart/items`, `/api/cart/discount-code`, `/api/customer/profile`, `/api/customer/password`, `/api/wishlist`, `/api/wishlist/items` | Yes |
-| Unit — UI | Vitest + Testing Library | product cards, search form | Yes |
+| Unit — API | Vitest (node) | `/api/health`, `/api/products`, `/api/categories`, `/api/cart/items`, `/api/cart/discount-code`, `/api/checkout/session`, `/api/customer/profile`, `/api/customer/password`, `/api/wishlist`, `/api/wishlist/items` | Yes |
+| Unit — UI | Vitest + Testing Library | product cards, quick view dialog, search form | Yes |
 | E2E | Playwright | discovery + cart/checkout + account + wishlist + inventory + API smoke against live CT | No (local only) |
 
 ---
@@ -74,7 +74,7 @@ pnpm lint && pnpm typecheck && pnpm test:unit
 
 | File | Scenarios |
 |------|-----------|
-| `discovery.spec.ts` | Homepage best sellers + new arrivals, category nav → CLP, custom 404, search for `bed`, PDP |
+| `discovery.spec.ts` | Homepage best sellers + new arrivals, category nav → CLP, custom 404, search for `bed`, PDP, Quick View hover/add-to-cart/PDP |
 | `cart-checkout.spec.ts` | Add to cart from homepage, cart page line items, checkout embed load, cart API, product discount PDP, BOGO discount code |
 | `account.spec.ts` | Auth redirect, register, profile edit, address CRUD, change password, order detail (conditional) |
 | `wishlist.spec.ts` | Guest save/view/remove, move-to-cart badge sync |
