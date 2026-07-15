@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useSyncExternalStore } from 'react';
 
 import { CartNavLink } from '@/components/cart/cart-nav-link';
 import { AccountNav } from '@/components/auth/account-nav';
@@ -16,22 +17,34 @@ import { cn } from '@/lib/utils';
 const HEADER_HEIGHT = 64;
 const HEADER_HEIGHT_SCROLLED = 46;
 
+function subscribeToScroll(onStoreChange: () => void) {
+  window.addEventListener('scroll', onStoreChange, { passive: true });
+  return () => window.removeEventListener('scroll', onStoreChange);
+}
+
+function getScrollSnapshot() {
+  return window.scrollY > 0;
+}
+
+function getScrollServerSnapshot() {
+  return false;
+}
+
 type SiteHeaderProps = {
   categories?: StorefrontCategory[];
 };
 
+function useIsPageScrolled() {
+  usePathname();
+  return useSyncExternalStore(
+    subscribeToScroll,
+    getScrollSnapshot,
+    getScrollServerSnapshot,
+  );
+}
+
 export function SiteHeader({ categories = [] }: SiteHeaderProps) {
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => {
-      setIsScrolled(window.scrollY > 0);
-    };
-
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  const isScrolled = useIsPageScrolled();
 
   const headerHeight = isScrolled ? HEADER_HEIGHT_SCROLLED : HEADER_HEIGHT;
 
@@ -48,7 +61,7 @@ export function SiteHeader({ categories = [] }: SiteHeaderProps) {
       >
         <div
           className={cn(
-            'mx-auto flex h-full max-w-6xl items-center justify-between gap-2 overflow-hidden px-4 transition-[padding] duration-300 ease-out sm:gap-4 sm:px-6',
+            'mx-auto flex h-full max-w-6xl items-center justify-between gap-2 overflow-hidden px-6 transition-[padding] duration-300 ease-out sm:gap-4',
             isScrolled ? 'py-2' : 'py-3',
           )}
         >

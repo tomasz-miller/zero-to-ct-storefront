@@ -65,7 +65,7 @@ export function SiteFooter() {
 
   return (
     <footer className="mt-auto border-t border-border/70 bg-muted/35">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-7">
+      <div className="mx-auto max-w-6xl px-6 py-6 sm:py-7">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-12 lg:gap-5">
           <div className="flex flex-col gap-2 lg:col-span-5">
             <StoreBrand minimal />
