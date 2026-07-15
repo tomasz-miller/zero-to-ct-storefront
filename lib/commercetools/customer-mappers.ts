@@ -1,7 +1,19 @@
-import type { Address, Customer, LineItem, Order } from '@commercetools/platform-sdk';
+import type {
+  Address,
+  Customer,
+  LineItem,
+  Order,
+  Payment,
+  Transaction,
+} from '@commercetools/platform-sdk';
 
 import { formatPrice } from '@/lib/format';
 
+import {
+  deriveOrderPaymentStatus,
+  formatPaymentProvider,
+  type DerivedPaymentStatus,
+} from './payment-status';
 import { pickLocalized } from './product-mappers';
 import { DEFAULT_STOREFRONT_LOCALE } from './storefront-context';
 
@@ -42,7 +54,25 @@ export type StorefrontOrder = {
   createdAt: string;
   orderState: string;
   paymentState?: string;
+  paymentStatus: DerivedPaymentStatus;
   total: FormattedMoney;
+};
+
+export type StorefrontPaymentTransaction = {
+  id: string;
+  type: Transaction['type'];
+  state: Transaction['state'];
+  amount: FormattedMoney;
+  timestamp?: string;
+};
+
+export type StorefrontPayment = {
+  id: string;
+  method?: string;
+  paymentInterface?: string;
+  providerLabel: string;
+  amountPlanned: FormattedMoney;
+  transactions: StorefrontPaymentTransaction[];
 };
 
 export type StorefrontOrderLineItem = {
@@ -64,6 +94,7 @@ export type StorefrontOrderAddress = {
 };
 
 export type StorefrontOrderDetail = StorefrontOrder & {
+  payments: StorefrontPayment[];
   lineItems: StorefrontOrderLineItem[];
   billingAddress?: StorefrontOrderAddress;
   shippingAddress?: StorefrontOrderAddress;
@@ -141,6 +172,65 @@ function mapOrderLineItem(
   };
 }
 
+function mapPayment(payment: Payment): StorefrontPayment {
+  const paymentInterface = payment.paymentMethodInfo.paymentInterface;
+
+  return {
+    id: payment.id,
+    method: payment.paymentMethodInfo.method,
+    paymentInterface,
+    providerLabel: formatPaymentProvider(paymentInterface),
+    amountPlanned: mapMoney(
+      payment.amountPlanned.centAmount,
+      payment.amountPlanned.currencyCode,
+    ),
+    transactions: payment.transactions.map((transaction) => ({
+      id: transaction.id,
+      type: transaction.type,
+      state: transaction.state,
+      amount: mapMoney(
+        transaction.amount.centAmount,
+        transaction.amount.currencyCode,
+      ),
+      timestamp: transaction.timestamp,
+    })),
+  };
+}
+
+function getPayments(order: Order): StorefrontPayment[] {
+  return (order.paymentInfo?.payments ?? []).flatMap((paymentReference) =>
+    paymentReference.obj ? [mapPayment(paymentReference.obj)] : [],
+  );
+}
+
+function mapOrderSummary(
+  order: Order,
+  payments: StorefrontPayment[],
+  locale: string,
+): StorefrontOrder {
+  void locale;
+
+  return {
+    id: order.id,
+    orderNumber: order.orderNumber,
+    createdAt: order.createdAt,
+    orderState: order.orderState,
+    paymentState: order.paymentState,
+    paymentStatus: deriveOrderPaymentStatus(
+      payments.map((payment) => ({
+        transactions: payment.transactions.map((transaction) => ({
+          type: transaction.type,
+          state: transaction.state,
+          centAmount: transaction.amount.centAmount,
+          timestamp: transaction.timestamp,
+        })),
+      })),
+      order.paymentState,
+    ),
+    total: mapMoney(order.totalPrice.centAmount, order.totalPrice.currencyCode),
+  };
+}
+
 export function mapCustomer(customer: Customer): StorefrontCustomer {
   const firstName = customer.firstName ?? undefined;
   const lastName = customer.lastName ?? undefined;
@@ -164,30 +254,19 @@ export function mapOrder(
   order: Order,
   locale = DEFAULT_STOREFRONT_LOCALE,
 ): StorefrontOrder {
-  void locale;
-
-  return {
-    id: order.id,
-    orderNumber: order.orderNumber,
-    createdAt: order.createdAt,
-    orderState: order.orderState,
-    paymentState: order.paymentState,
-    total: mapMoney(
-      order.totalPrice.centAmount,
-      order.totalPrice.currencyCode,
-    ),
-  };
+  return mapOrderSummary(order, getPayments(order), locale);
 }
 
 export function mapOrderDetail(
   order: Order,
   locale = DEFAULT_STOREFRONT_LOCALE,
 ): StorefrontOrderDetail {
-  const summary = mapOrder(order, locale);
+  const payments = getPayments(order);
   const shippingInfo = order.shippingInfo;
 
   return {
-    ...summary,
+    ...mapOrderSummary(order, payments, locale),
+    payments,
     lineItems: order.lineItems.map((item) => mapOrderLineItem(item, locale)),
     billingAddress: order.billingAddress
       ? mapOrderAddress(order.billingAddress)
@@ -197,10 +276,7 @@ export function mapOrderDetail(
       : undefined,
     shippingMethod: shippingInfo?.shippingMethodName || undefined,
     shippingCost: shippingInfo?.price
-      ? mapMoney(
-          shippingInfo.price.centAmount,
-          shippingInfo.price.currencyCode,
-        )
+      ? mapMoney(shippingInfo.price.centAmount, shippingInfo.price.currencyCode)
       : undefined,
   };
 }

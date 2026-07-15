@@ -11,7 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { customerCanUseDefaultAddress } from '@/lib/commercetools/checkout-cart-addresses';
 import { getGuestCart } from '@/lib/commercetools/cart';
+import { getAuthenticatedCustomerProfile } from '@/lib/commercetools/customer-auth';
 import { getPublicCheckoutConfig, getStorefrontContext } from '@/lib/commercetools/storefront-context';
 
 function CheckoutSkeleton() {
@@ -22,6 +24,8 @@ function CheckoutSkeleton() {
 
 export default async function CheckoutPage() {
   const cart = await getGuestCart();
+  const customer = await getAuthenticatedCustomerProfile();
+  const canUseDefaultAddress = customerCanUseDefaultAddress(customer);
   const checkoutConfig = getPublicCheckoutConfig();
   const { locale } = getStorefrontContext();
 
@@ -76,6 +80,7 @@ export default async function CheckoutPage() {
             projectKey={checkoutConfig.projectKey}
             region={checkoutConfig.region}
             locale={locale}
+            canUseDefaultAddress={canUseDefaultAddress}
           />
         </Suspense>
       </section>

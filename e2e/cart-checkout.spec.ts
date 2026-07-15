@@ -101,6 +101,83 @@ test.describe('Cart and checkout flow', () => {
       page.getByText(/no_payment_integrations|error_loading_all_payment_integrations/i),
     ).not.toBeVisible();
   });
+
+  test('guest checkout does not show the default address button', async ({ page }) => {
+    await page.goto('/');
+
+    const addButton = page
+      .getByRole('button', { name: 'Add to cart' })
+      .filter({ hasNot: page.locator('[disabled]') })
+      .first();
+
+    await addButton.click();
+    await expect(page.getByRole('link', { name: /Cart, \d+ item/ })).toBeVisible({
+      timeout: 15_000,
+    });
+
+    await page.goto('/checkout');
+
+    await expect(
+      page.getByRole('button', { name: 'Use my default address' }),
+    ).not.toBeVisible();
+  });
+
+  test('signed-in customer with a default address can apply it in checkout', async ({
+    page,
+  }) => {
+    const unique = Date.now();
+    const email = `checkout-address+${unique}@example.com`;
+    const password = 'Password123!';
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('button', { name: 'Need an account? Register' }).click();
+    await page.getByLabel('First name').fill('Checkout');
+    await page.getByLabel('Last name').fill('Customer');
+    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Password', { exact: true }).fill(password);
+    await page.getByLabel('Confirm password').fill(password);
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 15_000 });
+
+    await page.goto('/account');
+    await page.getByRole('button', { name: 'Add address' }).click();
+    const addressDialog = page.getByRole('dialog');
+    await addressDialog.getByLabel('Street').fill('Checkout Street');
+    await addressDialog.getByLabel('Number').fill('5');
+    await addressDialog.getByLabel('Postal code').fill('10115');
+    await addressDialog.getByLabel('City').fill('Berlin');
+    await addressDialog.getByLabel('Country').fill('DE');
+    await addressDialog.getByLabel('Default shipping address').check();
+    await addressDialog.getByLabel('Default billing address').check();
+    await addressDialog.getByRole('button', { name: 'Add address' }).click();
+    await expect(page.getByText('Address added.')).toBeVisible({
+      timeout: 15_000,
+    });
+
+    await page.goto('/');
+    const addButton = page
+      .getByRole('button', { name: 'Add to cart' })
+      .filter({ hasNot: page.locator('[disabled]') })
+      .first();
+    await addButton.click();
+    await expect(page.getByRole('link', { name: /Cart, \d+ item/ })).toBeVisible({
+      timeout: 15_000,
+    });
+
+    await page.goto('/checkout');
+    await expect(
+      page.getByRole('button', { name: 'Use my default address' }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: 'Use my default address' }).click();
+    await expect(page.getByText('Default address applied.')).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.locator('#shippingForm\\.firstName')).toHaveValue('Checkout', {
+      timeout: 30_000,
+    });
+  });
 });
 
 test.describe('Cart API', () => {

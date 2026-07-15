@@ -1,14 +1,17 @@
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const {
   mockCheckoutFlow,
+  mockClose,
   mockRefreshCart,
   mockRouter,
   mockSearchParams,
   mockSyncCartItemCount,
 } = vi.hoisted(() => ({
   mockCheckoutFlow: vi.fn(),
+  mockClose: vi.fn(),
   mockRefreshCart: vi.fn(),
   mockRouter: { push: vi.fn() },
   mockSearchParams: new URLSearchParams(),
@@ -17,6 +20,7 @@ const {
 
 vi.mock('@commercetools/checkout-browser-sdk', () => ({
   checkoutFlow: mockCheckoutFlow,
+  close: mockClose,
 }));
 
 vi.mock('next/navigation', () => ({
@@ -52,6 +56,7 @@ describe('CheckoutEmbed', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     mockCheckoutFlow.mockReset();
+    mockClose.mockReset();
     mockRouter.push.mockReset();
     mockRefreshCart.mockReset();
     mockSyncCartItemCount.mockReset();
@@ -111,6 +116,94 @@ describe('CheckoutEmbed', () => {
       expect(mockRouter.push).toHaveBeenCalledWith('/order-confirmation');
     });
     expect(mockSyncCartItemCount).not.toHaveBeenCalled();
+  });
+
+  it('passes storefront theme styles to checkoutFlow', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ sessionId: 'session-1' }),
+      }),
+    );
+
+    render(<CheckoutEmbed projectKey="project" region="eu" locale="en-GB" />);
+
+    await waitFor(() => expect(mockCheckoutFlow).toHaveBeenCalledOnce());
+
+    expect(mockCheckoutFlow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        styles: expect.objectContaining({
+          '--font-family': expect.any(String),
+          '--button': expect.any(String),
+          '--button-text': expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it('applies the default address and restarts checkout', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ sessionId: 'session-1' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ cart: { id: 'cart-1' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ sessionId: 'session-2' }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <CheckoutEmbed
+        projectKey="project"
+        region="eu"
+        locale="en-GB"
+        canUseDefaultAddress
+      />,
+    );
+
+    await waitFor(() => expect(mockCheckoutFlow).toHaveBeenCalledOnce());
+
+    await user.click(
+      screen.getByRole('button', { name: 'Use my default address' }),
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/checkout/default-address', {
+        method: 'POST',
+      });
+      expect(mockClose).toHaveBeenCalledOnce();
+      expect(mockCheckoutFlow).toHaveBeenCalledTimes(2);
+    });
+
+    expect(
+      screen.getByText('Default address applied.'),
+    ).toBeInTheDocument();
+  });
+
+  it('does not render the default address button for guests', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ sessionId: 'session-1' }),
+      }),
+    );
+
+    render(<CheckoutEmbed projectKey="project" region="eu" locale="en-GB" />);
+
+    await waitFor(() => expect(mockCheckoutFlow).toHaveBeenCalledOnce());
+
+    expect(
+      screen.queryByRole('button', { name: 'Use my default address' }),
+    ).not.toBeInTheDocument();
   });
 
   it('handles duplicate completion events once', async () => {

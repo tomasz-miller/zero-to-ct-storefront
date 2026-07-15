@@ -5,12 +5,12 @@ import {
   CartNotFoundError,
   getCartForCheckout,
 } from '@/lib/commercetools/cart';
-import { createGuestCheckoutSession } from '@/lib/commercetools/checkout-session';
+import { createCheckoutSession } from '@/lib/commercetools/checkout-session';
 
 export async function POST() {
   try {
     const { cart } = await getCartForCheckout();
-    const sessionId = await createGuestCheckoutSession(
+    const sessionId = await createCheckoutSession(
       cart.id,
       cart.country ?? 'DE',
     );

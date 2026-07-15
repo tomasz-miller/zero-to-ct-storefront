@@ -3,10 +3,10 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const { mockGetCartForCheckout, mockCreateGuestCheckoutSession } = vi.hoisted(
+const { mockGetCartForCheckout, mockCreateCheckoutSession } = vi.hoisted(
   () => ({
     mockGetCartForCheckout: vi.fn(),
-    mockCreateGuestCheckoutSession: vi.fn(),
+    mockCreateCheckoutSession: vi.fn(),
   }),
 );
 
@@ -22,7 +22,7 @@ vi.mock('@/lib/commercetools/cart', () => ({
 }));
 
 vi.mock('@/lib/commercetools/checkout-session', () => ({
-  createGuestCheckoutSession: mockCreateGuestCheckoutSession,
+  createCheckoutSession: mockCreateCheckoutSession,
 }));
 
 import { POST } from './route';
@@ -31,19 +31,19 @@ describe('POST /api/checkout/session', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     mockGetCartForCheckout.mockReset();
-    mockCreateGuestCheckoutSession.mockReset();
+    mockCreateCheckoutSession.mockReset();
   });
 
   it('returns sessionId on success', async () => {
     mockGetCartForCheckout.mockResolvedValue({
       cart: { id: 'cart-1', country: 'DE' },
     });
-    mockCreateGuestCheckoutSession.mockResolvedValue('session-abc');
+    mockCreateCheckoutSession.mockResolvedValue('session-abc');
 
     const response = await POST();
 
     expect(response.status).toBe(200);
-    expect(mockCreateGuestCheckoutSession).toHaveBeenCalledWith('cart-1', 'DE');
+    expect(mockCreateCheckoutSession).toHaveBeenCalledWith('cart-1', 'DE');
 
     const body = await response.json();
     expect(body.sessionId).toBe('session-abc');
@@ -53,12 +53,12 @@ describe('POST /api/checkout/session', () => {
     mockGetCartForCheckout.mockResolvedValue({
       cart: { id: 'cart-2' },
     });
-    mockCreateGuestCheckoutSession.mockResolvedValue('session-def');
+    mockCreateCheckoutSession.mockResolvedValue('session-def');
 
     const response = await POST();
 
     expect(response.status).toBe(200);
-    expect(mockCreateGuestCheckoutSession).toHaveBeenCalledWith('cart-2', 'DE');
+    expect(mockCreateCheckoutSession).toHaveBeenCalledWith('cart-2', 'DE');
   });
 
   it('returns 403 when cart access is denied', async () => {
@@ -91,7 +91,7 @@ describe('POST /api/checkout/session', () => {
     mockGetCartForCheckout.mockResolvedValue({
       cart: { id: 'cart-1', country: 'DE' },
     });
-    mockCreateGuestCheckoutSession.mockRejectedValue(
+    mockCreateCheckoutSession.mockRejectedValue(
       new Error('Checkout session unavailable'),
     );
 

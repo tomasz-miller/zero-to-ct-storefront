@@ -45,6 +45,7 @@ export async function getMyOrders(options?: {
     limit: String(limit),
     offset: String(offset),
   });
+  params.append('expand', 'paymentInfo.payments[*]');
 
   const response = await fetch(
     `${commercetoolsEnv.apiUrl}/${commercetoolsEnv.projectKey}/me/orders?${params}`,
@@ -78,7 +79,7 @@ export async function getMyOrder(
   }
 
   const response = await fetch(
-    `${commercetoolsEnv.apiUrl}/${commercetoolsEnv.projectKey}/me/orders/${encodeURIComponent(orderId)}`,
+    `${commercetoolsEnv.apiUrl}/${commercetoolsEnv.projectKey}/me/orders/${encodeURIComponent(orderId)}?expand=paymentInfo.payments[*]`,
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,

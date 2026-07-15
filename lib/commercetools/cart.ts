@@ -41,6 +41,13 @@ export class OutOfStockError extends Error {
   }
 }
 
+export class NoDefaultAddressError extends Error {
+  constructor(message = 'No default address configured on your account') {
+    super(message);
+    this.name = 'NoDefaultAddressError';
+  }
+}
+
 async function fetchCartById(cartId: string): Promise<Cart | null> {
   try {
     const response = await apiRoot
@@ -617,4 +624,16 @@ export async function getCartForCheckout(): Promise<{
     cart: mapCart(cart, getStorefrontContext().locale),
     anonymousId: session.anonymousId,
   };
+}
+
+export async function updateActiveCart(
+  actions: CartUpdateAction[],
+): Promise<StorefrontCart> {
+  const { cart } = await loadResolvedCartIfSessionExists();
+
+  if (cart.lineItems.length === 0) {
+    throw new CartNotFoundError('Cart is empty');
+  }
+
+  return updateCartWithActions(cart, actions);
 }

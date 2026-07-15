@@ -8,7 +8,7 @@ type SessionResponse = {
   id: string;
 };
 
-export async function createGuestCheckoutSession(
+export async function createCheckoutSession(
   cartId: string,
   country: string,
 ): Promise<string> {

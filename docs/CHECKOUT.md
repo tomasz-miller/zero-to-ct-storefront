@@ -27,6 +27,31 @@ When Checkout emits `checkout_completed`, the Browser SDK calls
 `POST /api/cart/complete`. The BFF clears the `ct_guest_cart` cookie and the
 client cart badge is reset before redirecting to `/order-confirmation`.
 
+### Browser SDK mode decision
+
+This storefront uses `checkoutFlow`, not `paymentFlow`. Checkout owns address
+collection and shipping-method selection, while the storefront owns the page
+layout and order summary around the inline `data-ctc` container.
+
+Use `paymentFlow` only after moving address and shipping collection into the
+storefront and persisting those values on the Cart before creating a Checkout
+Session.
+
+### Saved Customer addresses
+
+`Customer.addresses` from `/account` are not visible to embedded Checkout by
+themselves. Complete Checkout reads shipping, billing, and customer email from
+the active Cart when the Checkout Session is created.
+
+For signed-in customers with a default shipping or billing address, the
+storefront exposes **Use my default address** above the embedded widget. The
+button calls `POST /api/checkout/default-address`, which copies the available
+default addresses and customer email onto the Cart, closes the current Checkout
+widget, creates a fresh Checkout Session, and restarts `checkoutFlow`.
+
+Do not manipulate Checkout DOM fields directly. Prefill must go through Cart
+update actions (`setShippingAddress`, `setBillingAddress`, `setCustomerEmail`).
+
 Official references:
 
 - [Set up Checkout](https://docs.commercetools.com/learning-implement-checkout/implement-commercetools-checkout/set-up-checkout.md)
@@ -230,6 +255,66 @@ curl -s -X POST "https://checkout.europe-west1.gcp.commercetools.com/zero-to-ct-
 ```
 
 Payment Integrations are **inactive by default** after creation.
+
+---
+
+## Payment events for fulfillment
+
+Checkout updates the `Payment.transactions` list after receiving Stripe
+notifications. The storefront displays payment status from these transactions:
+
+| Transaction | State | Customer-facing status |
+|-------------|-------|------------------------|
+| `Charge` | `Success` | Paid |
+| `Charge` | `Failure` | Failed |
+| `Authorization` | `Success` (without a Charge) | Authorized |
+| `Authorization` | `Pending` or `Initial` | Processing |
+| `Authorization` | `Failure` | Failed |
+| `Refund` | `Success` | Partially refunded or Refunded |
+| `CancelAuthorization` | `Success` | Cancelled |
+
+When expanded `Payment` resources are unavailable, the storefront falls back to
+the Order's `paymentState` for the account list and detail summary. For orders
+with multiple payments, the worst customer-facing status wins (for example,
+`Failed` over `Paid`).
+
+### Subscribe to Checkout events
+
+Use a [Subscription](https://docs.commercetools.com/checkout/checkout-events.md)
+to trigger fulfillment, reconciliation, or notifications outside the browser.
+Create the queue and its access policy before creating the Subscription. The
+following example uses an existing AWS SQS queue with IAM authentication:
+
+```json
+{
+  "key": "checkout-payment-events",
+  "destination": {
+    "type": "SQS",
+    "queueUrl": "https://sqs.<region>.amazonaws.com/<account-id>/<queue-name>",
+    "authenticationMode": "IAM",
+    "region": "<aws-region>"
+  },
+  "events": [
+    {
+      "resourceTypeId": "checkout",
+      "types": [
+        "CheckoutPaymentAuthorized",
+        "CheckoutPaymentAuthorizationFailed",
+        "CheckoutPaymentCharged",
+        "CheckoutPaymentChargeFailed",
+        "CheckoutPaymentRefunded",
+        "CheckoutPaymentRefundFailed"
+      ]
+    }
+  ]
+}
+```
+
+Create this Subscription through a trusted deployment or admin process with
+`manage_subscriptions:{projectKey}`. Do not create it from the storefront BFF.
+For fulfillment, react to `CheckoutPaymentCharged` (auto-capture) or
+`CheckoutPaymentAuthorized` (manual capture), according to the merchant's
+capture policy.
 
 ---
 

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Address, Customer, LineItem, Order } from '@commercetools/platform-sdk';
+import type {
+  Address,
+  Customer,
+  LineItem,
+  Order,
+  Payment,
+} from '@commercetools/platform-sdk';
 
 import {
   mapCustomer,
@@ -51,7 +57,9 @@ function createLineItem(overrides: Partial<LineItem> = {}): LineItem {
     variant: {
       id: 1,
       sku: 'JACKET-001',
-      images: [{ url: 'https://example.com/jacket.jpg', dimensions: { w: 1, h: 1 } }],
+      images: [
+        { url: 'https://example.com/jacket.jpg', dimensions: { w: 1, h: 1 } },
+      ],
     },
     price: {
       id: 'price-1',
@@ -101,6 +109,52 @@ function createOrder(overrides: Partial<Order> = {}): Order {
     refusedGifts: [],
     syncInfo: [],
     ...overrides,
+  };
+}
+
+function createPayment(): Payment {
+  return {
+    id: 'payment-1',
+    version: 1,
+    createdAt: '2026-02-01T12:00:00.000Z',
+    lastModifiedAt: '2026-02-01T12:00:00.000Z',
+    amountPlanned: {
+      centAmount: 12345,
+      currencyCode: 'EUR',
+      type: 'centPrecision',
+      fractionDigits: 2,
+    },
+    paymentMethodInfo: {
+      paymentInterface: 'checkout-stripe',
+      method: 'card',
+    },
+    paymentStatus: {},
+    transactions: [
+      {
+        id: 'authorization-1',
+        type: 'Authorization',
+        state: 'Success',
+        amount: {
+          centAmount: 12345,
+          currencyCode: 'EUR',
+          type: 'centPrecision',
+          fractionDigits: 2,
+        },
+      },
+      {
+        id: 'charge-1',
+        type: 'Charge',
+        state: 'Success',
+        timestamp: '2026-02-01T12:00:02.000Z',
+        amount: {
+          centAmount: 12345,
+          currencyCode: 'EUR',
+          type: 'centPrecision',
+          fractionDigits: 2,
+        },
+      },
+    ],
+    interfaceInteractions: [],
   };
 }
 
@@ -168,19 +222,105 @@ describe('mapCustomer', () => {
 });
 
 describe('mapOrder', () => {
-  it('maps order summary fields', () => {
+  it('maps order summary fields and falls back to paymentState', () => {
     expect(mapOrder(createOrder())).toEqual({
       id: 'order-1',
       orderNumber: '10001',
       createdAt: '2026-02-01T12:00:00.000Z',
       orderState: 'Open',
       paymentState: 'Paid',
+      paymentStatus: 'Paid',
       total: {
         centAmount: 12345,
         currencyCode: 'EUR',
         formatted: '€123.45',
       },
     });
+  });
+});
+
+describe('payment mapping', () => {
+  it('derives the status and maps expanded payment transactions', () => {
+    const order = createOrder({
+      paymentInfo: {
+        payments: [
+          { typeId: 'payment', id: 'payment-1', obj: createPayment() },
+        ],
+      },
+    });
+
+    const detail = mapOrderDetail(order);
+
+    expect(detail.paymentStatus).toBe('Paid');
+    expect(detail.payments).toEqual([
+      {
+        id: 'payment-1',
+        paymentInterface: 'checkout-stripe',
+        providerLabel: 'Card via Stripe',
+        method: 'card',
+        amountPlanned: {
+          centAmount: 12345,
+          currencyCode: 'EUR',
+          formatted: '€123.45',
+        },
+        transactions: [
+          expect.objectContaining({
+            id: 'authorization-1',
+            type: 'Authorization',
+            state: 'Success',
+          }),
+          expect.objectContaining({
+            id: 'charge-1',
+            type: 'Charge',
+            state: 'Success',
+            timestamp: '2026-02-01T12:00:02.000Z',
+          }),
+        ],
+      },
+    ]);
+  });
+
+  it('falls back to paymentState when payment references are not expanded', () => {
+    const order = createOrder({
+      paymentState: 'Paid',
+      paymentInfo: {
+        payments: [{ typeId: 'payment', id: 'payment-1' }],
+      },
+    });
+
+    expect(mapOrder(order).paymentStatus).toBe('Paid');
+    expect(mapOrderDetail(order).payments).toEqual([]);
+  });
+
+  it('uses the worst payment status when multiple payments conflict', () => {
+    const failedPayment: Payment = {
+      ...createPayment(),
+      id: 'payment-2',
+      transactions: [
+        {
+          id: 'authorization-2',
+          type: 'Authorization',
+          state: 'Failure',
+          amount: {
+            centAmount: 12345,
+            currencyCode: 'EUR',
+            type: 'centPrecision',
+            fractionDigits: 2,
+          },
+        },
+      ],
+    };
+
+    const order = createOrder({
+      paymentInfo: {
+        payments: [
+          { typeId: 'payment', id: 'payment-1', obj: createPayment() },
+          { typeId: 'payment', id: 'payment-2', obj: failedPayment },
+        ],
+      },
+    });
+
+    expect(mapOrder(order).paymentStatus).toBe('Failed');
   });
 });
 
@@ -261,6 +401,7 @@ describe('mapOrderDetail', () => {
     const detail = mapOrderDetail(createOrder());
 
     expect(detail.lineItems).toEqual([]);
+    expect(detail.payments).toEqual([]);
     expect(detail.billingAddress).toBeUndefined();
     expect(detail.shippingAddress).toBeUndefined();
     expect(detail.shippingMethod).toBeUndefined();

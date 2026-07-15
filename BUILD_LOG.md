@@ -15,6 +15,27 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-07-15 — Checkout default address button
+- **Time:** 0.5h
+- **Phase:** phase-3-demo
+- **Milestone:** Added `Use my default address` on checkout for signed-in customers; BFF copies default shipping/billing and email from Customer to Cart, then restarts embedded `checkoutFlow`; documented Customer address book boundary.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Complete Checkout does not read `Customer.addresses` directly; Cart is the bridge.
+
+### 2026-07-15 — Payment status review fixes
+- **Time:** 0.5h
+- **Phase:** phase-3-demo
+- **Milestone:** Hardened transaction-derived payment status (failed capture, multi-payment worst-case, paymentState fallback, auth retry); theme-aware Checkout SDK styles; customer-friendly Stripe provider label; expanded unit tests.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Follow-up to code review of payment status visibility work.
+
+### 2026-07-15 — Checkout payment status visibility
+- **Time:** 1h
+- **Phase:** phase-3-demo
+- **Milestone:** Derived customer-facing payment statuses from expanded Checkout Payment transactions; added payment details to account order views; aligned embedded Checkout colors with the storefront; documented Checkout event subscriptions and the decision to retain `checkoutFlow`.
+- **Agent vs manual:** ~95% agent
+- **Notes:** `Payment.transactions` is the source of truth for Stripe outcomes. Subscription deployment still requires an existing queue and an admin deployment process.
+
 ### 2026-07-14 — Quick View code review fixes
 - **Time:** 0.5h
 - **Phase:** phase-4-discovery, phase-10-quality

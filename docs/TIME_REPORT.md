@@ -2,7 +2,7 @@
 
 End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived from [BUILD_LOG.md](../BUILD_LOG.md) and **git commit timestamps**.
 
-> **Status:** Estimated from BUILD_LOG + user-reported time (2026-07-13). Refine with Clockify/WakaTime if available.
+> **Status:** Estimated from BUILD_LOG + user-reported time (through 2026-07-15). Refine with Clockify/WakaTime if available.
 
 ---
 
@@ -46,7 +46,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | 2026-07-14 | Phase 8 — inventory availability (badges, block add-to-cart, BFF guard) | **1.5h** |
 | 2026-07-14 | Phase 7 promotions core (retroactive entry) | **1.5h** |
 | 2026-07-14 | Phase 4 slice 3 + Phase 10 slice 1 — Quick View, correlation ID, checkout session tests | **1.5h** |
-| **Total** | | **31.42h** |
+| 2026-07-15 | Checkout payment status visibility + code review fixes (user-reported) | **1h** |
+| **Total** | | **32.42h** |
 
 ---
 
@@ -54,9 +55,9 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 
 | Metric | Value |
 |--------|-------|
-| Project duration | 5 working days (2026-07-08 → 2026-07-14) |
-| Total estimated time | **31.42h** net |
-| Current phase | phase-4-discovery + phase-10-quality slice done |
+| Project duration | 6 working days (2026-07-08 → 2026-07-15) |
+| Total estimated time | **32.42h** net |
+| Current phase | phase-3-demo — checkout payment status visibility done |
 | Developer profile | Backend-focused, agent-assisted (Cursor + commercetools AI plugin) |
 | Agent contribution | ~85–95% of storefront code; human owns CT project, Stripe/Connect, MC config |
 
@@ -90,7 +91,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-8-inventory | 2026-07-14 | Phase 8 — stock availability badges, block add-to-cart, BFF OutOfStockError; 207 unit + 33 E2E tests | ~95% agent | 1.5h |
 | phase-4-discovery | 2026-07-14 | Phase 4 slice 3 — Quick View on listing cards (coss Dialog); 216 unit + 34 E2E tests | ~95% agent | 1h |
 | phase-10-quality | 2026-07-14 | Phase 10 slice 1 — correlation ID middleware + checkout session route unit tests | ~95% agent | 0.5h |
-| **Total** | | | ~80% agent / ~20% manual | **31.42h** |
+| phase-3-demo | 2026-07-15 | Checkout payment status visibility + review fixes — transaction-derived status in account, Checkout SDK theme styles, provider labels; 243 unit tests | ~95% agent | 1h |
+| **Total** | | | ~80% agent / ~20% manual | **32.42h** |
 
 ---
 
@@ -98,17 +100,17 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 
 | Phase | Hours | Share |
 |-------|-------|-------|
-| phase-0-setup | 2.5h | 10% |
-| phase-1-scaffold | 2h | 8% |
-| phase-2-core | 12.25h | 41% |
-| phase-3-demo | 2h | 7% |
+| phase-0-setup | 2.5h | 8% |
+| phase-1-scaffold | 2h | 6% |
+| phase-2-core | 12.25h | 38% |
+| phase-3-demo | 3h | 9% |
 | phase-4-discovery | 4.5h | 14% |
 | phase-5-account | 3.17h | 10% |
 | phase-6-wishlist | 1.5h | 5% |
 | phase-7-promotions | 2.5h | 8% |
 | phase-8-inventory | 1.5h | 5% |
 | phase-10-quality | 0.5h | 2% |
-| **Total** | **31.42h** | 100% |
+| **Total** | **32.42h** | 100% |
 
 ---
 
@@ -124,13 +126,14 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Quick View on product listings | Done |
 | Custom `not-found` page | Done |
 | Customer authentication + order history | Done |
+| Transaction-derived payment status in account order views | Done |
 | Account profile edit + address CRUD + change password | Done |
 | Account UX polish (dismissible alerts, wide-screen layout) | Done |
 | Wishlist (heart icon, `/wishlist`, move to cart) | Done |
 | Product discounts on PLP/PDP + discount codes in cart | Done |
 | Stock availability on PDP/PLP + block add-to-cart | Done |
 | Mobile cart drawer (header, `< md`) | Done |
-| Unit tests (CI) — 216 tests | Done |
+| Unit tests (CI) — 243 tests | Done |
 | E2E discovery + cart/checkout + account + wishlist + promotions + inventory (local) — 34 tests | Done |
 | SDK correlation ID middleware | Done |
 | Sales demo script | Done — [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) |
@@ -146,6 +149,7 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 - **2026-07-09** has no git commits; 7h is inferred from BUILD_LOG (Stripe connector, Checkout Applications, MC configuration).
 - **2026-07-10** total may increase if work continues past 17:00 or if morning activity is added.
 - **2026-07-14** includes 0.25h checkout cart-session cleanup, 1.5h Phase 5 slice 2, 40min account UX polish, 1.5h Phase 6 wishlist, 0.5h Vercel production deploy, 1.5h Phase 7 promotions core, 1h Phase 7 mobile cart drawer, 1.5h Phase 8 inventory availability, and 1.5h Phase 4 Quick View + Phase 10 quality slice (correlation ID, checkout session tests). Production redeploy of Quick View pending manual Vercel CLI.
+- **2026-07-15** has no git commits yet; 1h is user-reported for checkout payment status visibility and follow-up code review fixes; see BUILD_LOG.
 - Milestone split within a day is approximate; use Clockify/WakaTime for audit-grade numbers.
 
 ### How to refine

@@ -21,12 +21,17 @@ vi.mock('./env', () => ({
 }));
 
 vi.mock('./storefront-context', () => ({
-  getStorefrontContext: () => ({ locale: 'en-GB', country: 'DE', currency: 'EUR' }),
+  getStorefrontContext: () => ({
+    locale: 'en-GB',
+    country: 'DE',
+    currency: 'EUR',
+  }),
 }));
 
 import {
   CustomerOrderNotFoundError,
   getMyOrder,
+  getMyOrders,
 } from './customer-api';
 
 function createOrder(overrides: Partial<Order> = {}): Order {
@@ -91,7 +96,7 @@ describe('getMyOrder', () => {
       },
     });
     expect(fetch).toHaveBeenCalledWith(
-      'https://api.example.com/demo-project/me/orders/order-1',
+      'https://api.example.com/demo-project/me/orders/order-1?expand=paymentInfo.payments[*]',
       {
         headers: {
           Authorization: 'Bearer customer-token',
@@ -131,6 +136,43 @@ describe('getMyOrder', () => {
 
     await expect(getMyOrder('order-1')).rejects.toThrow(
       'Failed to fetch order (500)',
+    );
+  });
+});
+
+describe('getMyOrders', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    mockGetValidCustomerAccessToken.mockReset();
+  });
+
+  it('expands payment references for transaction-derived statuses', async () => {
+    mockGetValidCustomerAccessToken.mockResolvedValue('customer-token');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            results: [createOrder()],
+            total: 1,
+            count: 1,
+            offset: 0,
+          }),
+      }),
+    );
+
+    await getMyOrders();
+
+    expect(fetch).toHaveBeenCalledWith(
+      'https://api.example.com/demo-project/me/orders?sort=createdAt+desc&limit=20&offset=0&expand=paymentInfo.payments%5B*%5D',
+      {
+        headers: {
+          Authorization: 'Bearer customer-token',
+        },
+      },
     );
   });
 });

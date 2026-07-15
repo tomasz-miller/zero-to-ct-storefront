@@ -71,7 +71,8 @@ export default async function AccountPage() {
                 <TableRow>
                   <TableHead>Order</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Order status</TableHead>
+                  <TableHead>Payment</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                 </TableRow>
               </TableHeader>
@@ -90,10 +91,8 @@ export default async function AccountPage() {
                         </Link>
                       </TableCell>
                       <TableCell>{formatOrderDate(order.createdAt)}</TableCell>
-                      <TableCell>
-                        {order.orderState}
-                        {order.paymentState ? ` / ${order.paymentState}` : ''}
-                      </TableCell>
+                      <TableCell>{order.orderState}</TableCell>
+                      <TableCell>{order.paymentStatus}</TableCell>
                       <TableCell className="text-right">
                         {order.total.formatted}
                       </TableCell>
