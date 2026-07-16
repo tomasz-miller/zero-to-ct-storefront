@@ -159,7 +159,7 @@ Always verify against [commercetools docs](https://docs.commercetools.com) via K
 | 0 | CT trial, sample data, API client, env files | `phase-0-setup` ✅ |
 | 1 | `/nextjs-setup-project` with **pnpm**, SDK smoke test | `phase-1-scaffold` ✅ |
 | 2 | Discovery, cart, checkout, auth | `phase-2-core` ✅ |
-| 3 | Deploy, demo script, TIME_REPORT, E2E cart/checkout | `phase-3-demo` (in progress) |
+| 3 | Deploy, demo script, TIME_REPORT, E2E cart/checkout | `phase-3-demo` ✅ |
 
 ---
 

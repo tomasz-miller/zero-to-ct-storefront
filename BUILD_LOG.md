@@ -15,6 +15,20 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-07-16 — Phase 8/10 code-review fixes
+- **Time:** (included in 1h low-stock + BFF tests entry)
+- **Phase:** phase-8-inventory / phase-10-quality
+- **Milestone:** Channel availability uses min on-stock quantity (not sum); `availableQuantity === 0` → out of stock with synced `isOnStock`; ATC/UI use `status`; E2E finder simplified; boundary unit tests.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Client components import helpers from `product-mappers` (not server-only `products`).
+
+### 2026-07-16 — Phase 8 low-stock + Phase 10 BFF route tests
+- **Time:** 1h
+- **Phase:** phase-8-inventory / phase-10-quality
+- **Milestone:** Low-stock badges (`Only X left` when `availableQuantity` ≤ 5) on PDP/PLP; unit tests for remaining BFF routes (cart, auth, customer addresses/orders, wishlist delete/move-to-cart); 320 unit tests; ROADMAP/TIME_REPORT sync.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Custom threshold on ProductVariant.availability (no Inventory API query). commerce-mcp remains future.
+
 ### 2026-07-16 — Per-market cart persistence
 - **Time:** 2.25h
 - **Phase:** phase-9-multi-market

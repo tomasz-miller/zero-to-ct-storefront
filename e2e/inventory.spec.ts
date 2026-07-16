@@ -18,7 +18,11 @@ type CatalogProduct = {
   sku?: string;
   slug: string;
   name: string;
-  availability?: { isOnStock: boolean };
+  availability?: {
+    isOnStock: boolean;
+    availableQuantity?: number;
+    status?: 'in_stock' | 'low_stock' | 'out_of_stock';
+  };
 };
 
 async function listCatalogProducts(
@@ -36,7 +40,7 @@ async function findInStockProduct(
 ): Promise<CatalogProduct | undefined> {
   const products = await listCatalogProducts(request);
   return products.find(
-    (product) => product.sku && product.availability?.isOnStock !== false,
+    (product) => product.sku && product.availability?.status === 'in_stock',
   );
 }
 
@@ -45,7 +49,16 @@ async function findOutOfStockProduct(
 ): Promise<CatalogProduct | undefined> {
   const products = await listCatalogProducts(request);
   return products.find(
-    (product) => product.sku && product.availability?.isOnStock === false,
+    (product) => product.sku && product.availability?.status === 'out_of_stock',
+  );
+}
+
+async function findLowStockProduct(
+  request: import('@playwright/test').APIRequestContext,
+): Promise<CatalogProduct | undefined> {
+  const products = await listCatalogProducts(request);
+  return products.find(
+    (product) => product.sku && product.availability?.status === 'low_stock',
   );
 }
 
@@ -57,7 +70,28 @@ test.describe('Inventory availability', () => {
     for (const product of products.slice(0, 5)) {
       expect(product.availability).toBeDefined();
       expect(typeof product.availability?.isOnStock).toBe('boolean');
+      expect(product.availability?.status).toMatch(
+        /^(in_stock|low_stock|out_of_stock)$/,
+      );
     }
+  });
+
+  test('low-stock PDP shows Only X left badge when catalog has low stock', async ({
+    page,
+    request,
+  }) => {
+    const product = await findLowStockProduct(request);
+
+    test.skip(!product?.sku, 'No low-stock product in catalog');
+
+    await page.goto(`/product/${product!.slug}`);
+
+    const quantity = product!.availability?.availableQuantity;
+    const expected =
+      typeof quantity === 'number' ? `Only ${quantity} left` : 'Low stock';
+
+    await expect(page.getByText(expected).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add to cart' })).toBeEnabled();
   });
 
   test('in-stock PDP shows availability badge and enabled add to cart', async ({

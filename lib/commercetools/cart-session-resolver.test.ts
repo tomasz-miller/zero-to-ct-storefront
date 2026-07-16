@@ -49,7 +49,10 @@ const {
     mockGetCustomerSession: vi.fn(),
     mockClearCartSession: vi.fn(),
     mockCreateAnonymousId: vi.fn(() => 'anon-new'),
-    mockGetProductAvailabilityBySku: vi.fn(async () => ({ isOnStock: true })),
+    mockGetProductAvailabilityBySku: vi.fn(async () => ({
+      isOnStock: true,
+      status: 'in_stock' as 'in_stock' | 'low_stock' | 'out_of_stock',
+    })),
     mockGetStorefrontContext: vi.fn(async () => ({
       currency: 'EUR',
       country: 'DE',
@@ -155,7 +158,10 @@ describe('cart session resolver', () => {
     mockExecute.mockReset();
     marketCartMap.anonymousId = '';
     marketCartMap.carts = {};
-    mockGetProductAvailabilityBySku.mockResolvedValue({ isOnStock: true });
+    mockGetProductAvailabilityBySku.mockResolvedValue({
+      isOnStock: true,
+      status: 'in_stock',
+    });
     mockGetStorefrontContext.mockResolvedValue({
       currency: 'EUR',
       country: 'DE',
@@ -164,7 +170,10 @@ describe('cart session resolver', () => {
   });
 
   it('throws OutOfStockError before cart mutation when sku is unavailable', async () => {
-    mockGetProductAvailabilityBySku.mockResolvedValueOnce({ isOnStock: false });
+    mockGetProductAvailabilityBySku.mockResolvedValueOnce({
+      isOnStock: false,
+      status: 'out_of_stock',
+    });
 
     await expect(addLineItem('SKU-OOS', 1)).rejects.toThrow(OutOfStockError);
     expect(mockCartsPost).not.toHaveBeenCalled();

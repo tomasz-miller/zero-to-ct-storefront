@@ -36,6 +36,7 @@ export type {
   StorefrontProductDetail,
   StorefrontProductVariant,
 } from './product-mappers';
+export { isAvailabilityOutOfStock } from './product-mappers';
 export type { ProductListingSort } from './product-listing-params';
 export type { ProductListingFilters, StorefrontFacet } from './product-search-facets';
 

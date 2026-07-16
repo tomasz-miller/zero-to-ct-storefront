@@ -690,7 +690,7 @@ export async function addLineItem(
   quantity: number,
 ): Promise<StorefrontCart> {
   const availability = await getProductAvailabilityBySku(sku);
-  if (availability && !availability.isOnStock) {
+  if (availability && availability.status === 'out_of_stock') {
     throw new OutOfStockError();
   }
 

@@ -7,24 +7,40 @@ type ProductAvailabilityProps = {
   showInStock?: boolean;
 };
 
+function availabilityLabel(availability: StorefrontAvailability): string {
+  if (availability.status === 'out_of_stock') {
+    return 'Out of stock';
+  }
+
+  if (availability.status === 'low_stock') {
+    const quantity = availability.availableQuantity;
+    return typeof quantity === 'number' ? `Only ${quantity} left` : 'Low stock';
+  }
+
+  return 'In stock';
+}
+
 export function ProductAvailability({
   availability,
   className,
   showInStock = false,
 }: ProductAvailabilityProps) {
-  if (availability.isOnStock && !showInStock) {
+  if (availability.status === 'in_stock' && !showInStock) {
     return null;
   }
 
-  const label = availability.isOnStock ? 'In stock' : 'Out of stock';
+  const label = availabilityLabel(availability);
 
   return (
     <span
       className={cn(
         'inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium',
-        availability.isOnStock
-          ? 'bg-success/10 text-success-foreground'
-          : 'bg-destructive/10 text-destructive-foreground',
+        availability.status === 'out_of_stock' &&
+          'bg-destructive/10 text-destructive-foreground',
+        availability.status === 'low_stock' &&
+          'bg-warning/10 text-warning-foreground',
+        availability.status === 'in_stock' &&
+          'bg-success/10 text-success-foreground',
         className,
       )}
     >

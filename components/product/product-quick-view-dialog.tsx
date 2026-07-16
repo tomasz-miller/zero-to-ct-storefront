@@ -19,7 +19,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import type { StorefrontProduct } from '@/lib/commercetools/products';
+import {
+  isAvailabilityOutOfStock,
+  type StorefrontProduct,
+} from '@/lib/commercetools/product-mappers';
 import { cn } from '@/lib/utils';
 
 type ProductQuickViewDialogProps = {
@@ -32,7 +35,7 @@ export function ProductQuickViewDialog({
   className,
 }: ProductQuickViewDialogProps) {
   const [open, setOpen] = useState(false);
-  const outOfStock = !product.availability.isOnStock;
+  const outOfStock = isAvailabilityOutOfStock(product.availability);
   const productHref = `/product/${product.slug}`;
   const canAddFromQuickView = !product.hasMultipleVariants;
 

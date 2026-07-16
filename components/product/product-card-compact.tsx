@@ -6,14 +6,17 @@ import { ProductAvailability } from '@/components/product/product-availability';
 import { ProductPrice } from '@/components/product/product-price';
 import { ProductQuickViewDialog } from '@/components/product/product-quick-view-dialog';
 import { WishlistButton } from '@/components/wishlist/wishlist-button';
-import type { StorefrontProduct } from '@/lib/commercetools/products';
+import {
+  isAvailabilityOutOfStock,
+  type StorefrontProduct,
+} from '@/lib/commercetools/product-mappers';
 
 type ProductCardCompactProps = {
   product: StorefrontProduct;
 };
 
 export function ProductCardCompact({ product }: ProductCardCompactProps) {
-  const outOfStock = !product.availability.isOnStock;
+  const outOfStock = isAvailabilityOutOfStock(product.availability);
 
   return (
     <article className="group flex h-full flex-col gap-2 rounded-xl border bg-card p-3 shadow-xs/5 transition-colors hover:bg-accent/30">
@@ -40,12 +43,10 @@ export function ProductCardCompact({ product }: ProductCardCompactProps) {
             disabled={!product.sku}
             className="absolute top-1 right-1 z-10"
           />
-          {outOfStock ? (
-            <ProductAvailability
-              availability={product.availability}
-              className="absolute top-1 left-1 z-10"
-            />
-          ) : null}
+          <ProductAvailability
+            availability={product.availability}
+            className="absolute top-1 left-1 z-10"
+          />
           <ProductQuickViewDialog
             product={product}
             className="absolute bottom-1 left-1/2 z-10 -translate-x-1/2 opacity-100 transition-opacity [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 focus-within:opacity-100"

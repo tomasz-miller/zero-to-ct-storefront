@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { getProductBySlug } from '@/lib/commercetools/products';
+import { getProductBySlug, isAvailabilityOutOfStock } from '@/lib/commercetools/products';
 
 type ProductPageProps = {
   params: Promise<{ slug: string }>;
@@ -128,7 +128,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
                           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                             <AddToCartButton
                               sku={variant.sku}
-                              outOfStock={!variant.availability.isOnStock}
+                              outOfStock={isAvailabilityOutOfStock(
+                                variant.availability,
+                              )}
                               fullWidthOnMobile
                             />
                             <WishlistButton sku={variant.sku} showLabel />
@@ -149,7 +151,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                   <AddToCartButton
                     sku={defaultSku ?? ''}
                     disabled={!defaultSku}
-                    outOfStock={!product.availability.isOnStock}
+                    outOfStock={isAvailabilityOutOfStock(product.availability)}
                     fullWidthOnMobile
                   />
                   <WishlistButton

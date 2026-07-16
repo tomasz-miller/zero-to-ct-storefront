@@ -8,8 +8,42 @@ import {
   mapProjectionDetail,
   pickLocalized,
   pickPrice,
+  resolveAvailabilityStatus,
+  toStorefrontAvailability,
 } from './product-mappers';
 import { createProductProjection } from '@/test/fixtures/product-projection';
+
+describe('resolveAvailabilityStatus', () => {
+  it('returns out_of_stock when not on stock', () => {
+    expect(resolveAvailabilityStatus(false, 10)).toBe('out_of_stock');
+  });
+
+  it('returns out_of_stock when availableQuantity is 0', () => {
+    expect(resolveAvailabilityStatus(true, 0)).toBe('out_of_stock');
+  });
+
+  it('returns low_stock at the threshold boundary', () => {
+    expect(resolveAvailabilityStatus(true, 5)).toBe('low_stock');
+  });
+
+  it('returns in_stock above the threshold', () => {
+    expect(resolveAvailabilityStatus(true, 6)).toBe('in_stock');
+  });
+
+  it('returns in_stock when quantity is undefined', () => {
+    expect(resolveAvailabilityStatus(true)).toBe('in_stock');
+  });
+});
+
+describe('toStorefrontAvailability', () => {
+  it('keeps isOnStock false when quantity is 0', () => {
+    expect(toStorefrontAvailability(true, 0)).toEqual({
+      isOnStock: false,
+      availableQuantity: 0,
+      status: 'out_of_stock',
+    });
+  });
+});
 
 describe('pickLocalized', () => {
   it('returns value for requested locale', () => {
@@ -84,7 +118,10 @@ describe('pickPrice', () => {
 describe('mapAvailability', () => {
   it('returns in stock when availability is missing', () => {
     const projection = createProductProjection();
-    expect(mapAvailability(projection.masterVariant)).toEqual({ isOnStock: true });
+    expect(mapAvailability(projection.masterVariant)).toEqual({
+      isOnStock: true,
+      status: 'in_stock',
+    });
   });
 
   it('maps explicit isOnStock false', () => {
@@ -101,6 +138,79 @@ describe('mapAvailability', () => {
     expect(mapAvailability(projection.masterVariant)).toEqual({
       isOnStock: false,
       availableQuantity: 0,
+      status: 'out_of_stock',
+    });
+  });
+
+  it('maps low stock when availableQuantity is at or below threshold', () => {
+    const projection = createProductProjection({
+      masterVariant: {
+        ...createProductProjection().masterVariant,
+        availability: {
+          isOnStock: true,
+          availableQuantity: 3,
+        },
+      },
+    });
+
+    expect(mapAvailability(projection.masterVariant)).toEqual({
+      isOnStock: true,
+      availableQuantity: 3,
+      status: 'low_stock',
+    });
+  });
+
+  it('maps in stock when availableQuantity is above threshold', () => {
+    const projection = createProductProjection({
+      masterVariant: {
+        ...createProductProjection().masterVariant,
+        availability: {
+          isOnStock: true,
+          availableQuantity: 20,
+        },
+      },
+    });
+
+    expect(mapAvailability(projection.masterVariant)).toEqual({
+      isOnStock: true,
+      availableQuantity: 20,
+      status: 'in_stock',
+    });
+  });
+
+  it('maps low stock at the threshold boundary', () => {
+    const projection = createProductProjection({
+      masterVariant: {
+        ...createProductProjection().masterVariant,
+        availability: {
+          isOnStock: true,
+          availableQuantity: 5,
+        },
+      },
+    });
+
+    expect(mapAvailability(projection.masterVariant)).toEqual({
+      isOnStock: true,
+      availableQuantity: 5,
+      status: 'low_stock',
+    });
+  });
+
+  it('treats isOnStock true with availableQuantity 0 as out of stock', () => {
+    const projection = createProductProjection({
+      masterVariant: {
+        ...createProductProjection().masterVariant,
+        availability: {
+          isOnStock: true,
+          availableQuantity: 0,
+        },
+      },
+    });
+
+    expect(mapAvailability(projection.masterVariant)).toEqual({
+      isOnStock: false,
+      availableQuantity: 0,
+      status: 'out_of_stock',
     });
   });
 
@@ -126,6 +236,33 @@ describe('mapAvailability', () => {
     expect(mapAvailability(projection.masterVariant)).toEqual({
       isOnStock: true,
       availableQuantity: 5,
+      status: 'low_stock',
+    });
+  });
+
+  it('uses the minimum on-stock channel quantity for low-stock messaging', () => {
+    const projection = createProductProjection({
+      masterVariant: {
+        ...createProductProjection().masterVariant,
+        availability: {
+          channels: {
+            'channel-1': {
+              isOnStock: true,
+              availableQuantity: 2,
+            } as never,
+            'channel-2': {
+              isOnStock: true,
+              availableQuantity: 8,
+            } as never,
+          },
+        },
+      },
+    });
+
+    expect(mapAvailability(projection.masterVariant)).toEqual({
+      isOnStock: true,
+      availableQuantity: 2,
+      status: 'low_stock',
     });
   });
 });
@@ -141,7 +278,7 @@ describe('mapProjection', () => {
       sku: 'ORION-BED',
       imageUrl: 'https://example.com/orion.jpg',
       price: { centAmount: 49900, currencyCode: 'EUR' },
-      availability: { isOnStock: true },
+      availability: { isOnStock: true, status: 'in_stock' },
       hasMultipleVariants: false,
     });
   });

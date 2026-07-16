@@ -51,7 +51,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | 2026-07-16 | Phase 9 — multi-market switcher (DE/GB/US), contextual prices, cart realignment, tests, docs | **3.5h** |
 | 2026-07-16 | Phase 9 review fixes — customer cart realign, error propagation, switcher UX | **0.75h** |
 | 2026-07-16 | Per-market cart persistence — park/restore DE/GB/US carts, auth map sync, tests, docs | **2.25h** |
-| **Total** | | **39.42h** |
+| 2026-07-16 | Phase 8 low-stock + Phase 10 BFF route tests | **1h** |
+| **Total** | | **40.42h** |
 
 ---
 
@@ -60,8 +61,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Metric | Value |
 |--------|-------|
 | Project duration | 7 working days (2026-07-08 → 2026-07-16) |
-| Total estimated time | **39.42h** net |
-| Current phase | phase-9-multi-market — DE/GB/US switcher + per-market carts |
+| Total estimated time | **40.42h** net |
+| Current phase | phase-8/10 complete — low-stock + BFF route tests; PoC feature backlog closed |
 | Developer profile | Backend-focused, agent-assisted (Cursor + commercetools AI plugin) |
 | Agent contribution | ~85–95% of storefront code; human owns CT project, Stripe/Connect, MC config |
 
@@ -100,7 +101,9 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-9-multi-market | 2026-07-16 | DE/GB/US market switcher, cookie-backed context, contextual prices, cart realignment, Checkout mapping, unit and E2E coverage | ~95% agent | 3.5h |
 | phase-9-multi-market | 2026-07-16 | Review fixes — customer cart recreate on market switch, realign error propagation, dismissible market notices | ~95% agent | 0.75h |
 | phase-9-multi-market | 2026-07-16 | Per-market cart persistence — cookie map, park/restore, auth claim, confirm copy, tests/docs | ~95% agent | 2.25h |
-| **Total** | | | ~80% agent / ~20% manual | **39.42h** |
+| phase-8-inventory | 2026-07-16 | Low-stock messaging (`Only X left`, threshold 5) on PDP/PLP | ~95% agent | 0.4h |
+| phase-10-quality | 2026-07-16 | BFF route unit tests (auth, cart, customer, wishlist) — 320 unit tests total | ~95% agent | 0.6h |
+| **Total** | | | ~80% agent / ~20% manual | **40.42h** |
 
 ---
 
@@ -116,10 +119,10 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-5-account | 3.17h | 10% |
 | phase-6-wishlist | 1.5h | 5% |
 | phase-7-promotions | 2.5h | 8% |
-| phase-8-inventory | 1.5h | 5% |
+| phase-8-inventory | 1.9h | 5% |
 | phase-9-multi-market | 6.5h | 16% |
-| phase-10-quality | 0.5h | 1% |
-| **Total** | **39.42h** | 100% |
+| phase-10-quality | 1.1h | 3% |
+| **Total** | **40.42h** | 100% |
 
 ---
 
@@ -141,12 +144,14 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Wishlist (heart icon, `/wishlist`, move to cart) | Done |
 | Product discounts on PLP/PDP + discount codes in cart | Done |
 | Stock availability on PDP/PLP + block add-to-cart | Done |
+| Low-stock messaging (`Only X left`) | Done |
 | Mobile cart drawer (header, `< md`) | Done |
 | DE/GB/US market switcher with contextual prices and checkout mapping | Done |
 | Per-market cart persistence (park/restore via `ct_market_carts`) | Done |
-| Unit tests (CI) — 274 tests | Done |
+| Unit tests (CI) — 320 tests | Done |
 | E2E discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market (local) | Done |
 | SDK correlation ID middleware | Done |
+| BFF API route unit tests (auth/cart/customer/wishlist) | Done |
 | Sales demo script | Done — [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) |
 | Product roadmap | Done — [ROADMAP.md](./ROADMAP.md) |
 | Deploy to Vercel/Netlify | Done — https://zero-to-ct-storefront.vercel.app ([DEPLOY.md](./DEPLOY.md)) |

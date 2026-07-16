@@ -144,7 +144,8 @@ Demonstrates Product Discounts on discovery and Cart Discount codes before check
 
 1. Open a product PDP (e.g. **Charlie Armchair** `/product/charlie-armchair`).
 2. Point out the **In stock** badge below the price.
-3. If an out-of-stock product exists in the catalog, show the **Out of stock** badge and disabled add-to-cart button on PLP/PDP.
+3. If a product has few units left (`availableQuantity` ≤ 5), show the amber **Only X left** badge (add-to-cart still enabled).
+4. If an out-of-stock product exists in the catalog, show the **Out of stock** badge and disabled add-to-cart button on PLP/PDP.
 
 **Demo fixtures:** see `lib/commercetools/demo-inventory.ts`.
 
@@ -167,7 +168,7 @@ Demonstrates Product Discounts on discovery and Cart Discount codes before check
 | **Agent-assisted delivery** | ~85–95% agent-generated code; human owns MC/Stripe setup and commerce review |
 | **Timeline** | ~2-week PoC by a backend-focused developer (see [TIME_REPORT.md](./TIME_REPORT.md)) |
 | **Promotions** | Product Discounts on PLP/PDP; Cart Discount codes via BFF before Checkout session |
-| **Inventory** | Stock badges from `ProductVariant.availability`; add-to-cart blocked when out of stock |
+| **Inventory** | Stock / low-stock badges from `ProductVariant.availability`; add-to-cart blocked when out of stock |
 | **Quick View** | coss Dialog on listing cards — preview product without leaving PLP |
 | **Mobile UX** | Cart drawer (Sheet) on viewports `< md` |
 

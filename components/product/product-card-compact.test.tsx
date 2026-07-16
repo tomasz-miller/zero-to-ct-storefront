@@ -24,7 +24,7 @@ const product: StorefrontProduct = {
   sku: 'ORION-BED',
   imageUrl: 'https://example.com/orion.jpg',
   price: { centAmount: 49900, currencyCode: 'EUR' },
-  availability: { isOnStock: true },
+  availability: { isOnStock: true, status: 'in_stock' },
   hasMultipleVariants: false,
 };
 
@@ -65,9 +65,25 @@ describe('ProductCardCompact', () => {
   });
 
   it('disables add to cart when out of stock', () => {
-    renderCard({ ...product, availability: { isOnStock: false } });
+    renderCard({
+      ...product,
+      availability: { isOnStock: false, status: 'out_of_stock' },
+    });
     expect(screen.getByRole('button', { name: /out of stock/i })).toBeDisabled();
     expect(screen.getAllByText('Out of stock')).toHaveLength(2);
+  });
+
+  it('shows low-stock badge on the card', () => {
+    renderCard({
+      ...product,
+      availability: {
+        isOnStock: true,
+        availableQuantity: 2,
+        status: 'low_stock',
+      },
+    });
+    expect(screen.getByText('Only 2 left')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add to cart/i })).toBeEnabled();
   });
 
   it('disables add to cart when sku is missing', () => {
@@ -131,7 +147,10 @@ describe('ProductCardCompact', () => {
 
   it('shows disabled add to cart in quick view when out of stock', async () => {
     const user = userEvent.setup();
-    renderCard({ ...product, availability: { isOnStock: false } });
+    renderCard({
+      ...product,
+      availability: { isOnStock: false, status: 'out_of_stock' },
+    });
 
     await user.click(
       screen.getByRole('button', { name: /quick view orion double bed/i }),

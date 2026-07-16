@@ -2,7 +2,7 @@
 
 Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on commercetools sample data. Complements [BUILD_LOG.md](../BUILD_LOG.md) (history) and [AGENT_CODING.md](./AGENT_CODING.md) (phases 0–3).
 
-**Last updated:** 2026-07-16 (Phase 9 multi-market switcher complete)
+**Last updated:** 2026-07-16 (Phase 8 low-stock + Phase 10 BFF route tests)
 
 **Live demo:** https://zero-to-ct-storefront.vercel.app/
 
@@ -20,12 +20,12 @@ Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on comm
 | Phase 5 — Account and post-purchase | **done** (profile edit, address CRUD, change password) |
 | Phase 6 — Wishlist / Shopping Lists | **done** (heart icon, `/wishlist`, move to cart, guest merge on auth) |
 | Phase 7 — Promotions core | **done** (product discounts, discount codes, cart summary, mobile drawer) |
-| Phase 8 — Inventory availability | **done** (stock badges PDP/PLP, block add-to-cart, BFF guard) |
+| Phase 8 — Inventory availability | **done** (stock + low-stock badges, block add-to-cart, BFF guard) |
 | Phase 4 — Quick View on listings | **done** (coss Dialog on `ProductCardCompact`) |
 | Phase 9 — Multi-market and i18n | **done** (DE/GB/US market switcher, scoped prices, checkout mapping) |
-| Phase 10 — Quality slice | **partial** (correlation ID + checkout session tests done; commerce-mcp future) |
+| Phase 10 — Quality slice | **done** (correlation ID + BFF route unit tests; commerce-mcp future) |
 
-The storefront covers the core B2C purchase path (browse → cart → checkout → account) and category-based discovery with sortable, paginated, faceted listings, search autocomplete, Quick View, wishlist, promotions, stock availability, a mobile cart drawer, and a DE/GB/US market switcher.
+The storefront covers the core B2C purchase path (browse → cart → checkout → account) and category-based discovery with sortable, paginated, faceted listings, search autocomplete, Quick View, wishlist, promotions, stock/low-stock availability, a mobile cart drawer, and a DE/GB/US market switcher.
 
 ---
 
@@ -37,7 +37,7 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 - **TypeScript SDK v3** (`ClientBuilder`) in [`lib/commercetools/`](../lib/commercetools/)
 - **coss ui** + Tailwind v4, dark/light theme (`next-themes`)
 - **CI** (`.github/workflows/ci.yml`): `lint`, `typecheck`, `test:unit`, `build` (with GitHub secrets)
-- **263 unit tests** (Vitest) + **~35 E2E tests** (Playwright: discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market + API smoke, local with `CTP_*`)
+- **320 unit tests** (Vitest) + **~35 E2E tests** (Playwright: discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market + API smoke, local with `CTP_*`)
 
 ### Product discovery
 
@@ -55,6 +55,7 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 | Unified compact product cards + add-to-cart | `ProductCardCompact` on `/`, `/search`, `/category/[slug]` | — |
 | Quick View on product listings | `ProductQuickViewDialog`, `ProductCardCompact` | Reuses listing `StorefrontProduct` data |
 | Stock availability badges on PLP/PDP | `ProductAvailability`, `product-mappers.ts` | `ProductVariant.availability` |
+| Low-stock messaging (`Only X left`) | `ProductAvailability`, `LOW_STOCK_THRESHOLD` | `availableQuantity` ≤ 5 |
 | Mobile cart drawer | `CartDrawer`, header `< md` | coss `sheet` |
 | Market switcher (DE/GB/US) | header `MarketSwitcher` | Cookie-backed context, price selection |
 | Custom not-found page | `app/not-found.tsx` | — |
@@ -176,6 +177,7 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 | Single order detail page | **done** — `/account/orders/[id]` |
 | Discount codes in storefront UI | **done** — `/api/cart/discount-code`, cart form + summary |
 | Stock availability on PDP/PLP | **done** — badges + disabled add-to-cart |
+| Low-stock messaging | **done** — `Only X left` when `availableQuantity` ≤ 5 |
 | Mobile cart drawer | **done** — coss Sheet on `< md` |
 | Real bestseller ranking | Requires `view_orders` or external analytics |
 
@@ -282,7 +284,7 @@ See [Pricing and discounts overview](https://docs.commercetools.com/api/pricing-
 |---------|--------|--------|-----------------|--------------|
 | "In stock" / "Out of stock" on PDP | **done** | `ProductVariant.availability` | `product-availability.tsx`, PDP/PLP | Eventual consistency OK for display |
 | Block add-to-cart when out of stock | **done** | `ProductVariant.availability` + BFF pre-check | `add-to-cart-button.tsx`, `cart.ts` | `OutOfStockError` → HTTP 409 |
-| Low stock messaging | future | `InventoryEntry.stockLevels.reorderPoint` | PDP/PLP badges | Optional; requires Inventory API query or custom threshold |
+| Low stock messaging | **done** | `availableQuantity` ≤ `LOW_STOCK_THRESHOLD` (5) | `product-mappers.ts`, `product-availability.tsx` | Custom threshold; no Inventory API query |
 
 **Effort:** M | **Value:** Medium
 
@@ -311,7 +313,7 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 | SDK middleware (concurrent modification) | done | `withConcurrentModificationMiddleware()` in `lib/commercetools/client.ts` |
 | SDK middleware (correlation ID) | **done** | `withCorrelationIdMiddleware()` in `lib/commercetools/client.ts` |
 | E2E auth + account flows | **done** | Playwright `e2e/account.spec.ts` |
-| Cart/checkout unit tests | **partial** | `cart-mappers`, discount-code route, checkout session route covered; remaining auth/cart/wishlist routes pending |
+| BFF API route unit tests | **done** | Auth, cart, checkout, customer, wishlist, discovery routes covered |
 | `commerce-mcp` integration | future | Live project API from agents |
 | Commerce MCP shopping assistant | future | Explicit non-goal for PoC |
 
@@ -339,8 +341,10 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 | Wishlist | P2 | M | **done** | Shopping Lists |
 | Discount codes in cart UI | P3 | M | **done** | Carts `addDiscountCode` |
 | Inventory display | P3 | M | **done** | ProductVariant.availability |
+| Low-stock messaging | P3 | S | **done** | availableQuantity threshold |
 | Mobile cart drawer | P3 | S | **done** | coss Sheet |
 | Multi-market switcher | P4 | M | **done** | Price selection, Checkout Applications |
+| BFF route unit tests | — | M | **done** | Vitest route handlers |
 | Commerce MCP assistant | — | L | future | — |
 | Homepage bestsellers | — | — | **done** | Product Projections |
 | Homepage new arrivals | — | — | **done** | Product Search |
@@ -382,11 +386,16 @@ quadrantChart
 
 1. **Phase 3** — Demo readiness (P0) — **done** (production URL live)
 2. **Phase 7** — Discount codes + promotion display + mobile drawer (P3) — **done**
-3. **Phase 8** — Inventory availability (P3) — **done** (core; low stock messaging = future)
+3. **Phase 8** — Inventory availability (P3) — **done** (incl. low-stock messaging)
 4. **Phase 4 slice 3** — Quick View on listings (P1) — **done**
 5. **Phase 10 slice 1** — Correlation ID middleware + checkout session route tests — **done**
 6. **Phase 9** — Multi-market (P4) — **done** (DE/GB/US switcher)
-7. **Phase 10 remainder** — Remaining API route tests, commerce-mcp (future)
+7. **Phase 10 slice 2** — Remaining BFF route unit tests — **done**
+8. **commerce-mcp** — future (explicit non-goal for shopping assistant)
+
+**Phase 10 slice 2 (done):** Unit tests for remaining BFF routes — cart GET/line-item PATCH+DELETE, auth register/session/logout/forgot/reset, customer addresses + orders, wishlist delete + move-to-cart; 320 unit tests total.
+
+**Phase 8 low-stock (done):** `AvailabilityStatus` + `LOW_STOCK_THRESHOLD` (5) on `mapAvailability`; channel stock uses **min** on-stock quantity; `availableQuantity === 0` normalizes to out of stock; `ProductAvailability` shows `Only X left` / Low stock (warning) on PDP/PLP; ATC uses `status`; unit + E2E coverage.
 
 **Phase 4 slice 3 (done):** `ProductQuickViewDialog` (coss Dialog) on `ProductCardCompact`; image, price, availability, wishlist, add-to-cart, link to PDP; reuses listing `StorefrontProduct` (no extra BFF); unit + E2E coverage.
 

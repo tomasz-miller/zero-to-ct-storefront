@@ -7,10 +7,53 @@ export type StorefrontPrice = {
   isDiscounted?: boolean;
 };
 
+/** Units at or below this count (while still on stock) show a low-stock badge. */
+export const LOW_STOCK_THRESHOLD = 5;
+
+export type AvailabilityStatus = 'in_stock' | 'low_stock' | 'out_of_stock';
+
 export type StorefrontAvailability = {
   isOnStock: boolean;
   availableQuantity?: number;
+  status: AvailabilityStatus;
 };
+
+export function resolveAvailabilityStatus(
+  isOnStock: boolean,
+  availableQuantity?: number,
+): AvailabilityStatus {
+  if (!isOnStock || availableQuantity === 0) {
+    return 'out_of_stock';
+  }
+
+  if (
+    typeof availableQuantity === 'number' &&
+    availableQuantity <= LOW_STOCK_THRESHOLD
+  ) {
+    return 'low_stock';
+  }
+
+  return 'in_stock';
+}
+
+/** Build availability with `isOnStock` kept in sync with `status`. */
+export function toStorefrontAvailability(
+  isOnStock: boolean,
+  availableQuantity?: number,
+): StorefrontAvailability {
+  const status = resolveAvailabilityStatus(isOnStock, availableQuantity);
+  return {
+    isOnStock: status !== 'out_of_stock',
+    availableQuantity,
+    status,
+  };
+}
+
+export function isAvailabilityOutOfStock(
+  availability: StorefrontAvailability,
+): boolean {
+  return availability.status === 'out_of_stock';
+}
 
 export type StorefrontProduct = {
   id: string;
@@ -105,14 +148,14 @@ export function mapAvailability(variant: ProductVariant): StorefrontAvailability
   const availability = variant.availability;
 
   if (!availability) {
-    return { isOnStock: true };
+    return toStorefrontAvailability(true);
   }
 
   if (typeof availability.isOnStock === 'boolean') {
-    return {
-      isOnStock: availability.isOnStock,
-      availableQuantity: availability.availableQuantity,
-    };
+    return toStorefrontAvailability(
+      availability.isOnStock,
+      availability.availableQuantity,
+    );
   }
 
   const channelEntries = availability.channels
@@ -120,19 +163,20 @@ export function mapAvailability(variant: ProductVariant): StorefrontAvailability
     : [];
 
   if (channelEntries.length > 0) {
-    const isOnStock = channelEntries.some((entry) => entry.isOnStock);
-    const availableQuantity = channelEntries.reduce(
-      (total, entry) => total + (entry.availableQuantity ?? 0),
-      0,
-    );
+    const onStockChannels = channelEntries.filter((entry) => entry.isOnStock);
+    const isOnStock = onStockChannels.length > 0;
+    // Prefer the lowest channel quantity so "Only X left" never overstates stock
+    // when channels are alternative locations rather than a shared pool.
+    const quantities = onStockChannels
+      .map((entry) => entry.availableQuantity)
+      .filter((quantity): quantity is number => typeof quantity === 'number');
+    const quantity =
+      quantities.length > 0 ? Math.min(...quantities) : undefined;
 
-    return {
-      isOnStock,
-      availableQuantity: availableQuantity > 0 ? availableQuantity : undefined,
-    };
+    return toStorefrontAvailability(isOnStock, quantity);
   }
 
-  return { isOnStock: true };
+  return toStorefrontAvailability(true);
 }
 
 export function mapVariant(
