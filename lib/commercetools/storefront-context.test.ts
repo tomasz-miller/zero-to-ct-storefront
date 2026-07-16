@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+const { getMarketPreference } = vi.hoisted(() => ({
+  getMarketPreference: vi.fn(),
+}));
+
+vi.mock('./market-session', () => ({
+  getMarketPreference,
+}));
+
 import {
   CATALOG_LOCALE,
   DEFAULT_STOREFRONT_COUNTRY,
@@ -8,41 +16,56 @@ import {
   getCatalogContext,
   getStorefrontContext,
   resolveCheckoutApplicationKey,
+  resolveCurrencyForCountry,
 } from './storefront-context';
 
 describe('getStorefrontContext', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    getMarketPreference.mockReset();
+    getMarketPreference.mockResolvedValue(null);
   });
 
-  it('defaults to en-GB, DE, and EUR for purchase context', () => {
-    expect(getStorefrontContext()).toEqual({
+  it('defaults to en-GB, DE, and EUR for purchase context', async () => {
+    getMarketPreference.mockResolvedValue(null);
+
+    await expect(getStorefrontContext()).resolves.toEqual({
       locale: DEFAULT_STOREFRONT_LOCALE,
       currency: DEFAULT_STOREFRONT_CURRENCY,
       country: DEFAULT_STOREFRONT_COUNTRY,
     });
   });
 
-  it('reads overrides from public env vars', () => {
+  it('reads the preferred market and derives its currency', async () => {
+    getMarketPreference.mockResolvedValue('GB');
     vi.stubEnv('NEXT_PUBLIC_DEFAULT_LOCALE', 'en-GB');
-    vi.stubEnv('NEXT_PUBLIC_DEFAULT_CURRENCY', 'EUR');
     vi.stubEnv('NEXT_PUBLIC_DEFAULT_COUNTRY', 'DE');
 
-    expect(getStorefrontContext()).toEqual({
+    await expect(getStorefrontContext()).resolves.toEqual({
       locale: 'en-GB',
-      currency: 'EUR',
-      country: 'DE',
+      currency: 'GBP',
+      country: 'GB',
     });
   });
 });
 
 describe('getCatalogContext', () => {
-  it('uses English catalog locale with storefront price context', () => {
-    expect(getCatalogContext()).toEqual({
+  it('uses English catalog locale with storefront price context', async () => {
+    getMarketPreference.mockResolvedValue(null);
+
+    await expect(getCatalogContext()).resolves.toEqual({
       locale: CATALOG_LOCALE,
       currency: DEFAULT_STOREFRONT_CURRENCY,
       country: DEFAULT_STOREFRONT_COUNTRY,
     });
+  });
+});
+
+describe('resolveCurrencyForCountry', () => {
+  it('maps each supported country to its purchase currency', () => {
+    expect(resolveCurrencyForCountry('DE')).toBe('EUR');
+    expect(resolveCurrencyForCountry('GB')).toBe('GBP');
+    expect(resolveCurrencyForCountry('US')).toBe('USD');
   });
 });
 

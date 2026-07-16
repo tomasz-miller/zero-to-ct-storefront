@@ -8,9 +8,11 @@ import { useSyncExternalStore } from 'react';
 import { CartNavLink } from '@/components/cart/cart-nav-link';
 import { AccountNav } from '@/components/auth/account-nav';
 import { CategoryNav } from '@/components/layout/category-nav';
+import { MarketSwitcher } from '@/components/layout/market-switcher';
 import { StoreBrand } from '@/components/layout/store-brand';
 import { WishlistNavLink } from '@/components/wishlist/wishlist-nav-link';
 import type { StorefrontCategory } from '@/lib/commercetools/categories';
+import type { StorefrontCountry } from '@/lib/commercetools/storefront-context';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +34,7 @@ function getScrollServerSnapshot() {
 
 type SiteHeaderProps = {
   categories?: StorefrontCategory[];
+  country: StorefrontCountry;
 };
 
 function useIsPageScrolled() {
@@ -43,7 +46,7 @@ function useIsPageScrolled() {
   );
 }
 
-export function SiteHeader({ categories = [] }: SiteHeaderProps) {
+export function SiteHeader({ categories = [], country }: SiteHeaderProps) {
   const isScrolled = useIsPageScrolled();
 
   const headerHeight = isScrolled ? HEADER_HEIGHT_SCROLLED : HEADER_HEIGHT;
@@ -86,6 +89,7 @@ export function SiteHeader({ categories = [] }: SiteHeaderProps) {
                 Search
               </span>
             </Button>
+            <MarketSwitcher country={country} compact={isScrolled} />
             <AccountNav compact={isScrolled} />
             <WishlistNavLink compact={isScrolled} />
             <CartNavLink compact={isScrolled} />

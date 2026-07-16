@@ -4,7 +4,7 @@ import { listCategoryTree } from '@/lib/commercetools/categories';
 import { getCatalogContext } from '@/lib/commercetools/storefront-context';
 
 export async function GET() {
-  const { locale } = getCatalogContext();
+  const { locale } = await getCatalogContext();
 
   try {
     const categories = await listCategoryTree({ locale });

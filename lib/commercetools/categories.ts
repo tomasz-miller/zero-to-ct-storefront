@@ -136,7 +136,7 @@ async function fetchAllCategories(): Promise<Category[]> {
 
 export const listCategoryTree = cache(
   async (options?: { locale?: string }): Promise<StorefrontCategory[]> => {
-    const { locale } = getCatalogContext();
+    const { locale } = await getCatalogContext();
     const resolvedLocale = options?.locale ?? locale;
     const rawCategories = await fetchAllCategories();
 
@@ -166,7 +166,7 @@ export async function getCategoryBySlug(
     return null;
   }
 
-  const { locale } = getCatalogContext();
+  const { locale } = await getCatalogContext();
   const resolvedLocale = options?.locale ?? locale;
   const escapedSlug = escapePredicateString(slug);
 
@@ -204,7 +204,7 @@ export async function getCategoryByKey(
     return null;
   }
 
-  const { locale } = getCatalogContext();
+  const { locale } = await getCatalogContext();
   const resolvedLocale = options?.locale ?? locale;
   const escapedKey = escapePredicateString(key);
 

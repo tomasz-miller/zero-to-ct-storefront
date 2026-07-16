@@ -19,27 +19,74 @@ const {
   mockClearCartSession,
   mockCreateAnonymousId,
   mockGetProductAvailabilityBySku,
-} = vi.hoisted(() => ({
-  mockExecute: vi.fn(),
-  mockCartGet: vi.fn(() => ({ execute: mockExecute })),
-  mockCartPost: vi.fn(() => ({ execute: mockExecute })),
-  mockCartsGet: vi.fn(() => ({ execute: mockExecute })),
-  mockCartsPost: vi.fn(() => ({ execute: mockExecute })),
-  mockWithId: vi.fn(() => ({
-    get: mockCartGet,
-    post: mockCartPost,
-  })),
-  mockGetCartSession: vi.fn(),
-  mockSetCartSession: vi.fn(),
-  mockGetCustomerSession: vi.fn(),
-  mockClearCartSession: vi.fn(),
-  mockCreateAnonymousId: vi.fn(() => 'anon-new'),
-  mockGetProductAvailabilityBySku: vi.fn(async () => ({ isOnStock: true })),
-}));
+  mockGetStorefrontContext,
+  marketCartMap,
+  mockGetCartIdForCountry,
+  mockRememberCartForCountry,
+  mockForgetCartForCountry,
+  mockListMappedCartIds,
+} = vi.hoisted(() => {
+  const marketCartMap: {
+    anonymousId: string;
+    carts: Partial<Record<'DE' | 'GB' | 'US', string>>;
+  } = {
+    anonymousId: '',
+    carts: {},
+  };
+
+  return {
+    mockExecute: vi.fn(),
+    mockCartGet: vi.fn(() => ({ execute: mockExecute })),
+    mockCartPost: vi.fn(() => ({ execute: mockExecute })),
+    mockCartsGet: vi.fn(() => ({ execute: mockExecute })),
+    mockCartsPost: vi.fn(() => ({ execute: mockExecute })),
+    mockWithId: vi.fn(() => ({
+      get: mockCartGet,
+      post: mockCartPost,
+    })),
+    mockGetCartSession: vi.fn(),
+    mockSetCartSession: vi.fn(),
+    mockGetCustomerSession: vi.fn(),
+    mockClearCartSession: vi.fn(),
+    mockCreateAnonymousId: vi.fn(() => 'anon-new'),
+    mockGetProductAvailabilityBySku: vi.fn(async () => ({ isOnStock: true })),
+    mockGetStorefrontContext: vi.fn(async () => ({
+      currency: 'EUR',
+      country: 'DE',
+      locale: 'de-DE',
+    })),
+    marketCartMap,
+    mockGetCartIdForCountry: vi.fn(
+      async (country: 'DE' | 'GB' | 'US') => marketCartMap.carts[country],
+    ),
+    mockRememberCartForCountry: vi.fn(
+      async (
+        country: 'DE' | 'GB' | 'US',
+        cartId: string,
+        anonymousId: string,
+      ) => {
+        marketCartMap.anonymousId = marketCartMap.anonymousId || anonymousId;
+        marketCartMap.carts[country] = cartId;
+      },
+    ),
+    mockForgetCartForCountry: vi.fn(async (country: 'DE' | 'GB' | 'US') => {
+      delete marketCartMap.carts[country];
+    }),
+    mockListMappedCartIds: vi.fn(async () =>
+      Object.values(marketCartMap.carts).filter(
+        (cartId): cartId is string => typeof cartId === 'string',
+      ),
+    ),
+  };
+});
 
 vi.mock('./storefront-context', () => ({
-  getStorefrontContext: () => ({ currency: 'EUR', country: 'DE', locale: 'de-DE' }),
-  getCatalogContext: () => ({ currency: 'EUR', country: 'DE', locale: 'en-GB' }),
+  getStorefrontContext: mockGetStorefrontContext,
+  getCatalogContext: async () => ({
+    currency: 'EUR',
+    country: 'DE',
+    locale: 'en-GB',
+  }),
 }));
 
 vi.mock('./products', () => ({
@@ -57,6 +104,13 @@ vi.mock('./customer-session', () => ({
   getCustomerSession: mockGetCustomerSession,
 }));
 
+vi.mock('./market-cart-session', () => ({
+  getCartIdForCountry: mockGetCartIdForCountry,
+  rememberCartForCountry: mockRememberCartForCountry,
+  forgetCartForCountry: mockForgetCartForCountry,
+  listMappedCartIds: mockListMappedCartIds,
+}));
+
 vi.mock('./api-root', () => ({
   apiRoot: {
     carts: vi.fn(() => ({
@@ -67,7 +121,16 @@ vi.mock('./api-root', () => ({
   },
 }));
 
-import { addLineItem, findCustomerCart, getCartForCheckout, OutOfStockError, reconcileCartOnAuth, restoreCustomerCartSession } from './cart';
+import {
+  addLineItem,
+  findCustomerCart,
+  findCustomerCartForMarket,
+  getCartForCheckout,
+  OutOfStockError,
+  realignCartForStorefront,
+  reconcileCartOnAuth,
+  restoreCustomerCartSession,
+} from './cart';
 
 function emptyGuestCart(overrides: Partial<Cart> = {}): Cart {
   return createCartFixture({
@@ -90,7 +153,14 @@ describe('cart session resolver', () => {
   afterEach(() => {
     vi.clearAllMocks();
     mockExecute.mockReset();
+    marketCartMap.anonymousId = '';
+    marketCartMap.carts = {};
     mockGetProductAvailabilityBySku.mockResolvedValue({ isOnStock: true });
+    mockGetStorefrontContext.mockResolvedValue({
+      currency: 'EUR',
+      country: 'DE',
+      locale: 'de-DE',
+    });
   });
 
   it('throws OutOfStockError before cart mutation when sku is unavailable', async () => {
@@ -157,7 +227,8 @@ describe('cart session resolver', () => {
 
     expect(mockCartsGet).toHaveBeenCalledWith({
       queryArgs: expect.objectContaining({
-        where: 'customerId="cust-1" and cartState="Active"',
+        where:
+          'customerId="cust-1" and cartState="Active" and country="DE" and totalPrice(currencyCode="EUR")',
       }),
     });
     expect(mockCartsPost).toHaveBeenCalledWith({
@@ -414,6 +485,7 @@ describe('cart session resolver', () => {
     mockExecute
       .mockResolvedValueOnce({ body: guestCart })
       .mockResolvedValueOnce({ body: { results: [] } })
+      .mockResolvedValueOnce({ body: assignedCart })
       .mockResolvedValueOnce({ body: assignedCart });
 
     await reconcileCartOnAuth('cust-1');
@@ -435,6 +507,32 @@ describe('cart session resolver', () => {
     await expect(findCustomerCart('cust-1')).resolves.toEqual(customerCart);
   });
 
+  it('findCustomerCartForMarket filters by country and currency', async () => {
+    const customerCart = emptyGuestCart({
+      id: 'cart-gb',
+      customerId: 'cust-1',
+      anonymousId: undefined,
+      country: 'GB',
+      totalPrice: {
+        type: 'centPrecision',
+        currencyCode: 'GBP',
+        centAmount: 0,
+        fractionDigits: 2,
+      },
+    });
+    mockExecute.mockResolvedValueOnce({ body: { results: [customerCart] } });
+
+    await expect(
+      findCustomerCartForMarket('cust-1', 'GB', 'GBP'),
+    ).resolves.toEqual(customerCart);
+
+    expect(mockCartsGet).toHaveBeenCalledWith({
+      queryArgs: expect.objectContaining({
+        where: expect.stringContaining('country="GB"'),
+      }),
+    });
+  });
+
   it('restoreCustomerCartSession sets cookie when customer cart exists', async () => {
     const customerCart = emptyGuestCart({
       id: 'cart-customer',
@@ -449,5 +547,222 @@ describe('cart session resolver', () => {
       anonymousId: 'anon-new',
       cartId: 'cart-customer',
     });
+    expect(mockRememberCartForCountry).toHaveBeenCalledWith(
+      'DE',
+      'cart-customer',
+      'anon-new',
+    );
+  });
+
+  it('parks a guest cart and creates a new cart for the target market', async () => {
+    mockGetStorefrontContext.mockResolvedValue({
+      currency: 'GBP',
+      country: 'GB',
+      locale: 'en-GB',
+    });
+    mockGetCartSession.mockResolvedValue({
+      anonymousId: 'anon-1',
+      cartId: 'cart-old',
+    });
+    mockGetCustomerSession.mockResolvedValue(null);
+
+    const oldCart = createCartFixture({
+      id: 'cart-old',
+      anonymousId: 'anon-1',
+      country: 'DE',
+      totalPrice: {
+        type: 'centPrecision',
+        currencyCode: 'EUR',
+        centAmount: 49900,
+        fractionDigits: 2,
+      },
+    });
+    const newCart = emptyGuestCart({
+      id: 'cart-new',
+      anonymousId: 'anon-1',
+      country: 'GB',
+      totalPrice: {
+        type: 'centPrecision',
+        currencyCode: 'GBP',
+        centAmount: 0,
+        fractionDigits: 2,
+      },
+    });
+
+    mockExecute
+      .mockResolvedValueOnce({ body: oldCart })
+      .mockResolvedValueOnce({ body: newCart });
+
+    await expect(realignCartForStorefront()).resolves.toEqual({
+      cartRecreated: true,
+      cartRestored: false,
+      itemCount: 0,
+      previousHadItems: true,
+    });
+
+    expect(mockRememberCartForCountry).toHaveBeenCalledWith(
+      'DE',
+      'cart-old',
+      'anon-1',
+    );
+    expect(mockCartsPost).toHaveBeenCalledWith({
+      body: expect.objectContaining({
+        anonymousId: 'anon-1',
+        country: 'GB',
+        currency: 'GBP',
+      }),
+    });
+    expect(mockSetCartSession).toHaveBeenCalledWith({
+      anonymousId: 'anon-1',
+      cartId: 'cart-new',
+    });
+  });
+
+  it('restores a parked guest cart when switching back to that market', async () => {
+    mockGetStorefrontContext.mockResolvedValue({
+      currency: 'EUR',
+      country: 'DE',
+      locale: 'en-GB',
+    });
+    mockGetCartSession.mockResolvedValue({
+      anonymousId: 'anon-1',
+      cartId: 'cart-gb',
+    });
+    mockGetCustomerSession.mockResolvedValue(null);
+    marketCartMap.anonymousId = 'anon-1';
+    marketCartMap.carts = { DE: 'cart-de', GB: 'cart-gb' };
+
+    const gbCart = emptyGuestCart({
+      id: 'cart-gb',
+      anonymousId: 'anon-1',
+      country: 'GB',
+      totalPrice: {
+        type: 'centPrecision',
+        currencyCode: 'GBP',
+        centAmount: 0,
+        fractionDigits: 2,
+      },
+    });
+    const deCart = createCartFixture({
+      id: 'cart-de',
+      anonymousId: 'anon-1',
+      country: 'DE',
+      totalPrice: {
+        type: 'centPrecision',
+        currencyCode: 'EUR',
+        centAmount: 49900,
+        fractionDigits: 2,
+      },
+    });
+
+    mockExecute
+      .mockResolvedValueOnce({ body: gbCart })
+      .mockResolvedValueOnce({ body: deCart });
+
+    await expect(realignCartForStorefront()).resolves.toEqual({
+      cartRecreated: false,
+      cartRestored: true,
+      itemCount: 2,
+      previousHadItems: false,
+    });
+
+    expect(mockSetCartSession).toHaveBeenCalledWith({
+      anonymousId: 'anon-1',
+      cartId: 'cart-de',
+    });
+    expect(mockCartsPost).not.toHaveBeenCalled();
+  });
+
+  it('realigns a customer cart with items by creating a new market cart', async () => {
+    mockGetStorefrontContext.mockResolvedValue({
+      currency: 'GBP',
+      country: 'GB',
+      locale: 'en-GB',
+    });
+    mockGetCartSession.mockResolvedValue({
+      anonymousId: 'anon-session',
+      cartId: 'cart-customer-old',
+    });
+    mockGetCustomerSession.mockResolvedValue({ customerId: 'cust-1' });
+
+    const oldCart = createCartFixture({
+      id: 'cart-customer-old',
+      customerId: 'cust-1',
+      anonymousId: undefined,
+      country: 'DE',
+      totalPrice: {
+        type: 'centPrecision',
+        currencyCode: 'EUR',
+        centAmount: 49900,
+        fractionDigits: 2,
+      },
+    });
+    const newCart = emptyGuestCart({
+      id: 'cart-customer-new',
+      customerId: 'cust-1',
+      anonymousId: undefined,
+      country: 'GB',
+      totalPrice: {
+        type: 'centPrecision',
+        currencyCode: 'GBP',
+        centAmount: 0,
+        fractionDigits: 2,
+      },
+    });
+
+    mockExecute
+      .mockResolvedValueOnce({ body: oldCart })
+      .mockResolvedValueOnce({ body: { results: [] } })
+      .mockResolvedValueOnce({ body: newCart });
+
+    await expect(realignCartForStorefront()).resolves.toEqual({
+      cartRecreated: true,
+      cartRestored: false,
+      itemCount: 0,
+      previousHadItems: true,
+    });
+
+    expect(mockCartsPost).toHaveBeenCalledWith({
+      body: expect.objectContaining({
+        customerId: 'cust-1',
+        country: 'GB',
+        currency: 'GBP',
+      }),
+    });
+    expect(mockSetCartSession).toHaveBeenCalledWith({
+      anonymousId: 'anon-session',
+      cartId: 'cart-customer-new',
+    });
+  });
+
+  it('propagates commercetools errors from realignCartForStorefront', async () => {
+    mockGetStorefrontContext.mockResolvedValue({
+      currency: 'GBP',
+      country: 'GB',
+      locale: 'en-GB',
+    });
+    mockGetCartSession.mockResolvedValue({
+      anonymousId: 'anon-1',
+      cartId: 'cart-old',
+    });
+    mockGetCustomerSession.mockResolvedValue(null);
+
+    const oldCart = createCartFixture({
+      id: 'cart-old',
+      anonymousId: 'anon-1',
+      country: 'DE',
+      totalPrice: {
+        type: 'centPrecision',
+        currencyCode: 'EUR',
+        centAmount: 49900,
+        fractionDigits: 2,
+      },
+    });
+
+    mockExecute
+      .mockResolvedValueOnce({ body: oldCart })
+      .mockRejectedValueOnce(new Error('CT unavailable'));
+
+    await expect(realignCartForStorefront()).rejects.toThrow('CT unavailable');
   });
 });

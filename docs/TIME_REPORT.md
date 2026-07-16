@@ -2,7 +2,7 @@
 
 End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived from [BUILD_LOG.md](../BUILD_LOG.md) and **git commit timestamps**.
 
-> **Status:** Estimated from BUILD_LOG + user-reported time (through 2026-07-15). Refine with Clockify/WakaTime if available.
+> **Status:** Estimated from BUILD_LOG + user-reported time (through 2026-07-16). Refine with Clockify/WakaTime if available.
 
 ---
 
@@ -46,8 +46,12 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | 2026-07-14 | Phase 8 — inventory availability (badges, block add-to-cart, BFF guard) | **1.5h** |
 | 2026-07-14 | Phase 7 promotions core (retroactive entry) | **1.5h** |
 | 2026-07-14 | Phase 4 slice 3 + Phase 10 slice 1 — Quick View, correlation ID, checkout session tests | **1.5h** |
-| 2026-07-15 | Checkout payment status visibility + code review fixes (user-reported) | **1h** |
-| **Total** | | **32.42h** |
+| 2026-07-15 | Checkout payment status visibility + review fixes (user-reported) | **1h** |
+| 2026-07-15 | Checkout default-address shortcut (retroactive BUILD_LOG entry) | **0.5h** |
+| 2026-07-16 | Phase 9 — multi-market switcher (DE/GB/US), contextual prices, cart realignment, tests, docs | **3.5h** |
+| 2026-07-16 | Phase 9 review fixes — customer cart realign, error propagation, switcher UX | **0.75h** |
+| 2026-07-16 | Per-market cart persistence — park/restore DE/GB/US carts, auth map sync, tests, docs | **2.25h** |
+| **Total** | | **39.42h** |
 
 ---
 
@@ -55,9 +59,9 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 
 | Metric | Value |
 |--------|-------|
-| Project duration | 6 working days (2026-07-08 → 2026-07-15) |
-| Total estimated time | **32.42h** net |
-| Current phase | phase-3-demo — checkout payment status visibility done |
+| Project duration | 7 working days (2026-07-08 → 2026-07-16) |
+| Total estimated time | **39.42h** net |
+| Current phase | phase-9-multi-market — DE/GB/US switcher + per-market carts |
 | Developer profile | Backend-focused, agent-assisted (Cursor + commercetools AI plugin) |
 | Agent contribution | ~85–95% of storefront code; human owns CT project, Stripe/Connect, MC config |
 
@@ -92,7 +96,11 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-4-discovery | 2026-07-14 | Phase 4 slice 3 — Quick View on listing cards (coss Dialog); 216 unit + 34 E2E tests | ~95% agent | 1h |
 | phase-10-quality | 2026-07-14 | Phase 10 slice 1 — correlation ID middleware + checkout session route unit tests | ~95% agent | 0.5h |
 | phase-3-demo | 2026-07-15 | Checkout payment status visibility + review fixes — transaction-derived status in account, Checkout SDK theme styles, provider labels; 243 unit tests | ~95% agent | 1h |
-| **Total** | | | ~80% agent / ~20% manual | **32.42h** |
+| phase-3-demo | 2026-07-15 | Checkout default-address shortcut — copied signed-in customer defaults to the Cart before restarting Checkout | ~95% agent | 0.5h |
+| phase-9-multi-market | 2026-07-16 | DE/GB/US market switcher, cookie-backed context, contextual prices, cart realignment, Checkout mapping, unit and E2E coverage | ~95% agent | 3.5h |
+| phase-9-multi-market | 2026-07-16 | Review fixes — customer cart recreate on market switch, realign error propagation, dismissible market notices | ~95% agent | 0.75h |
+| phase-9-multi-market | 2026-07-16 | Per-market cart persistence — cookie map, park/restore, auth claim, confirm copy, tests/docs | ~95% agent | 2.25h |
+| **Total** | | | ~80% agent / ~20% manual | **39.42h** |
 
 ---
 
@@ -103,14 +111,15 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-0-setup | 2.5h | 8% |
 | phase-1-scaffold | 2h | 6% |
 | phase-2-core | 12.25h | 38% |
-| phase-3-demo | 3h | 9% |
+| phase-3-demo | 3.5h | 10% |
 | phase-4-discovery | 4.5h | 14% |
 | phase-5-account | 3.17h | 10% |
 | phase-6-wishlist | 1.5h | 5% |
 | phase-7-promotions | 2.5h | 8% |
 | phase-8-inventory | 1.5h | 5% |
-| phase-10-quality | 0.5h | 2% |
-| **Total** | **32.42h** | 100% |
+| phase-9-multi-market | 6.5h | 16% |
+| phase-10-quality | 0.5h | 1% |
+| **Total** | **39.42h** | 100% |
 
 ---
 
@@ -133,8 +142,10 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Product discounts on PLP/PDP + discount codes in cart | Done |
 | Stock availability on PDP/PLP + block add-to-cart | Done |
 | Mobile cart drawer (header, `< md`) | Done |
-| Unit tests (CI) — 243 tests | Done |
-| E2E discovery + cart/checkout + account + wishlist + promotions + inventory (local) — 34 tests | Done |
+| DE/GB/US market switcher with contextual prices and checkout mapping | Done |
+| Per-market cart persistence (park/restore via `ct_market_carts`) | Done |
+| Unit tests (CI) — 274 tests | Done |
+| E2E discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market (local) | Done |
 | SDK correlation ID middleware | Done |
 | Sales demo script | Done — [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) |
 | Product roadmap | Done — [ROADMAP.md](./ROADMAP.md) |

@@ -26,8 +26,8 @@ export default async function CheckoutPage() {
   const cart = await getGuestCart();
   const customer = await getAuthenticatedCustomerProfile();
   const canUseDefaultAddress = customerCanUseDefaultAddress(customer);
-  const checkoutConfig = getPublicCheckoutConfig();
-  const { locale } = getStorefrontContext();
+  const checkoutConfig = await getPublicCheckoutConfig();
+  const { locale } = await getStorefrontContext();
 
   if (!cart || cart.lineItems.length === 0) {
     return (

@@ -9,9 +9,9 @@ Testing strategy for **zero-to-ct-storefront**. Unit tests run in CI without com
 | Layer | Tool | Scope | CI |
 |-------|------|-------|-----|
 | Unit — lib | Vitest | `format`, product/category mappers, mocked `products`/`categories` | Yes |
-| Unit — API | Vitest (node) | `/api/health`, `/api/products`, `/api/categories`, `/api/cart/items`, `/api/cart/discount-code`, `/api/checkout/session`, `/api/customer/profile`, `/api/customer/password`, `/api/wishlist`, `/api/wishlist/items` | Yes |
+| Unit — API | Vitest (node) | `/api/health`, `/api/products`, `/api/categories`, cart, checkout, customer, wishlist, and `/api/storefront/market` routes | Yes |
 | Unit — UI | Vitest + Testing Library | product cards, quick view dialog, search form | Yes |
-| E2E | Playwright | discovery + cart/checkout + account + wishlist + inventory + API smoke against live CT | No (local only) |
+| E2E | Playwright | discovery + cart/checkout + account + wishlist + inventory + multi-market + API smoke against live CT | No (local only) |
 
 ---
 

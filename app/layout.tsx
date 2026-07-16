@@ -11,6 +11,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { WishlistProvider } from '@/components/wishlist/wishlist-context';
 import { getNavigationCategories } from '@/lib/commercetools/categories';
 import { getStoreBrandConfig } from '@/lib/store-brand';
+import { getStorefrontContext } from '@/lib/commercetools/storefront-context';
 import { cn } from '@/lib/utils';
 
 const { name: storeName } = getStoreBrandConfig();
@@ -34,6 +35,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   let categories: Awaited<ReturnType<typeof getNavigationCategories>> = [];
+  const storefrontContext = await getStorefrontContext();
 
   try {
     categories = await getNavigationCategories();
@@ -54,7 +56,10 @@ export default async function RootLayout({
               <CartProvider>
                 <WishlistProvider>
                   <div className="flex min-h-svh flex-col bg-background">
-                    <SiteHeader categories={categories} />
+                    <SiteHeader
+                      categories={categories}
+                      country={storefrontContext.country}
+                    />
                     {children}
                     <SiteFooter />
                   </div>

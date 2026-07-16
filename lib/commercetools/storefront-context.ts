@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { getMarketPreference } from './market-session';
+
 export type StorefrontCountry = 'DE' | 'GB' | 'US';
 
 export type StorefrontContext = {
@@ -15,6 +17,12 @@ export const DEFAULT_STOREFRONT_LOCALE = 'en-GB';
 export const DEFAULT_STOREFRONT_CURRENCY = 'EUR';
 export const DEFAULT_STOREFRONT_COUNTRY: StorefrontCountry = 'DE';
 
+const CURRENCY_BY_COUNTRY: Record<StorefrontCountry, string> = {
+  DE: 'EUR',
+  GB: 'GBP',
+  US: 'USD',
+};
+
 const CHECKOUT_APP_BY_COUNTRY: Record<StorefrontCountry, string> = {
   DE: 'demo-commercetools-checkout',
   GB: 'demo-commercetools-checkout-taxes',
@@ -29,22 +37,31 @@ function parseStorefrontCountry(value: string | undefined): StorefrontCountry {
   return DEFAULT_STOREFRONT_COUNTRY;
 }
 
+export function resolveCurrencyForCountry(country: StorefrontCountry): string {
+  return CURRENCY_BY_COUNTRY[country];
+}
+
 /** Cart, checkout, and pricing — defaults to Germany / EUR / English UI. */
-export function getStorefrontContext(): StorefrontContext {
+export async function getStorefrontContext(): Promise<StorefrontContext> {
+  const country =
+    (await getMarketPreference()) ??
+    parseStorefrontCountry(process.env.NEXT_PUBLIC_DEFAULT_COUNTRY);
+
   return {
     locale: process.env.NEXT_PUBLIC_DEFAULT_LOCALE ?? DEFAULT_STOREFRONT_LOCALE,
-    currency:
-      process.env.NEXT_PUBLIC_DEFAULT_CURRENCY ?? DEFAULT_STOREFRONT_CURRENCY,
-    country: parseStorefrontCountry(process.env.NEXT_PUBLIC_DEFAULT_COUNTRY),
+    currency: resolveCurrencyForCountry(country),
+    country,
   };
 }
 
 /** Product catalog — English copy from sample data, storefront price context. */
-export function getCatalogContext(): Pick<
+export async function getCatalogContext(): Promise<
+  Pick<
   StorefrontContext,
   'locale' | 'currency' | 'country'
+  >
 > {
-  const { currency, country } = getStorefrontContext();
+  const { currency, country } = await getStorefrontContext();
 
   return {
     locale: CATALOG_LOCALE,
@@ -70,8 +87,8 @@ export function resolveCheckoutApplicationKey(country: string): string {
   return CHECKOUT_APP_BY_COUNTRY.DE;
 }
 
-export function getPublicCheckoutConfig() {
-  const { locale } = getStorefrontContext();
+export async function getPublicCheckoutConfig() {
+  const { locale } = await getStorefrontContext();
 
   return {
     projectKey: process.env.NEXT_PUBLIC_CTP_PROJECT_KEY ?? '',

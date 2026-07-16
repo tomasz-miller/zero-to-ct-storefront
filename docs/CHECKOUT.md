@@ -327,16 +327,18 @@ MC demo applications configured for `zero-to-ct-storefront`:
 | `DE` | `demo-commercetools-checkout` | Standard demo checkout |
 | `GB`, `US` | `demo-commercetools-checkout-taxes` | Tax-aware demo checkout |
 
-The storefront maps `NEXT_PUBLIC_DEFAULT_COUNTRY` to the application key in `lib/commercetools/storefront-context.ts`. Override with `CTP_CHECKOUT_APPLICATION_KEY` if needed.
+The storefront maps the active market to the application key in `lib/commercetools/storefront-context.ts`. `NEXT_PUBLIC_DEFAULT_COUNTRY` is the first-visit fallback; the header market switcher persists a subsequent DE/GB/US choice in the HTTP-only `ct_storefront_market` cookie. Override with `CTP_CHECKOUT_APPLICATION_KEY` if needed.
 
 ### Locale and currency
 
 | Concern | Value | Where |
 |---------|-------|-------|
-| Purchase (cart, checkout SDK) | `en-GB`, `DE`, `EUR` | `NEXT_PUBLIC_DEFAULT_*` env vars |
+| Purchase (cart, checkout SDK) | `en-GB`, selected `DE` / `GB` / `US`, matching `EUR` / `GBP` / `USD` | Cookie preference with `NEXT_PUBLIC_DEFAULT_*` fallback |
 | Product catalog (names, slugs) | `en-GB` | `CATALOG_LOCALE` in `storefront-context.ts` |
 
-B2C sample data stores product copy in English. Cart and checkout use `en-GB` for UI and line item names; `DE` country selects EUR prices and the `demo-commercetools-checkout` application.
+B2C sample data stores product copy in English. Cart and checkout use `en-GB` for UI and line item names. The market switcher selects country-specific prices and the corresponding Checkout Application.
+
+Cart currency is immutable in commercetools, so each market keeps its own Active cart. The HTTP-only `ct_market_carts` cookie maps `DE` / `GB` / `US` to cart IDs; switching markets parks the current cart and restores the target market cart (or creates an empty one on first visit). Empty carts with a matching currency update their country in place.
 
 ---
 

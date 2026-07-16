@@ -229,7 +229,7 @@ export async function listProducts(
 }> {
   const limit = options?.limit ?? 12;
   const offset = options?.offset ?? 0;
-  const { locale, currency, country } = getCatalogContext();
+  const { locale, currency, country } = await getCatalogContext();
   const resolvedLocale = options?.locale ?? locale;
   const resolvedCurrency = options?.currency ?? currency;
   const query = options?.query?.trim();
@@ -344,7 +344,7 @@ export async function listBestSellingProducts(options?: {
   currency?: string;
 }): Promise<{ products: StorefrontProduct[]; total: number }> {
   const limit = options?.limit ?? 12;
-  const { locale, currency, country } = getCatalogContext();
+  const { locale, currency, country } = await getCatalogContext();
   const resolvedLocale = options?.locale ?? locale;
   const resolvedCurrency = options?.currency ?? currency;
 
@@ -389,7 +389,7 @@ export async function getProductBySlug(
     currency?: string;
   },
 ): Promise<StorefrontProductDetail | null> {
-  const { locale, currency, country } = getCatalogContext();
+  const { locale, currency, country } = await getCatalogContext();
   const resolvedLocale = options?.locale ?? locale;
   const resolvedCurrency = options?.currency ?? currency;
 
@@ -418,7 +418,7 @@ export async function getProductBySlug(
 export async function getProductAvailabilityBySku(
   sku: string,
 ): Promise<StorefrontAvailability | null> {
-  const { locale, currency, country } = getCatalogContext();
+  const { locale, currency, country } = await getCatalogContext();
 
   const searchResponse = await apiRoot
     .products()

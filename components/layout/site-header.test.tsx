@@ -38,6 +38,10 @@ vi.mock('@/components/layout/store-brand', () => ({
   StoreBrand: () => <div data-testid="store-brand" />,
 }));
 
+vi.mock('@/components/layout/market-switcher', () => ({
+  MarketSwitcher: () => <div data-testid="market-switcher" />,
+}));
+
 import { SiteHeader } from './site-header';
 
 function setScrollY(value: number) {
@@ -57,20 +61,20 @@ describe('SiteHeader', () => {
   it('resets compact header state after navigation when scroll is at top', () => {
     setScrollY(100);
 
-    const { rerender } = render(<SiteHeader />);
+    const { rerender } = render(<SiteHeader country="DE" />);
     fireEvent.scroll(window);
 
     expect(document.querySelector('header')).toHaveStyle({ height: '46px' });
 
     setScrollY(0);
     pathnameMock.mockReturnValue('/search');
-    rerender(<SiteHeader />);
+    rerender(<SiteHeader country="DE" />);
 
     expect(document.querySelector('header')).toHaveStyle({ height: '64px' });
   });
 
   it('uses page-aligned horizontal padding on the inner container', () => {
-    render(<SiteHeader />);
+    render(<SiteHeader country="DE" />);
 
     const innerContainer = document.querySelector('header > div');
     expect(innerContainer).toHaveClass('px-6');

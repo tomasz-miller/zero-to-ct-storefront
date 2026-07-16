@@ -62,7 +62,7 @@ export async function getMyOrders(options?: {
   }
 
   const body = JSON.parse(raw) as OrdersResponse;
-  const { locale } = getStorefrontContext();
+  const { locale } = await getStorefrontContext();
 
   return {
     orders: mapOrders(body.results, locale),
@@ -97,7 +97,7 @@ export async function getMyOrder(
   }
 
   const order = JSON.parse(raw) as Order;
-  const { locale } = getStorefrontContext();
+  const { locale } = await getStorefrontContext();
 
   return mapOrderDetail(order, locale);
 }

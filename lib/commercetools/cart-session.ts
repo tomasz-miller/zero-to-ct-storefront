@@ -35,19 +35,27 @@ export async function getCartSession(): Promise<CartSession | null> {
 }
 
 export async function setCartSession(session: CartSession): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(CART_SESSION_COOKIE, JSON.stringify(session), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-  });
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(CART_SESSION_COOKIE, JSON.stringify(session), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+  } catch {
+    // Cookie writes are rejected during RSC render; Route Handlers still persist.
+  }
 }
 
 export async function clearCartSession(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(CART_SESSION_COOKIE);
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(CART_SESSION_COOKIE);
+  } catch {
+    // Same constraint as setCartSession.
+  }
 }
 
 export function createAnonymousId(): string {

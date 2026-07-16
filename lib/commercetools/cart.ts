@@ -17,8 +17,37 @@ import {
   type CartSession,
 } from './cart-session';
 import { getCustomerSession } from './customer-session';
-import { getStorefrontContext } from './storefront-context';
+import {
+  forgetCartForCountry,
+  getCartIdForCountry,
+  listMappedCartIds,
+  rememberCartForCountry,
+} from './market-cart-session';
+import {
+  getStorefrontContext,
+  type StorefrontCountry,
+} from './storefront-context';
 import { getProductAvailabilityBySku } from './products';
+
+type AlignCartResult = {
+  cart: Cart;
+  restored: boolean;
+  recreated: boolean;
+};
+
+function parseCartCountry(
+  country: string | undefined,
+): StorefrontCountry | null {
+  if (country === 'DE' || country === 'GB' || country === 'US') {
+    return country;
+  }
+
+  return null;
+}
+
+function cartItemCount(cart: Cart): number {
+  return cart.lineItems.reduce((sum, item) => sum + item.quantity, 0);
+}
 
 export class CartAccessError extends Error {
   constructor(message = 'Cart access denied') {
@@ -93,23 +122,96 @@ export function verifyCartOwnership(
   throw new CartAccessError();
 }
 
-function cartMatchesStorefront(cart: Cart): boolean {
-  const { currency, country } = getStorefrontContext();
+async function cartMatchesStorefront(cart: Cart): Promise<boolean> {
+  const { currency, country } = await getStorefrontContext();
   return cart.country === country && cart.totalPrice.currencyCode === currency;
 }
 
-async function alignCartWithStorefront(cart: Cart): Promise<Cart> {
-  if (cartMatchesStorefront(cart)) {
-    return cart;
+function isUsableMarketCart(
+  cart: Cart,
+  session: CartSession,
+  customerId: string | undefined,
+  country: StorefrontCountry,
+  currency: string,
+): boolean {
+  if (cart.cartState !== 'Active') {
+    return false;
   }
 
-  const { currency, country } = getStorefrontContext();
+  if (cart.country !== country || cart.totalPrice.currencyCode !== currency) {
+    return false;
+  }
 
-  if (cart.customerId) {
-    if (cart.lineItems.length > 0 || cart.totalPrice.currencyCode !== currency) {
-      return cart;
+  return canAccessCart(cart, session, customerId);
+}
+
+async function resolveCartForMarket(
+  session: CartSession,
+  customerId: string | undefined,
+): Promise<AlignCartResult> {
+  const { currency, country } = await getStorefrontContext();
+
+  const mappedCartId = await getCartIdForCountry(country);
+  if (mappedCartId) {
+    const mappedCart = await fetchCartById(mappedCartId);
+    if (
+      mappedCart &&
+      isUsableMarketCart(mappedCart, session, customerId, country, currency)
+    ) {
+      await rememberCartForCountry(country, mappedCart.id, session.anonymousId);
+      return { cart: mappedCart, restored: true, recreated: false };
     }
 
+    await forgetCartForCountry(country);
+  }
+
+  if (customerId) {
+    const existingCustomerCart = await findCustomerCartForMarket(
+      customerId,
+      country,
+      currency,
+    );
+    if (existingCustomerCart) {
+      await rememberCartForCountry(
+        country,
+        existingCustomerCart.id,
+        session.anonymousId,
+      );
+      return { cart: existingCustomerCart, restored: true, recreated: false };
+    }
+
+    const createdCustomerCart = await createCustomerCart(customerId);
+    await rememberCartForCountry(
+      country,
+      createdCustomerCart.id,
+      session.anonymousId,
+    );
+    return { cart: createdCustomerCart, restored: false, recreated: true };
+  }
+
+  const createdGuestCart = await createGuestCart(session.anonymousId);
+  await rememberCartForCountry(country, createdGuestCart.id, session.anonymousId);
+  return { cart: createdGuestCart, restored: false, recreated: true };
+}
+
+async function alignCartWithStorefront(
+  cart: Cart,
+  session: CartSession,
+): Promise<AlignCartResult> {
+  const { currency, country } = await getStorefrontContext();
+
+  if (await cartMatchesStorefront(cart)) {
+    await rememberCartForCountry(country, cart.id, session.anonymousId);
+    return { cart, restored: false, recreated: false };
+  }
+
+  const previousCountry = parseCartCountry(cart.country);
+
+  // Empty cart with matching currency — update country in place.
+  if (
+    cart.lineItems.length === 0 &&
+    cart.totalPrice.currencyCode === currency
+  ) {
     const response = await apiRoot
       .carts()
       .withId({ ID: cart.id })
@@ -121,31 +223,23 @@ async function alignCartWithStorefront(cart: Cart): Promise<Cart> {
       })
       .execute();
 
-    return response.body;
+    if (previousCountry && previousCountry !== country) {
+      const parkedId = await getCartIdForCountry(previousCountry);
+      if (parkedId === cart.id) {
+        await forgetCartForCountry(previousCountry);
+      }
+    }
+
+    await rememberCartForCountry(country, response.body.id, session.anonymousId);
+    return { cart: response.body, restored: false, recreated: false };
   }
 
-  const anonymousId = cart.anonymousId;
-
-  if (!anonymousId) {
-    throw new CartAccessError('Cart is missing anonymousId');
+  if (previousCountry) {
+    await rememberCartForCountry(previousCountry, cart.id, session.anonymousId);
   }
 
-  if (cart.lineItems.length > 0 || cart.totalPrice.currencyCode !== currency) {
-    return createGuestCart(anonymousId);
-  }
-
-  const response = await apiRoot
-    .carts()
-    .withId({ ID: cart.id })
-    .post({
-      body: {
-        version: cart.version,
-        actions: [{ action: 'setCountry', country }],
-      },
-    })
-    .execute();
-
-  return response.body;
+  const customerSession = await getCustomerSession();
+  return resolveCartForMarket(session, customerSession?.customerId ?? cart.customerId);
 }
 
 async function loadOwnedCart(session: CartSession): Promise<Cart | null> {
@@ -161,12 +255,15 @@ async function loadOwnedCart(session: CartSession): Promise<Cart | null> {
     return null;
   }
 
-  const aligned = await alignCartWithStorefront(cart);
-  if (aligned.id !== session.cartId) {
-    await setCartSession({ anonymousId: session.anonymousId, cartId: aligned.id });
+  const aligned = await alignCartWithStorefront(cart, session);
+  if (aligned.cart.id !== session.cartId) {
+    await setCartSession({
+      anonymousId: session.anonymousId,
+      cartId: aligned.cart.id,
+    });
   }
 
-  return aligned;
+  return aligned.cart;
 }
 
 export async function getGuestCart(): Promise<StorefrontCart | null> {
@@ -177,14 +274,61 @@ export async function getGuestCart(): Promise<StorefrontCart | null> {
 
   try {
     const { cart } = await loadResolvedCartIfSessionExists();
-    return mapCart(cart, getStorefrontContext().locale);
+    return mapCart(cart, (await getStorefrontContext()).locale);
   } catch {
     return null;
   }
 }
 
+export async function realignCartForStorefront(): Promise<{
+  cartRecreated: boolean;
+  cartRestored: boolean;
+  itemCount: number;
+  previousHadItems: boolean;
+}> {
+  const emptyResult = {
+    cartRecreated: false,
+    cartRestored: false,
+    itemCount: 0,
+    previousHadItems: false,
+  };
+
+  const session = await getCartSession();
+  if (!session) {
+    return emptyResult;
+  }
+
+  const cart = await fetchCartById(session.cartId);
+  if (!cart) {
+    await clearCartSession();
+    return emptyResult;
+  }
+
+  const customerSession = await getCustomerSession();
+  if (!canAccessCart(cart, session, customerSession?.customerId)) {
+    await clearCartSession();
+    return emptyResult;
+  }
+
+  const previousHadItems = cart.lineItems.length > 0;
+  const aligned = await alignCartWithStorefront(cart, session);
+  if (aligned.cart.id !== session.cartId) {
+    await setCartSession({
+      anonymousId: session.anonymousId,
+      cartId: aligned.cart.id,
+    });
+  }
+
+  return {
+    cartRecreated: aligned.recreated,
+    cartRestored: aligned.restored,
+    itemCount: cartItemCount(aligned.cart),
+    previousHadItems,
+  };
+}
+
 async function createGuestCart(anonymousId: string): Promise<Cart> {
-  const { currency, country, locale } = getStorefrontContext();
+  const { currency, country, locale } = await getStorefrontContext();
 
   const response = await apiRoot
     .carts()
@@ -198,6 +342,7 @@ async function createGuestCart(anonymousId: string): Promise<Cart> {
     })
     .execute();
 
+  await rememberCartForCountry(country, response.body.id, anonymousId);
   return response.body;
 }
 
@@ -216,8 +361,32 @@ export async function findCustomerCart(customerId: string): Promise<Cart | null>
   return response.body.results[0] ?? null;
 }
 
+export async function findCustomerCartForMarket(
+  customerId: string,
+  country: StorefrontCountry,
+  currency: string,
+): Promise<Cart | null> {
+  const response = await apiRoot
+    .carts()
+    .get({
+      queryArgs: {
+        where: [
+          `customerId="${customerId}"`,
+          'cartState="Active"',
+          `country="${country}"`,
+          `totalPrice(currencyCode="${currency}")`,
+        ].join(' and '),
+        limit: 1,
+        sort: 'lastModifiedAt desc',
+      },
+    })
+    .execute();
+
+  return response.body.results[0] ?? null;
+}
+
 async function createCustomerCart(customerId: string): Promise<Cart> {
-  const { currency, country, locale } = getStorefrontContext();
+  const { currency, country, locale } = await getStorefrontContext();
 
   const response = await apiRoot
     .carts()
@@ -232,6 +401,25 @@ async function createCustomerCart(customerId: string): Promise<Cart> {
     .execute();
 
   return response.body;
+}
+
+async function claimParkedGuestCartsForCustomer(
+  customerId: string,
+): Promise<void> {
+  const mappedCartIds = await listMappedCartIds();
+
+  for (const cartId of mappedCartIds) {
+    const cart = await fetchCartById(cartId);
+    if (!cart || cart.customerId || cart.cartState !== 'Active') {
+      continue;
+    }
+
+    try {
+      await assignCartToCustomer(cart, customerId);
+    } catch {
+      // Best-effort: keep the session usable even if a parked cart cannot be claimed.
+    }
+  }
 }
 
 async function assignCartToCustomer(cart: Cart, customerId: string): Promise<Cart> {
@@ -336,7 +524,13 @@ async function resolveAnonymousCartForCustomer(
     return anonymousCart;
   }
 
-  const existingCustomerCart = await findCustomerCart(customerId);
+  const cartCountry = parseCartCountry(anonymousCart.country);
+  const cartCurrency = anonymousCart.totalPrice.currencyCode;
+
+  const existingCustomerCart = cartCountry
+    ? await findCustomerCartForMarket(customerId, cartCountry, cartCurrency)
+    : await findCustomerCart(customerId);
+
   if (!existingCustomerCart || existingCustomerCart.id === anonymousCart.id) {
     return assignCartToCustomer(anonymousCart, customerId);
   }
@@ -347,19 +541,33 @@ async function resolveAnonymousCartForCustomer(
 async function persistCartSession(anonymousId: string, cart: Cart): Promise<CartSession> {
   const session = { anonymousId, cartId: cart.id };
   await setCartSession(session);
+
+  const cartCountry = parseCartCountry(cart.country);
+  if (cartCountry) {
+    await rememberCartForCountry(cartCountry, cart.id, anonymousId);
+  }
+
   return session;
 }
 
 export async function restoreCustomerCartSession(customerId: string): Promise<void> {
-  const customerCart = await findCustomerCart(customerId);
+  const { country, currency } = await getStorefrontContext();
+  const customerCart =
+    (await findCustomerCartForMarket(customerId, country, currency)) ??
+    (await findCustomerCart(customerId));
+
   if (!customerCart) {
     return;
   }
 
+  const anonymousId = createAnonymousId();
   await setCartSession({
-    anonymousId: createAnonymousId(),
+    anonymousId,
     cartId: customerCart.id,
   });
+
+  const cartCountry = parseCartCountry(customerCart.country) ?? country;
+  await rememberCartForCountry(cartCountry, customerCart.id, anonymousId);
 }
 
 /** Assign or merge a guest cart to the customer after sign-in/sign-up. */
@@ -369,22 +577,35 @@ export async function reconcileCartOnAuth(customerId: string): Promise<void> {
     const cart = await fetchCartById(existing.cartId);
     if (cart && !cart.customerId) {
       const resolved = await resolveAnonymousCartForCustomer(customerId, cart);
+      const anonymousId = createAnonymousId();
       await setCartSession({
-        anonymousId: createAnonymousId(),
+        anonymousId,
         cartId: resolved.id,
       });
+      const cartCountry = parseCartCountry(resolved.country);
+      if (cartCountry) {
+        await rememberCartForCountry(cartCountry, resolved.id, anonymousId);
+      }
+      await claimParkedGuestCartsForCustomer(customerId);
       return;
     }
     if (cart?.customerId === customerId) {
+      const anonymousId = createAnonymousId();
       await setCartSession({
-        anonymousId: createAnonymousId(),
+        anonymousId,
         cartId: cart.id,
       });
+      const cartCountry = parseCartCountry(cart.country);
+      if (cartCountry) {
+        await rememberCartForCountry(cartCountry, cart.id, anonymousId);
+      }
+      await claimParkedGuestCartsForCustomer(customerId);
       return;
     }
   }
 
   await restoreCustomerCartSession(customerId);
+  await claimParkedGuestCartsForCustomer(customerId);
 }
 
 async function ensureCartSession(): Promise<CartSession> {
@@ -417,9 +638,13 @@ async function ensureCartSession(): Promise<CartSession> {
       }
     }
 
+    const { country, currency } = await getStorefrontContext();
     const customerCart =
-      (await findCustomerCart(customerSession.customerId)) ??
-      (await createCustomerCart(customerSession.customerId));
+      (await findCustomerCartForMarket(
+        customerSession.customerId,
+        country,
+        currency,
+      )) ?? (await createCustomerCart(customerSession.customerId));
 
     return persistCartSession(
       existing?.anonymousId ?? createAnonymousId(),
@@ -491,7 +716,7 @@ export async function addLineItem(
     })
     .execute();
 
-  return mapCart(response.body, getStorefrontContext().locale);
+  return mapCart(response.body, (await getStorefrontContext()).locale);
 }
 
 export async function updateLineItemQuantity(
@@ -523,7 +748,7 @@ export async function updateLineItemQuantity(
     })
     .execute();
 
-  return mapCart(response.body, getStorefrontContext().locale);
+  return mapCart(response.body, (await getStorefrontContext()).locale);
 }
 
 export async function removeLineItem(lineItemId: string): Promise<StorefrontCart> {
@@ -548,7 +773,7 @@ async function updateCartWithActions(
     })
     .execute();
 
-  return mapCart(response.body, getStorefrontContext().locale);
+  return mapCart(response.body, (await getStorefrontContext()).locale);
 }
 
 export async function addDiscountCode(code: string): Promise<StorefrontCart> {
@@ -621,7 +846,7 @@ export async function getCartForCheckout(): Promise<{
   }
 
   return {
-    cart: mapCart(cart, getStorefrontContext().locale),
+    cart: mapCart(cart, (await getStorefrontContext()).locale),
     anonymousId: session.anonymousId,
   };
 }

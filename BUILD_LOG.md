@@ -15,6 +15,27 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-07-16 — Per-market cart persistence
+- **Time:** 2.25h
+- **Phase:** phase-9-multi-market
+- **Milestone:** Parked DE/GB/US carts in HTTP-only `ct_market_carts` cookie; market switch restores the target cart or creates an empty one; signed-in lookup by country/currency; confirm modal copy updated to “save”; auth claims parked guest carts; unit + E2E coverage; CHECKOUT/DEMO_SCRIPT docs.
+- **Agent vs manual:** ~95% agent
+- **Notes:** commercetools cart currency remains immutable; multiple Active carts per customer/guest are intentional.
+
+### 2026-07-16 — Phase 9 review fixes
+- **Time:** 0.75h
+- **Phase:** phase-9-multi-market
+- **Milestone:** Fixed signed-in customer cart realignment on market switch (recreate cart when currency/items conflict); `realignCartForStorefront` no longer swallows CT errors; MarketSwitcher syncs with server prop and uses dismissible auto-hide notices; checkout session falls back to active market country; unit coverage for guest/customer realign paths.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Follow-up to Phase 9 code review.
+
+### 2026-07-16 — Phase 9 — multi-market switcher
+- **Time:** 3.5h
+- **Phase:** phase-9-multi-market
+- **Milestone:** Added a header switcher for Germany (EUR), the United Kingdom (GBP), and the United States (USD). The HTTP-only `ct_storefront_market` cookie drives server-side price selection, cart country alignment, and Checkout Application selection; incompatible guest carts are recreated with an in-store notice. Added unit and E2E coverage, and synchronized roadmap, demo, checkout, testing, and time-report documentation.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Product copy remains English (`en-GB`) because this sample catalog does not provide a complete translated catalog. Changing a non-empty guest cart across currencies creates a new cart rather than mixing incompatible prices.
+
 ### 2026-07-15 — Checkout default address button
 - **Time:** 0.5h
 - **Phase:** phase-3-demo

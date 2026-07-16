@@ -6,13 +6,17 @@ import {
   getCartForCheckout,
 } from '@/lib/commercetools/cart';
 import { createCheckoutSession } from '@/lib/commercetools/checkout-session';
+import { getStorefrontContext } from '@/lib/commercetools/storefront-context';
 
 export async function POST() {
   try {
-    const { cart } = await getCartForCheckout();
+    const [{ cart }, { country: marketCountry }] = await Promise.all([
+      getCartForCheckout(),
+      getStorefrontContext(),
+    ]);
     const sessionId = await createCheckoutSession(
       cart.id,
-      cart.country ?? 'DE',
+      cart.country ?? marketCountry,
     );
 
     return NextResponse.json({ sessionId });

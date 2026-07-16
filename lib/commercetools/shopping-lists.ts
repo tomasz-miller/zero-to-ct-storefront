@@ -111,7 +111,7 @@ async function findCustomerShoppingList(customerId: string): Promise<ShoppingLis
 }
 
 async function createGuestShoppingList(anonymousId: string): Promise<ShoppingList> {
-  const { locale } = getStorefrontContext();
+  const { locale } = await getStorefrontContext();
 
   const response = await apiRoot
     .shoppingLists()
@@ -127,7 +127,7 @@ async function createGuestShoppingList(anonymousId: string): Promise<ShoppingLis
 }
 
 async function createCustomerShoppingList(customerId: string): Promise<ShoppingList> {
-  const { locale } = getStorefrontContext();
+  const { locale } = await getStorefrontContext();
 
   const response = await apiRoot
     .shoppingLists()
@@ -283,7 +283,7 @@ async function enrichWishlistFromProjections(
 }
 
 async function mapOwnedWishlist(shoppingList: ShoppingList): Promise<StorefrontWishlist> {
-  const { locale } = getStorefrontContext();
+  const { locale } = await getStorefrontContext();
   const wishlist = mapWishlist(shoppingList, locale);
   return enrichWishlistFromProjections(wishlist, locale);
 }

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 type DismissibleAlertProps = {
-  variant: 'error' | 'success';
+  variant: 'error' | 'success' | 'warning';
   message: string;
   onDismiss: () => void;
   autoDismissMs?: number;
