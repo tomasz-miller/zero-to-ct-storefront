@@ -1,8 +1,6 @@
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { isValidEmail } from '@/lib/auth-validation';
 
-export function isValidEmail(email: string): boolean {
-  return EMAIL_PATTERN.test(email);
-}
+export { isValidEmail };
 
 export function isValidPassword(password: string): boolean {
   return password.length >= 8;
