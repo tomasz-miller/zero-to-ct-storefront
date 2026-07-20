@@ -15,6 +15,13 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-07-20 — PoC documentation closure
+- **Time:** 0.25h
+- **Phase:** phase-3-demo
+- **Milestone:** Docs hygiene after Phase 11 — `DEPLOY.md` documents Vercel auto-deploy from `main` (CLI optional); `DEMO_SCRIPT` talking points for multi-market / bestsellers / Order again; `AGENT_CODING` points to ROADMAP Phases 4–11 complete; ROADMAP Last updated + TIME_REPORT sync. Commerce MCP confirmed out of storefront scope (IDE/ops only).
+- **Agent vs manual:** ~95% agent
+- **Notes:** No product code. No manual production deploy.
+
 ### 2026-07-20 — Phase 11 reorder + real bestsellers
 - **Time:** 1.75h
 - **Phase:** phase-11-post-purchase

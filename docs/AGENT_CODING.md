@@ -161,6 +161,8 @@ Always verify against [commercetools docs](https://docs.commercetools.com) via K
 | 2 | Discovery, cart, checkout, auth | `phase-2-core` ✅ |
 | 3 | Deploy, demo script, TIME_REPORT, E2E cart/checkout | `phase-3-demo` ✅ |
 
+Storefront PoC feature work is **complete through Phase 11** (discovery completeness, account, wishlist, promotions, inventory, multi-market, quality slice, reorder + Orders-based bestsellers). See **[ROADMAP.md](./ROADMAP.md)** for the full phase status. Production deploys automatically from `main` ([DEPLOY.md](./DEPLOY.md)).
+
 ---
 
 ## What not to build in this PoC

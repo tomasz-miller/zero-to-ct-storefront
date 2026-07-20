@@ -2,7 +2,7 @@
 
 Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on commercetools sample data. Complements [BUILD_LOG.md](../BUILD_LOG.md) (history) and [AGENT_CODING.md](./AGENT_CODING.md) (phases 0–3).
 
-**Last updated:** 2026-07-20 (Phase 11 reorder + real bestsellers)
+**Last updated:** 2026-07-20 (PoC docs closure — auto-deploy + Commerce MCP out of storefront scope)
 
 **Live demo:** https://zero-to-ct-storefront.vercel.app/ (Vercel auto-deploy)
 
@@ -415,6 +415,9 @@ quadrantChart
 7. **Phase 10 slice 2** — Remaining BFF route unit tests — **done**
 8. **Phase 11** — Reorder + real bestsellers — **done**
 9. **commerce-mcp** — out of storefront scope (IDE/ops only; shopping assistant remains a non-goal)
+10. **PoC docs closure** — **done** (auto-deploy documented; DEMO_SCRIPT / AGENT_CODING / TIME_REPORT aligned)
+
+**PoC docs closure (done):** [DEPLOY.md](./DEPLOY.md) documents Vercel auto-deploy from `main`; DEMO_SCRIPT talking points cover multi-market, bestsellers, and Order again; AGENT_CODING points to Phases 4–11 complete; Commerce MCP remains out of storefront scope.
 
 **Phase 11 (done):** `reorderOrder` + `POST /api/cart/reorder` (batch add, skip missing SKU/OOS); Order again on `/account/orders/[id]` and account history; `listBestSellingProducts` ranks by recent Orders volume with catalog heuristic fallback; 343 unit tests; DEMO_SCRIPT sync.
 

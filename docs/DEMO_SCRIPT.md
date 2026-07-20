@@ -172,6 +172,9 @@ Demonstrates Product Discounts on discovery and Cart Discount codes before check
 | **Inventory** | Stock / low-stock badges from `ProductVariant.availability`; add-to-cart blocked when out of stock |
 | **Quick View** | coss Dialog on listing cards — preview product without leaving PLP |
 | **Mobile UX** | Cart drawer (Sheet) on viewports `< md` |
+| **Multi-market** | DE/GB/US switcher — cookie-backed prices, parked carts per market, Checkout app mapping |
+| **Best Sellers** | Homepage grid ranked from recent Orders volume; catalog heuristic fills sparse demos |
+| **Order again** | One-click reorder from account history / order detail via `POST /api/cart/reorder` |
 
 ---
 

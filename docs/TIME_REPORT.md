@@ -53,7 +53,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | 2026-07-16 | Per-market cart persistence — park/restore DE/GB/US carts, auth map sync, tests, docs | **2.25h** |
 | 2026-07-16 | Phase 8 low-stock + Phase 10 BFF route tests | **1h** |
 | 2026-07-20 | Phase 11 — reorder + real bestsellers (Orders ranking, BFF, UI, tests, docs) | **1.75h** |
-| **Total** | | **42.17h** |
+| 2026-07-20 | PoC documentation closure — auto-deploy docs, DEMO_SCRIPT talking points, ROADMAP/TIME_REPORT sync | **0.25h** |
+| **Total** | | **42.42h** |
 
 ---
 
@@ -62,8 +63,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Metric | Value |
 |--------|-------|
 | Project duration | 8 working days (2026-07-08 → 2026-07-20) |
-| Total estimated time | **42.17h** net |
-| Current phase | phase-11 complete — reorder + real bestsellers; storefront PoC backlog closed |
+| Total estimated time | **42.42h** net |
+| Current phase | PoC closed (docs closure) — storefront backlog complete through Phase 11 |
 | Developer profile | Backend-focused, agent-assisted (Cursor + commercetools AI plugin) |
 | Agent contribution | ~85–95% of storefront code; human owns CT project, Stripe/Connect, MC config |
 
@@ -105,7 +106,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-8-inventory | 2026-07-16 | Low-stock messaging (`Only X left`, threshold 5) on PDP/PLP | ~95% agent | 0.4h |
 | phase-10-quality | 2026-07-16 | BFF route unit tests (auth, cart, customer, wishlist) — 320 unit tests total | ~95% agent | 0.6h |
 | phase-11-post-purchase | 2026-07-20 | Reorder + real bestsellers — Orders ranking, `/api/cart/reorder`, UI, 343 unit tests, docs | ~95% agent | 1.75h |
-| **Total** | | | ~80% agent / ~20% manual | **42.17h** |
+| phase-3-demo | 2026-07-20 | PoC documentation closure — auto-deploy confirmed, Commerce MCP out of storefront scope, doc drift fixed | ~95% agent | 0.25h |
+| **Total** | | | ~80% agent / ~20% manual | **42.42h** |
 
 ---
 
@@ -116,16 +118,16 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-0-setup | 2.5h | 8% |
 | phase-1-scaffold | 2h | 6% |
 | phase-2-core | 12.25h | 38% |
-| phase-3-demo | 3.5h | 10% |
-| phase-4-discovery | 4.5h | 14% |
-| phase-5-account | 3.17h | 10% |
-| phase-6-wishlist | 1.5h | 5% |
-| phase-7-promotions | 2.5h | 8% |
-| phase-8-inventory | 1.9h | 5% |
-| phase-9-multi-market | 6.5h | 16% |
+| phase-3-demo | 3.75h | 9% |
+| phase-4-discovery | 4.5h | 11% |
+| phase-5-account | 3.17h | 7% |
+| phase-6-wishlist | 1.5h | 4% |
+| phase-7-promotions | 2.5h | 6% |
+| phase-8-inventory | 1.9h | 4% |
+| phase-9-multi-market | 6.5h | 15% |
 | phase-10-quality | 1.1h | 3% |
 | phase-11-post-purchase | 1.75h | 4% |
-| **Total** | **42.17h** | 100% |
+| **Total** | **42.42h** | 100% |
 
 ---
 
@@ -159,7 +161,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | BFF API route unit tests (auth/cart/customer/wishlist) | Done |
 | Sales demo script | Done — [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) |
 | Product roadmap | Done — [ROADMAP.md](./ROADMAP.md) |
-| Deploy to Vercel/Netlify | Done — https://zero-to-ct-storefront.vercel.app (auto-deploy; [DEPLOY.md](./DEPLOY.md)) |
+| Deploy to Vercel/Netlify | Done — https://zero-to-ct-storefront.vercel.app (auto-deploy from `main`; [DEPLOY.md](./DEPLOY.md)) |
+| PoC documentation closure (option A) | Done — deploy/docs drift cleared; Commerce MCP out of storefront scope |
 | This time report | Estimated from commits |
 
 ---
@@ -169,7 +172,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 - **2026-07-13** has no git commits yet; 3.5h is user-reported for Phase 4 category discovery slice (2h), listing sort/pagination slice 2a (1h), and facets + autocomplete slice 2b+2c (0.5h); see BUILD_LOG.
 - **2026-07-09** has no git commits; 7h is inferred from BUILD_LOG (Stripe connector, Checkout Applications, MC configuration).
 - **2026-07-10** total may increase if work continues past 17:00 or if morning activity is added.
-- **2026-07-14** includes 0.25h checkout cart-session cleanup, 1.5h Phase 5 slice 2, 40min account UX polish, 1.5h Phase 6 wishlist, 0.5h Vercel production deploy, 1.5h Phase 7 promotions core, 1h Phase 7 mobile cart drawer, 1.5h Phase 8 inventory availability, and 1.5h Phase 4 Quick View + Phase 10 quality slice (correlation ID, checkout session tests). Production redeploy of Quick View pending manual Vercel CLI.
+- **2026-07-14** includes 0.25h checkout cart-session cleanup, 1.5h Phase 5 slice 2, 40min account UX polish, 1.5h Phase 6 wishlist, 0.5h Vercel production deploy, 1.5h Phase 7 promotions core, 1h Phase 7 mobile cart drawer, 1.5h Phase 8 inventory availability, and 1.5h Phase 4 Quick View + Phase 10 quality slice (correlation ID, checkout session tests). Subsequent releases ship via Vercel auto-deploy from `main` (see [DEPLOY.md](./DEPLOY.md)).
+- **2026-07-20** includes 1.75h Phase 11 (reorder + bestsellers) and 0.25h PoC documentation closure.
 - **2026-07-15** has no git commits yet; 1h is user-reported for checkout payment status visibility and follow-up code review fixes; see BUILD_LOG.
 - Milestone split within a day is approximate; use Clockify/WakaTime for audit-grade numbers.
 
