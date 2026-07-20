@@ -3,6 +3,7 @@ import 'server-only';
 import type { ProductProjection } from '@commercetools/platform-sdk';
 
 import { apiRoot } from './api-root';
+import { rankProductIdsByOrderVolume } from './bestsellers';
 import { getCategoryByKey } from './categories';
 import {
   getCatalogContext,
@@ -339,6 +340,109 @@ export async function listNewArrivalProducts(options?: {
   });
 }
 
+const BESTSELLER_ORDER_SAMPLE_LIMIT = 200;
+const BESTSELLER_ORDER_CACHE_TTL_MS = 5 * 60 * 1000;
+
+type OrderLineItemVolume = {
+  productId: string;
+  quantity: number;
+};
+
+let bestsellerOrderLineItemsCache: {
+  fetchedAt: number;
+  items: OrderLineItemVolume[];
+} | null = null;
+
+/** Test helper — clears the in-process bestsellers Orders cache. */
+export function clearBestsellerOrderCache(): void {
+  bestsellerOrderLineItemsCache = null;
+}
+
+async function listCatalogHeuristicBestsellers(options: {
+  limit: number;
+  locale: string;
+  currency: string;
+  country: string;
+  excludeProductIds?: ReadonlySet<string>;
+}): Promise<{ products: StorefrontProduct[]; poolSize: number }> {
+  const newArrivalsCategory = await getCategoryByKey('new-arrivals');
+  const newArrivalsCategoryId = newArrivalsCategory?.id;
+  const excludeProductIds = options.excludeProductIds ?? new Set<string>();
+
+  const projectionsResponse = await apiRoot
+    .productProjections()
+    .get({
+      queryArgs: {
+        limit: 500,
+        staged: false,
+        localeProjection: options.locale,
+        priceCurrency: options.currency,
+        priceCountry: options.country,
+        sort: 'createdAt asc',
+      },
+    })
+    .execute();
+
+  const pool = projectionsResponse.body.results.filter(
+    (projection) =>
+      !excludeProductIds.has(projection.id) &&
+      !isNewArrivalProduct(projection, newArrivalsCategoryId),
+  );
+
+  const products = pool
+    .slice(0, options.limit)
+    .map((projection) =>
+      mapProjection(
+        projection,
+        options.locale,
+        options.currency,
+        options.country,
+      ),
+    )
+    .filter((product): product is StorefrontProduct => product !== null);
+
+  return {
+    products,
+    poolSize: pool.length,
+  };
+}
+
+async function fetchRecentOrderLineItems(): Promise<OrderLineItemVolume[]> {
+  const now = Date.now();
+  if (
+    bestsellerOrderLineItemsCache &&
+    now - bestsellerOrderLineItemsCache.fetchedAt < BESTSELLER_ORDER_CACHE_TTL_MS
+  ) {
+    return bestsellerOrderLineItemsCache.items;
+  }
+
+  try {
+    const response = await apiRoot
+      .orders()
+      .get({
+        queryArgs: {
+          limit: BESTSELLER_ORDER_SAMPLE_LIMIT,
+          sort: 'createdAt desc',
+        },
+      })
+      .execute();
+
+    const items = response.body.results.flatMap((order) =>
+      order.lineItems.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+      })),
+    );
+
+    bestsellerOrderLineItemsCache = { fetchedAt: now, items };
+    return items;
+  } catch (error) {
+    console.warn('[bestsellers] Falling back to catalog heuristic', error);
+    bestsellerOrderLineItemsCache = { fetchedAt: now, items: [] };
+    return [];
+  }
+}
+
 export async function listBestSellingProducts(options?: {
   limit?: number;
   locale?: string;
@@ -349,37 +453,46 @@ export async function listBestSellingProducts(options?: {
   const resolvedLocale = options?.locale ?? locale;
   const resolvedCurrency = options?.currency ?? currency;
 
-  const newArrivalsCategory = await getCategoryByKey('new-arrivals');
-  const newArrivalsCategoryId = newArrivalsCategory?.id;
+  const orderLineItems = await fetchRecentOrderLineItems();
+  const allRankedProductIds = rankProductIdsByOrderVolume([
+    { lineItems: orderLineItems },
+  ]);
+  const rankedProductIds = allRankedProductIds.slice(0, limit);
 
-  const projectionsResponse = await apiRoot
-    .productProjections()
-    .get({
-      queryArgs: {
-        limit: 500,
-        staged: false,
-        localeProjection: resolvedLocale,
-        priceCurrency: resolvedCurrency,
-        priceCountry: country,
-        sort: 'createdAt asc',
-      },
-    })
-    .execute();
+  const rankedProjections = await fetchProjectionsForIds(rankedProductIds, {
+    limit,
+    locale: resolvedLocale,
+    currency: resolvedCurrency,
+    country,
+  });
 
-  const bestSellingProjections = projectionsResponse.body.results.filter(
-    (projection) => !isNewArrivalProduct(projection, newArrivalsCategoryId),
-  );
-
-  const products = bestSellingProjections
-    .slice(0, limit)
+  const rankedProducts = rankedProjections
     .map((projection) =>
       mapProjection(projection, resolvedLocale, resolvedCurrency, country),
     )
     .filter((product): product is StorefrontProduct => product !== null);
 
+  if (rankedProducts.length >= limit) {
+    return {
+      products: rankedProducts.slice(0, limit),
+      // Full ranked pool size (not just the page), for homepage copy.
+      total: allRankedProductIds.length,
+    };
+  }
+
+  const fallback = await listCatalogHeuristicBestsellers({
+    limit: limit - rankedProducts.length,
+    locale: resolvedLocale,
+    currency: resolvedCurrency,
+    country,
+    excludeProductIds: new Set(rankedProducts.map((product) => product.id)),
+  });
+
+  const products = [...rankedProducts, ...fallback.products].slice(0, limit);
+
   return {
     products,
-    total: bestSellingProjections.length,
+    total: allRankedProductIds.length + fallback.poolSize,
   };
 }
 

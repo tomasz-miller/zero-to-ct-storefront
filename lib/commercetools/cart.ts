@@ -719,6 +719,35 @@ export async function addLineItem(
   return mapCart(response.body, (await getStorefrontContext()).locale);
 }
 
+export async function addLineItems(
+  items: Array<{ sku: string; quantity: number }>,
+  options?: { checkAvailability?: boolean },
+): Promise<StorefrontCart> {
+  if (items.length === 0) {
+    throw new Error('At least one line item is required');
+  }
+
+  const checkAvailability = options?.checkAvailability ?? true;
+  if (checkAvailability) {
+    for (const item of items) {
+      const availability = await getProductAvailabilityBySku(item.sku);
+      if (availability && availability.status === 'out_of_stock') {
+        throw new OutOfStockError();
+      }
+    }
+  }
+
+  const { cart } = await loadResolvedCart();
+  return updateCartWithActions(
+    cart,
+    items.map((item) => ({
+      action: 'addLineItem' as const,
+      sku: item.sku,
+      quantity: item.quantity,
+    })),
+  );
+}
+
 export async function updateLineItemQuantity(
   lineItemId: string,
   quantity: number,

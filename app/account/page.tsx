@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { AccountSettings } from '@/components/account/account-settings';
+import { ReorderButton } from '@/components/account/reorder-button';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -74,6 +75,7 @@ export default async function AccountPage() {
                   <TableHead>Order status</TableHead>
                   <TableHead>Payment</TableHead>
                   <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -95,6 +97,14 @@ export default async function AccountPage() {
                       <TableCell>{order.paymentStatus}</TableCell>
                       <TableCell className="text-right">
                         {order.total.formatted}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <ReorderButton
+                          orderId={order.id}
+                          size="sm"
+                          variant="outline"
+                          className="inline-flex items-end"
+                        />
                       </TableCell>
                     </TableRow>
                   );

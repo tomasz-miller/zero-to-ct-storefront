@@ -126,6 +126,7 @@ vi.mock('./api-root', () => ({
 
 import {
   addLineItem,
+  addLineItems,
   findCustomerCart,
   findCustomerCartForMarket,
   getCartForCheckout,
@@ -177,6 +178,64 @@ describe('cart session resolver', () => {
 
     await expect(addLineItem('SKU-OOS', 1)).rejects.toThrow(OutOfStockError);
     expect(mockCartsPost).not.toHaveBeenCalled();
+  });
+
+  it('addLineItems batch-adds with a single cart update', async () => {
+    mockGetCustomerSession.mockResolvedValue(null);
+    mockGetCartSession.mockResolvedValue(null);
+
+    const guestCart = emptyGuestCart();
+    const cartWithItems = createCartFixture({
+      id: 'cart-guest',
+      anonymousId: 'anon-new',
+      country: 'DE',
+    });
+
+    mockExecute
+      .mockResolvedValueOnce({ body: guestCart })
+      .mockResolvedValueOnce({ body: guestCart })
+      .mockResolvedValueOnce({ body: cartWithItems });
+
+    await addLineItems([
+      { sku: 'SKU-1', quantity: 2 },
+      { sku: 'SKU-2', quantity: 1 },
+    ]);
+
+    expect(mockCartPost).toHaveBeenCalledWith({
+      body: {
+        version: guestCart.version,
+        actions: [
+          { action: 'addLineItem', sku: 'SKU-1', quantity: 2 },
+          { action: 'addLineItem', sku: 'SKU-2', quantity: 1 },
+        ],
+      },
+      queryArgs: {
+        expand: ['discountCodes[*].discountCode'],
+      },
+    });
+  });
+
+  it('addLineItems skips availability checks when requested', async () => {
+    mockGetCustomerSession.mockResolvedValue(null);
+    mockGetCartSession.mockResolvedValue(null);
+
+    const guestCart = emptyGuestCart();
+    const cartWithItems = createCartFixture({
+      id: 'cart-guest',
+      anonymousId: 'anon-new',
+      country: 'DE',
+    });
+
+    mockExecute
+      .mockResolvedValueOnce({ body: guestCart })
+      .mockResolvedValueOnce({ body: guestCart })
+      .mockResolvedValueOnce({ body: cartWithItems });
+
+    await addLineItems([{ sku: 'SKU-1', quantity: 1 }], {
+      checkAvailability: false,
+    });
+
+    expect(mockGetProductAvailabilityBySku).not.toHaveBeenCalled();
   });
 
   it('creates a guest cart when no customer session exists', async () => {

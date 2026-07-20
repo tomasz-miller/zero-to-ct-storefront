@@ -2,7 +2,7 @@
 
 End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived from [BUILD_LOG.md](../BUILD_LOG.md) and **git commit timestamps**.
 
-> **Status:** Estimated from BUILD_LOG + user-reported time (through 2026-07-16). Refine with Clockify/WakaTime if available.
+> **Status:** Estimated from BUILD_LOG + user-reported time (through 2026-07-20). Refine with Clockify/WakaTime if available.
 
 ---
 
@@ -52,7 +52,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | 2026-07-16 | Phase 9 review fixes — customer cart realign, error propagation, switcher UX | **0.75h** |
 | 2026-07-16 | Per-market cart persistence — park/restore DE/GB/US carts, auth map sync, tests, docs | **2.25h** |
 | 2026-07-16 | Phase 8 low-stock + Phase 10 BFF route tests | **1h** |
-| **Total** | | **40.42h** |
+| 2026-07-20 | Phase 11 — reorder + real bestsellers (Orders ranking, BFF, UI, tests, docs) | **1.75h** |
+| **Total** | | **42.17h** |
 
 ---
 
@@ -60,9 +61,9 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 
 | Metric | Value |
 |--------|-------|
-| Project duration | 7 working days (2026-07-08 → 2026-07-16) |
-| Total estimated time | **40.42h** net |
-| Current phase | phase-8/10 complete — low-stock + BFF route tests; PoC feature backlog closed |
+| Project duration | 8 working days (2026-07-08 → 2026-07-20) |
+| Total estimated time | **42.17h** net |
+| Current phase | phase-11 complete — reorder + real bestsellers; storefront PoC backlog closed |
 | Developer profile | Backend-focused, agent-assisted (Cursor + commercetools AI plugin) |
 | Agent contribution | ~85–95% of storefront code; human owns CT project, Stripe/Connect, MC config |
 
@@ -103,7 +104,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-9-multi-market | 2026-07-16 | Per-market cart persistence — cookie map, park/restore, auth claim, confirm copy, tests/docs | ~95% agent | 2.25h |
 | phase-8-inventory | 2026-07-16 | Low-stock messaging (`Only X left`, threshold 5) on PDP/PLP | ~95% agent | 0.4h |
 | phase-10-quality | 2026-07-16 | BFF route unit tests (auth, cart, customer, wishlist) — 320 unit tests total | ~95% agent | 0.6h |
-| **Total** | | | ~80% agent / ~20% manual | **40.42h** |
+| phase-11-post-purchase | 2026-07-20 | Reorder + real bestsellers — Orders ranking, `/api/cart/reorder`, UI, 343 unit tests, docs | ~95% agent | 1.75h |
+| **Total** | | | ~80% agent / ~20% manual | **42.17h** |
 
 ---
 
@@ -122,7 +124,8 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | phase-8-inventory | 1.9h | 5% |
 | phase-9-multi-market | 6.5h | 16% |
 | phase-10-quality | 1.1h | 3% |
-| **Total** | **40.42h** | 100% |
+| phase-11-post-purchase | 1.75h | 4% |
+| **Total** | **42.17h** | 100% |
 
 ---
 
@@ -148,13 +151,15 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Mobile cart drawer (header, `< md`) | Done |
 | DE/GB/US market switcher with contextual prices and checkout mapping | Done |
 | Per-market cart persistence (park/restore via `ct_market_carts`) | Done |
-| Unit tests (CI) — 320 tests | Done |
+| Order again / reorder from account order history | Done |
+| Real bestsellers from Orders API (catalog fallback) | Done |
+| Unit tests (CI) — 343 tests | Done |
 | E2E discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market (local) | Done |
 | SDK correlation ID middleware | Done |
 | BFF API route unit tests (auth/cart/customer/wishlist) | Done |
 | Sales demo script | Done — [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) |
 | Product roadmap | Done — [ROADMAP.md](./ROADMAP.md) |
-| Deploy to Vercel/Netlify | Done — https://zero-to-ct-storefront.vercel.app ([DEPLOY.md](./DEPLOY.md)) |
+| Deploy to Vercel/Netlify | Done — https://zero-to-ct-storefront.vercel.app (auto-deploy; [DEPLOY.md](./DEPLOY.md)) |
 | This time report | Estimated from commits |
 
 ---

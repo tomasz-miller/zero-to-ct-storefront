@@ -15,6 +15,13 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-07-20 — Phase 11 reorder + real bestsellers
+- **Time:** 1.75h
+- **Phase:** phase-11-post-purchase
+- **Milestone:** Order again (`POST /api/cart/reorder`, batch `addLineItem`, UI on order detail + account history); homepage Best Sellers ranked from project Orders (`manage_orders`) with catalog heuristic fallback; 343 unit tests; ROADMAP/TIME_REPORT/DEMO_SCRIPT sync. Commerce MCP marked out of storefront scope.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Vercel deploy remains automatic. No new API client scopes required (`manage_orders` already covers Orders read).
+
 ### 2026-07-16 — Phase 8/10 code-review fixes
 - **Time:** (included in 1h low-stock + BFF tests entry)
 - **Phase:** phase-8-inventory / phase-10-quality

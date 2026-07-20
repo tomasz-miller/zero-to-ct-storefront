@@ -28,7 +28,7 @@ This document describes how to develop **zero-to-ct-storefront** using AI coding
 | **TypeScript** | `strict` mode | Yes |
 | [TypeScript SDK v3](https://docs.commercetools.com/dev-tooling/ts-sdk-getting-started) | CT API client | Yes |
 | **[coss ui](https://coss.com/ui)** | UI primitives (skill in `.agents/skills/coss/`) | Yes |
-| **commerce-mcp** | Live project API calls from agents | Optional (later phase) |
+| **commerce-mcp** | Live project API calls from agents | Optional IDE/ops tooling — not storefront scope |
 | WakaTime / Clockify | Time tracking | Recommended |
 
 Full stack details: **[docs/TECH_STACK.md](./TECH_STACK.md)**
@@ -169,7 +169,7 @@ Always verify against [commercetools docs](https://docs.commercetools.com) via K
 - Merchant Center Custom Applications (admin UI, not storefront)
 - Voice / image search (separate initiative)
 - Production-grade caching, i18n, or design system
-- Commerce MCP shopping assistant (future phase)
+- Commerce MCP / shopping assistant (out of storefront scope — IDE/ops tooling only)
 
 ---
 

@@ -24,6 +24,9 @@ const { mockExecute, mockApiRoot, mockGetSearchableAttributeFacetConfigsForQuery
     categories: vi.fn(() => ({
       get: vi.fn(() => ({ execute: mockExecute })),
     })),
+    orders: vi.fn(() => ({
+      get: vi.fn(() => ({ execute: mockExecute })),
+    })),
   };
   return { mockExecute, mockApiRoot, mockGetSearchableAttributeFacetConfigsForQuery };
 });
@@ -44,7 +47,9 @@ vi.mock('./api-root', () => ({
 }));
 
 import {
+  clearBestsellerOrderCache,
   getProductBySlug,
+  listBestSellingProducts,
   listNewArrivalProducts,
   listProducts,
 } from './products';
@@ -306,5 +311,126 @@ describe('getProductBySlug', () => {
     const result = await getProductBySlug('orion-double-bed');
     expect(result?.name).toBe('Orion Double Bed');
     expect(result?.variants).toHaveLength(1);
+  });
+});
+
+describe('listBestSellingProducts', () => {
+  beforeEach(() => {
+    clearBestsellerOrderCache();
+    mockExecute.mockReset();
+    mockApiRoot.orders.mockClear();
+    mockApiRoot.productProjections.mockClear();
+    mockApiRoot.categories.mockClear();
+  });
+
+  it('ranks products from recent orders and reports full ranked total', async () => {
+    mockExecute
+      .mockResolvedValueOnce({
+        body: {
+          results: [
+            {
+              lineItems: [
+                { productId: 'prod-popular', quantity: 5 },
+                { productId: 'prod-other', quantity: 1 },
+                { productId: 'prod-third', quantity: 1 },
+              ],
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        body: {
+          results: [
+            createProductProjection({
+              id: 'prod-popular',
+              name: { 'en-GB': 'Popular Item' },
+              slug: { 'en-GB': 'popular-item' },
+            }),
+            createProductProjection({
+              id: 'prod-other',
+              name: { 'en-GB': 'Other Item' },
+              slug: { 'en-GB': 'other-item' },
+            }),
+          ],
+        },
+      });
+
+    const result = await listBestSellingProducts({ limit: 2 });
+
+    expect(mockApiRoot.orders).toHaveBeenCalled();
+    expect(result.products).toHaveLength(2);
+    expect(result.products[0]?.id).toBe('prod-popular');
+    expect(result.products[0]?.name).toBe('Popular Item');
+    expect(result.total).toBe(3);
+  });
+
+  it('falls back to catalog heuristic when there are no orders', async () => {
+    mockExecute
+      .mockResolvedValueOnce({
+        body: { results: [] },
+      })
+      .mockResolvedValueOnce({
+        body: {
+          results: [
+            {
+              id: 'cat-new',
+              key: 'new-arrivals',
+              name: { 'en-GB': 'New Arrivals' },
+              slug: { 'en-GB': 'new-arrivals' },
+              orderHint: '0.1',
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        body: {
+          results: [
+            createProductProjection({
+              id: 'prod-heuristic',
+              name: { 'en-GB': 'Heuristic Bed' },
+              slug: { 'en-GB': 'heuristic-bed' },
+            }),
+            createProductProjection({
+              id: 'prod-heuristic-2',
+              name: { 'en-GB': 'Heuristic Chair' },
+              slug: { 'en-GB': 'heuristic-chair' },
+            }),
+          ],
+        },
+      });
+
+    const result = await listBestSellingProducts({ limit: 1 });
+
+    expect(result.products).toHaveLength(1);
+    expect(result.products[0]?.id).toBe('prod-heuristic');
+    expect(result.total).toBe(2);
+  });
+
+  it('reuses cached order line items within the TTL window', async () => {
+    mockExecute
+      .mockResolvedValueOnce({
+        body: {
+          results: [
+            {
+              lineItems: [{ productId: 'prod-1', quantity: 2 }],
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        body: {
+          results: [createProductProjection({ id: 'prod-1' })],
+        },
+      })
+      .mockResolvedValueOnce({
+        body: {
+          results: [createProductProjection({ id: 'prod-1' })],
+        },
+      });
+
+    await listBestSellingProducts({ limit: 1 });
+    await listBestSellingProducts({ limit: 1 });
+
+    expect(mockApiRoot.orders).toHaveBeenCalledTimes(1);
   });
 });
