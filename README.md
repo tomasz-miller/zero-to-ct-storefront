@@ -43,6 +43,14 @@ Aligned with the [commercetools B2C Retail demo flow](https://docs.commercetools
 - Commerce MCP shopping assistant (IDE/ops tooling only — not shopper UX)
 - Production-grade caching or a full design system
 
+### Related PoCs
+
+| Repo | Role |
+|------|------|
+| [commercetools-agentic-playbook](https://github.com/tomasz-miller/commercetools-agentic-playbook) | Capability map + recipes for CT AI tooling |
+| [ct-agentic-connect](https://github.com/tomasz-miller/ct-agentic-connect) | Connect service / Cart API Extension (optional on this Project) |
+| [commerce-ai-tool](https://github.com/tomasz-miller/commerce-ai-tool) | LLM voice / image / text product search widget |
+
 ## Documentation
 
 | Doc | Description |
