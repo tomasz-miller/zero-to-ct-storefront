@@ -15,6 +15,13 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-07-20 — Dependabot: PostCSS XSS (GHSA-qx2v-qp2m-jg93)
+- **Time:** 0.25h
+- **Phase:** phase-3-demo
+- **Milestone:** Resolved Dependabot alert #2 — `next` pinned `postcss@8.4.31` (< 8.5.10). Added `overrides.postcss: '>=8.5.10'` in `pnpm-workspace.yaml` (pnpm 11 home for overrides); lockfile now resolves a single `postcss@8.5.16`.
+- **Agent vs manual:** ~100% agent
+- **Notes:** `package.json` `pnpm.overrides` is ignored on pnpm 11; workspace YAML is required.
+
 ### 2026-07-20 — PoC documentation closure
 - **Time:** 0.25h
 - **Phase:** phase-3-demo
@@ -249,4 +256,11 @@ Chronological log of development time and milestones. Used for sales demos and `
 - **Milestone:** Production deployment to Vercel (`zero-to-ct-storefront.vercel.app`); env vars synced; post-deploy smoke test passed (health, pages, guest wishlist add/move-to-cart, checkout session).
 - **Agent vs manual:** ~70% agent / 30% human (Vercel auth, env approval)
 - **Notes:** Add production URL to Stripe connector `ALLOWED_ORIGINS` if checkout CORS errors appear. GitHub↔Vercel auto-connect optional follow-up.
+
+### 2026-07-20 — Fix CodeQL ReDoS in email validation
+- **Time:** 0.25h
+- **Phase:** security
+- **Milestone:** Replace polynomial email regex (`js/polynomial-redos`, alert #2) with a linear-time `isValidEmail` check; share it from `lib/auth-validation.ts`.
+- **Agent vs manual:** ~100% agent
+- **Notes:** Same validation semantics (local@domain with a non-edge dot); max length 254.
 
