@@ -406,6 +406,51 @@ describe('listBestSellingProducts', () => {
     expect(result.total).toBe(2);
   });
 
+  it('does not double count ranked ids when fallback is used', async () => {
+    const unmappableRankedProjection = createProductProjection({
+      id: 'prod-unmappable',
+      name: {},
+      slug: {},
+    });
+
+    mockExecute
+      .mockResolvedValueOnce({
+        body: {
+          results: [
+            {
+              lineItems: [{ productId: 'prod-unmappable', quantity: 2 }],
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        body: {
+          results: [unmappableRankedProjection],
+        },
+      })
+      .mockResolvedValueOnce({
+        body: { results: [] },
+      })
+      .mockResolvedValueOnce({
+        body: {
+          results: [
+            createProductProjection({
+              id: 'prod-heuristic',
+              name: { 'en-GB': 'Fallback Product' },
+              slug: { 'en-GB': 'fallback-product' },
+            }),
+            unmappableRankedProjection,
+          ],
+        },
+      });
+
+    const result = await listBestSellingProducts({ limit: 1 });
+
+    expect(result.products).toHaveLength(1);
+    expect(result.products[0]?.id).toBe('prod-heuristic');
+    expect(result.total).toBe(2);
+  });
+
   it('reuses cached order line items within the TTL window', async () => {
     mockExecute
       .mockResolvedValueOnce({

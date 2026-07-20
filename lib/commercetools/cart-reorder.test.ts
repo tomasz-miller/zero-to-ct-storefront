@@ -134,6 +134,57 @@ describe('reorderOrder', () => {
     );
   });
 
+  it('skips skus that are no longer found in the catalog', async () => {
+    mockGetMyOrder.mockResolvedValue({
+      id: 'order-1',
+      createdAt: '2026-07-01T00:00:00.000Z',
+      orderState: 'Open',
+      paymentStatus: 'Paid',
+      total: money(4000),
+      payments: [],
+      lineItems: [
+        {
+          id: 'li-1',
+          name: 'Discontinued',
+          sku: 'SKU-MISSING',
+          quantity: 1,
+          unitPrice: money(1000),
+          totalPrice: money(1000),
+        },
+        {
+          id: 'li-2',
+          name: 'In stock',
+          sku: 'SKU-OK',
+          quantity: 2,
+          unitPrice: money(1500),
+          totalPrice: money(3000),
+        },
+      ],
+    });
+
+    mockGetProductAvailabilityBySku.mockImplementation((async (sku: string) => {
+      if (sku === 'SKU-MISSING') {
+        return null;
+      }
+      return { isOnStock: true, status: 'in_stock' as const };
+    }) as typeof mockGetProductAvailabilityBySku);
+
+    mockAddLineItems.mockResolvedValue({
+      id: 'cart-1',
+      itemCount: 2,
+      lineItems: [],
+    });
+
+    const result = await reorderOrder('order-1');
+
+    expect(result.added).toBe(1);
+    expect(result.skipped).toBe(1);
+    expect(mockAddLineItems).toHaveBeenCalledWith(
+      [{ sku: 'SKU-OK', quantity: 2 }],
+      { checkAvailability: false },
+    );
+  });
+
   it('throws when nothing can be added', async () => {
     mockGetMyOrder.mockResolvedValue({
       id: 'order-1',

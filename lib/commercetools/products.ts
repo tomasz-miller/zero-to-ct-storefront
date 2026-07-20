@@ -485,7 +485,7 @@ export async function listBestSellingProducts(options?: {
     locale: resolvedLocale,
     currency: resolvedCurrency,
     country,
-    excludeProductIds: new Set(rankedProducts.map((product) => product.id)),
+    excludeProductIds: new Set(allRankedProductIds),
   });
 
   const products = [...rankedProducts, ...fallback.products].slice(0, limit);

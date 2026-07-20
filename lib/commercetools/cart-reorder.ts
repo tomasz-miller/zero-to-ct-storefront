@@ -45,7 +45,7 @@ export async function reorderOrder(orderId: string): Promise<ReorderResult> {
     }
 
     const availability = await getProductAvailabilityBySku(sku);
-    if (availability && availability.status === 'out_of_stock') {
+    if (!availability || availability.status === 'out_of_stock') {
       skipped += 1;
       continue;
     }
