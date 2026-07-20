@@ -1,5 +1,6 @@
 import Image from 'next/image';
 
+import { ReorderButton } from '@/components/account/reorder-button';
 import {
   Card,
   CardContent,
@@ -34,11 +35,14 @@ export function OrderDetail({ order }: OrderDetailProps) {
   return (
     <div className="flex flex-col gap-6">
       <Card>
-        <CardHeader>
-          <CardTitle>Order {orderLabel}</CardTitle>
-          <CardDescription>
-            Placed on {formatOrderDate(order.createdAt)}
-          </CardDescription>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-1.5">
+            <CardTitle>Order {orderLabel}</CardTitle>
+            <CardDescription>
+              Placed on {formatOrderDate(order.createdAt)}
+            </CardDescription>
+          </div>
+          <ReorderButton orderId={order.id} className="sm:items-end" />
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
           <div className="flex justify-between gap-4">

@@ -35,7 +35,7 @@ Demonstrates the core B2C path: discover → cart → checkout → order confirm
 
 1. Open the **homepage** (`/`).
 2. Open the **market switcher** in the header and change Germany (EUR) to United Kingdom (GBP). The page refreshes with country- and currency-specific prices. If the cart has items, confirm the switch — the German cart is saved and restored when you switch back.
-3. Point out the **Best Sellers** grid — live data from commercetools Product Projections (117 products in B2C sample data).
+3. Point out the **Best Sellers** grid — ranked from recent project Orders (units sold); if order volume is sparse, the grid fills from a catalog heuristic so demos always show products.
 4. Hover a product card and click **Quick view** — show the modal with image, price, stock badge, wishlist, add-to-cart, and **View full details** link to PDP.
 5. Use **search** (`/search`): type `bed` and watch **autocomplete suggestions** (Search Term Suggestions API).
 6. Submit search or pick a suggestion to open results.
@@ -105,7 +105,8 @@ Demonstrates customer auth, cart merge, and order history.
 3. **Add an address**, set default shipping, edit city, then delete.
 4. **Change password** — sign in again with the new password.
 5. Show **order history** table (includes Scenario A order if same session); open an order detail link when available.
-6. Sign out via the account menu.
+6. On the order detail page, click **Order again** — available line items are added to the cart in one request; you land on `/cart`.
+7. Sign out via the account menu.
 
 ---
 
@@ -176,14 +177,14 @@ Demonstrates Product Discounts on discovery and Cart Discount codes before check
 
 ## Known limitations (honest demo close)
 
-Refer to [ROADMAP.md](./ROADMAP.md) Phase 9+ for planned work:
+Refer to [ROADMAP.md](./ROADMAP.md) for remaining non-goals:
 
-- No **multi-country switcher** in UI (env-driven `DE` / `EUR` defaults)
-- **Best sellers** use a catalog heuristic (not real sales ranking)
+- **Best sellers** fall back to a catalog heuristic when recent Orders have little volume (demo projects often start sparse)
 - **Email verification** after email change (no ESP in PoC)
 - **Brand facet** only appears when `variants.attributes.brand` exists in the CT project
+- **Commerce MCP** shopping assistant is out of storefront scope (IDE/ops tooling, not shopper UX)
 
-These gaps are intentional PoC scope — the roadmap shows how to extend toward full B2C Retail parity.
+These gaps are intentional PoC scope — the roadmap shows how to extend further if needed.
 
 ---
 

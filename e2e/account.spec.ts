@@ -141,6 +141,25 @@ test.describe('Account flow', () => {
     await expect(page).toHaveURL(/\/account\/orders\//);
     await expect(page.getByRole('heading', { name: /^Order / })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Items' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Order again' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Back to account' })).toBeVisible();
+  });
+
+  test('reorders from order detail into the cart when account has orders', async ({
+    page,
+  }) => {
+    await registerAndOpenAccount(page);
+
+    const orderLink = page.locator('table a[href^="/account/orders/"]').first();
+    const hasOrders = await orderLink.isVisible().catch(() => false);
+
+    test.skip(!hasOrders, 'No orders on test account — reorder covered by unit tests');
+
+    await orderLink.click();
+    await page.getByRole('button', { name: 'Order again' }).click();
+
+    await expect(page).toHaveURL(/\/cart/);
+    await expect(page.getByRole('heading', { name: /cart/i })).toBeVisible();
+    await expect(page.locator('main')).not.toContainText('Your cart is empty');
   });
 });

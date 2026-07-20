@@ -2,9 +2,9 @@
 
 Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on commercetools sample data. Complements [BUILD_LOG.md](../BUILD_LOG.md) (history) and [AGENT_CODING.md](./AGENT_CODING.md) (phases 0–3).
 
-**Last updated:** 2026-07-16 (Phase 8 low-stock + Phase 10 BFF route tests)
+**Last updated:** 2026-07-20 (Phase 11 reorder + real bestsellers)
 
-**Live demo:** https://zero-to-ct-storefront.vercel.app/
+**Live demo:** https://zero-to-ct-storefront.vercel.app/ (Vercel auto-deploy)
 
 ---
 
@@ -15,7 +15,7 @@ Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on comm
 | Phase 0 — CT project setup | Done |
 | Phase 1 — Next.js scaffold | Done |
 | Phase 2 — Discovery, cart, checkout, auth | Done |
-| Phase 3 — Deploy, demo script, time report | **done** (Vercel production + smoke test) |
+| Phase 3 — Deploy, demo script, time report | **done** (Vercel production + auto-deploy) |
 | Phase 4 — Discovery completeness | **done** (category nav, CLP, listings, sort, pagination, facets, autocomplete) |
 | Phase 5 — Account and post-purchase | **done** (profile edit, address CRUD, change password) |
 | Phase 6 — Wishlist / Shopping Lists | **done** (heart icon, `/wishlist`, move to cart, guest merge on auth) |
@@ -23,9 +23,10 @@ Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on comm
 | Phase 8 — Inventory availability | **done** (stock + low-stock badges, block add-to-cart, BFF guard) |
 | Phase 4 — Quick View on listings | **done** (coss Dialog on `ProductCardCompact`) |
 | Phase 9 — Multi-market and i18n | **done** (DE/GB/US market switcher, scoped prices, checkout mapping) |
-| Phase 10 — Quality slice | **done** (correlation ID + BFF route unit tests; commerce-mcp future) |
+| Phase 10 — Quality slice | **done** (correlation ID + BFF route unit tests) |
+| Phase 11 — Reorder + real bestsellers | **done** (Order again + Orders-ranked Best Sellers) |
 
-The storefront covers the core B2C purchase path (browse → cart → checkout → account) and category-based discovery with sortable, paginated, faceted listings, search autocomplete, Quick View, wishlist, promotions, stock/low-stock availability, a mobile cart drawer, and a DE/GB/US market switcher.
+The storefront covers the core B2C purchase path (browse → cart → checkout → account) and category-based discovery with sortable, paginated, faceted listings, search autocomplete, Quick View, wishlist, promotions, stock/low-stock availability, a mobile cart drawer, a DE/GB/US market switcher, order reorder, and Orders-based bestsellers (with catalog fallback).
 
 ---
 
@@ -37,13 +38,14 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 - **TypeScript SDK v3** (`ClientBuilder`) in [`lib/commercetools/`](../lib/commercetools/)
 - **coss ui** + Tailwind v4, dark/light theme (`next-themes`)
 - **CI** (`.github/workflows/ci.yml`): `lint`, `typecheck`, `test:unit`, `build` (with GitHub secrets)
-- **320 unit tests** (Vitest) + **~35 E2E tests** (Playwright: discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market + API smoke, local with `CTP_*`)
+- **343 unit tests** (Vitest) + **~37 E2E tests** (Playwright: discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market + API smoke, local with `CTP_*`)
 
 ### Product discovery
 
 | Feature | Route / module | commercetools API |
 |---------|----------------|-------------------|
-| Homepage "Best Sellers" grid | `/` | Product Projections (catalog heuristic) |
+| Homepage "Best Sellers" grid | `/` | Orders volume ranking + Product Projections (catalog fallback) |
+| Order again (reorder) | `/account/orders/[id]`, `/account` | My Orders + Carts `addLineItem` batch |
 | Homepage "New Arrivals" grid | `/` | [Product Search](https://docs.commercetools.com/api/projects/product-search) (`categoriesSubTree`) |
 | Category navigation (nested menu) | header `CategoryNav` | [Categories API](https://docs.commercetools.com/api/projects/categories) |
 | Category Listing Page | `/category/[slug]` | Product Search (`categoriesSubTree`) + Product Projections |
@@ -60,7 +62,7 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 | Market switcher (DE/GB/US) | header `MarketSwitcher` | Cookie-backed context, price selection |
 | Custom not-found page | `app/not-found.tsx` | — |
 
-> Best sellers use a catalog heuristic (oldest products, excluding new-arrivals category) because the Orders API requires `view_orders` scope. Category listings use Product Search with `categoriesSubTree` and preserve search result order when fetching projections.
+> Best sellers rank product IDs by units sold across recent project Orders (`manage_orders` already grants Orders read). When order volume is sparse, the grid fills from a catalog heuristic (oldest non–new-arrival products). Category listings use Product Search with `categoriesSubTree` and preserve search result order when fetching projections.
 
 ### Cart and checkout
 
@@ -93,7 +95,7 @@ See [CUSTOMER_AUTH.md](./CUSTOMER_AUTH.md) for architecture and scopes.
 - Configurable store branding (`NEXT_PUBLIC_STORE_NAME`)
 - Catalog copy in `en-GB`; purchase defaults `en-GB` / `DE` / `EUR` (see `storefront-context.ts`)
 
-### BFF API endpoints (27 route files)
+### BFF API endpoints (28 route files)
 
 | Endpoint | Methods |
 |----------|---------|
@@ -105,6 +107,7 @@ See [CUSTOMER_AUTH.md](./CUSTOMER_AUTH.md) for architecture and scopes.
 | `/api/cart/items` | POST |
 | `/api/cart/items/[lineItemId]` | PATCH, DELETE |
 | `/api/cart/complete` | POST |
+| `/api/cart/reorder` | POST |
 | `/api/checkout/session` | POST |
 | `/api/checkout/default-address` | POST |
 | `/api/storefront/market` | POST |
@@ -179,7 +182,8 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 | Stock availability on PDP/PLP | **done** — badges + disabled add-to-cart |
 | Low-stock messaging | **done** — `Only X left` when `availableQuantity` ≤ 5 |
 | Mobile cart drawer | **done** — coss Sheet on `< md` |
-| Real bestseller ranking | Requires `view_orders` or external analytics |
+| Real bestseller ranking | **done** — Orders aggregation via `manage_orders` + catalog fallback |
+| Order again / reorder | **done** — `/api/cart/reorder` + Order detail / history CTA |
 
 ---
 
@@ -314,10 +318,26 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 | SDK middleware (correlation ID) | **done** | `withCorrelationIdMiddleware()` in `lib/commercetools/client.ts` |
 | E2E auth + account flows | **done** | Playwright `e2e/account.spec.ts` |
 | BFF API route unit tests | **done** | Auth, cart, checkout, customer, wishlist, discovery routes covered |
-| `commerce-mcp` integration | future | Live project API from agents |
-| Commerce MCP shopping assistant | future | Explicit non-goal for PoC |
+| `commerce-mcp` integration | out of storefront scope | IDE/ops tooling only — not a shopper feature |
+| Commerce MCP shopping assistant | non-goal | Explicitly out of PoC storefront scope |
 
 **Effort:** S–M | **Value:** Developer experience
+
+---
+
+### Phase 11 — Reorder and real bestsellers [P2]
+
+**Goal:** Close two remaining B2C demo gaps — repurchase from order history and Orders-based homepage ranking.
+
+| Feature | Status | CT API | Suggested files | Dependencies |
+|---------|--------|--------|-----------------|--------------|
+| Order again from order detail | **done** | `GET /me/orders/{id}` + Carts `addLineItem` batch | `lib/commercetools/cart-reorder.ts`, `/api/cart/reorder`, `reorder-button.tsx` | Customer session; skips missing SKU / OOS |
+| Order again from account history | **done** | same | `app/account/page.tsx` Actions column | Same BFF |
+| Real bestsellers from Orders | **done** | [Orders API](https://docs.commercetools.com/api/projects/orders.md) (`manage_orders`) | `bestsellers.ts`, `listBestSellingProducts` in `products.ts` | Catalog heuristic fallback when sparse |
+
+**Effort:** M | **Value:** Medium–High (demo differentiator)
+
+> `manage_orders` already grants Orders read — a separate `view_orders` scope is not required for this client.
 
 ---
 
@@ -345,8 +365,10 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 | Mobile cart drawer | P3 | S | **done** | coss Sheet |
 | Multi-market switcher | P4 | M | **done** | Price selection, Checkout Applications |
 | BFF route unit tests | — | M | **done** | Vitest route handlers |
-| Commerce MCP assistant | — | L | future | — |
-| Homepage bestsellers | — | — | **done** | Product Projections |
+| Order again / reorder | P2 | M | **done** | My Orders, Carts |
+| Real bestsellers (Orders) | P2 | M | **done** | Orders API (`manage_orders`) |
+| Commerce MCP assistant | — | L | out of scope | — |
+| Homepage bestsellers | — | — | **done** | Orders + Product Projections fallback |
 | Homepage new arrivals | — | — | **done** | Product Search |
 | Category navigation + CLP | — | — | **done** | Categories, Product Search |
 | Search / category sort + pagination | — | — | **done** | Product Search |
@@ -384,16 +406,19 @@ quadrantChart
 
 ### Recommended implementation order
 
-1. **Phase 3** — Demo readiness (P0) — **done** (production URL live)
+1. **Phase 3** — Demo readiness (P0) — **done** (production URL live; Vercel auto-deploy)
 2. **Phase 7** — Discount codes + promotion display + mobile drawer (P3) — **done**
 3. **Phase 8** — Inventory availability (P3) — **done** (incl. low-stock messaging)
 4. **Phase 4 slice 3** — Quick View on listings (P1) — **done**
 5. **Phase 10 slice 1** — Correlation ID middleware + checkout session route tests — **done**
 6. **Phase 9** — Multi-market (P4) — **done** (DE/GB/US switcher)
 7. **Phase 10 slice 2** — Remaining BFF route unit tests — **done**
-8. **commerce-mcp** — future (explicit non-goal for shopping assistant)
+8. **Phase 11** — Reorder + real bestsellers — **done**
+9. **commerce-mcp** — out of storefront scope (IDE/ops only; shopping assistant remains a non-goal)
 
-**Phase 10 slice 2 (done):** Unit tests for remaining BFF routes — cart GET/line-item PATCH+DELETE, auth register/session/logout/forgot/reset, customer addresses + orders, wishlist delete + move-to-cart; 320 unit tests total.
+**Phase 11 (done):** `reorderOrder` + `POST /api/cart/reorder` (batch add, skip missing SKU/OOS); Order again on `/account/orders/[id]` and account history; `listBestSellingProducts` ranks by recent Orders volume with catalog heuristic fallback; 343 unit tests; DEMO_SCRIPT sync.
+
+**Phase 10 slice 2 (done):** Unit tests for remaining BFF routes — cart GET/line-item PATCH+DELETE, auth register/session/logout/forgot/reset, customer addresses + orders, wishlist delete + move-to-cart.
 
 **Phase 8 low-stock (done):** `AvailabilityStatus` + `LOW_STOCK_THRESHOLD` (5) on `mapAvailability`; channel stock uses **min** on-stock quantity; `availableQuantity === 0` normalizes to out of stock; `ProductAvailability` shows `Only X left` / Low stock (warning) on PDP/PLP; ATC uses `status`; unit + E2E coverage.
 
@@ -427,7 +452,7 @@ The following remain **out of scope** for this PoC (see [AGENT_CODING.md](./AGEN
 - Production-grade caching or design system
 - Store-scoped customers (B2B)
 - Email verification (without ESP)
-- Commerce MCP shopping assistant (future phase)
+- Commerce MCP / shopping assistant (out of storefront scope — IDE/ops tooling only)
 
 ---
 

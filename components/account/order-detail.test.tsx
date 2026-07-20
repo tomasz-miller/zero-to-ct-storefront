@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { CartProvider } from '@/components/cart/cart-context';
 import type { StorefrontOrderDetail } from '@/lib/commercetools/customer-mappers';
 
 import { OrderDetail } from './order-detail';
@@ -48,11 +49,18 @@ const order: StorefrontOrderDetail = {
 
 describe('OrderDetail', () => {
   it('renders payment status and a customer-friendly provider label', () => {
-    render(<OrderDetail order={order} />);
+    render(
+      <CartProvider>
+        <OrderDetail order={order} />
+      </CartProvider>,
+    );
 
     expect(screen.getByText('Payment status')).toBeInTheDocument();
     expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
     expect(screen.getByText('Card via Stripe')).toBeInTheDocument();
     expect(screen.queryByText('checkout-stripe')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Order again' }),
+    ).toBeInTheDocument();
   });
 });
