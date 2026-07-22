@@ -2,7 +2,7 @@
 
 End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived from [BUILD_LOG.md](../BUILD_LOG.md) and **git commit timestamps**.
 
-> **Status:** Estimated from BUILD_LOG + user-reported time (through 2026-07-20). Refine with Clockify/WakaTime if available.
+> **Status:** Estimated from BUILD_LOG + user-reported time (through 2026-07-20). Cursor usage & cost section included.
 
 ---
 
@@ -67,6 +67,135 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | Current phase | PoC closed (docs closure) — storefront backlog complete through Phase 11 |
 | Developer profile | Backend-focused, agent-assisted (Cursor + commercetools AI plugin) |
 | Agent contribution | ~85–95% of storefront code; human owns CT project, Stripe/Connect, MC config |
+| Cursor overage (PoC window) | **$0** (all events `Included` / plan pools) |
+| Cursor list-price equivalent | **~$100** (Jul 8–16; see [Cursor usage & cost](#cursor-usage--cost)) |
+
+---
+
+## Cursor usage & cost
+
+| Rule | Value |
+|------|-------|
+| Source | Cursor Usage dashboard export |
+| Window | **2026-07-08 → 2026-07-16** (272 chargeable events) |
+| Pricing reference | [Cursor Models & Pricing](https://cursor.com/docs/models-and-pricing) |
+| Cash overage | **$0** — usage covered by plan pools (`Included`) |
+
+### Headline metrics (Jul 8–16)
+
+| Metric | Value |
+|--------|-------|
+| Chargeable events | 272 |
+| Total tokens | **254.7M** |
+| Cache read tokens | **235.3M** (~92% of total) |
+| Output tokens | **1.84M** |
+| Input (no cache write) | **15.3M** |
+| Input (cache write) | **2.3M** |
+| On-demand / overage $ | **$0.00** |
+| Est. list-price equivalent | **~$100.01** |
+
+List-price is a **manager-facing valuation** of included usage at published per-million rates. It is **not** an extra invoice line. Plan subscription (Pro / Pro+ / Ultra) is separate.
+
+### Estimated list-price by day
+
+| Date | Events | Total tokens | Est. list-price |
+|------|--------|--------------|-----------------|
+| 2026-07-08 | 24 | 14.3M | ~$5.66 |
+| 2026-07-09 | 16 | 21.4M | ~$7.27 |
+| 2026-07-10 | 40 | 29.8M | ~$10.57 |
+| 2026-07-13 | 40 | 33.7M | ~$13.21 |
+| 2026-07-14 | 63 | 61.5M | ~$26.33 |
+| 2026-07-15 | 58 | 38.0M | ~$16.10 |
+| 2026-07-16 | 34 | 56.6M | ~$20.87 |
+| **Jul 8–16** | **272*** | **254.7M** | **~$100.01** |
+| 2026-07-17 *(excluded)* | 41 | 17.1M | ~$11.27 |
+| Also recorded Jul 8–17 | 313* | 272.4M | ~$111.28 |
+
+\*Chargeable events only (excludes 3 errored, no-charge rows). Day rows above may include those errors in the event count.
+
+Peak agent day: **2026-07-14** (~$26 / 61.5M tokens), matching the heaviest delivery day in this report.
+
+```mermaid
+xychart-beta
+    title "Est. Cursor list-price by day (USD, Jul 8–16)"
+    x-axis [Jul8, Jul9, Jul10, Jul13, Jul14, Jul15, Jul16]
+    y-axis "USD" 0 --> 30
+    bar [5.66, 7.27, 10.57, 13.21, 26.33, 16.10, 20.87]
+```
+
+```mermaid
+xychart-beta
+    title "Total tokens by day (millions, Jul 8–16)"
+    x-axis [Jul8, Jul9, Jul10, Jul13, Jul14, Jul15, Jul16]
+    y-axis "M tokens" 0 --> 70
+    bar [14.3, 21.4, 29.8, 33.7, 61.5, 38.0, 56.6]
+```
+
+### By model (Jul 8–16 window + Jul 17 note)
+
+Model mix below covers all recorded events in the window (including Jul 17); Jul 8–16 totals are within ~10% of that set.
+
+| Model | Events | Total tokens | Est. list-price | Usage pool |
+|-------|--------|--------------|-----------------|------------|
+| `auto` | 208 | 183.8M | ~$66.71 | Auto Cost |
+| `gpt-5.6-terra-medium` | 11 | 41.3M | ~$14.87 | API |
+| `gpt-5.6-sol-medium` | 17 | 8.3M | ~$12.30 | API |
+| `cursor-grok-4.5-high-fast` | 40 | 16.4M | ~$11.45 | First-party |
+| `composer-2.5-fast` | 35 | 20.1M | ~$5.50 | First-party |
+| `composer-2.5` | 2 | 1.9M | ~$0.45 | First-party |
+| **Total** | **313*** | **272.4M** | **~$111.28** | |
+
+\*Excludes 3 `Errored, No Charge` rows from Sol.
+
+```mermaid
+pie title Est. list-price share by model (~$111)
+    "auto" : 66.71
+    "gpt-5.6-terra" : 14.87
+    "gpt-5.6-sol" : 12.30
+    "grok-4.5" : 11.45
+    "composer-2.5-fast" : 5.50
+    "composer-2.5" : 0.45
+```
+
+```mermaid
+pie title Est. list-price by Cursor usage pool
+    "Auto Cost" : 66.71
+    "API (GPT-5.6)" : 27.17
+    "First-party (Composer/Grok)" : 17.40
+```
+
+### Hours vs agent spend (same calendar days)
+
+Rough intensity check: net hours from this report vs estimated list-price for overlapping days.
+
+| Date | Net hours (this report) | Est. Cursor $ | $/hour (approx.) |
+|------|-------------------------|---------------|------------------|
+| 2026-07-08 | 7h | ~$5.66 | ~$0.81 |
+| 2026-07-09 | 7h | ~$7.27 | ~$1.04 |
+| 2026-07-10 | 4h | ~$10.57 | ~$2.64 |
+| 2026-07-13 | 3.5h | ~$13.21 | ~$3.77 |
+| 2026-07-14 | ~9.4h* | ~$26.33 | ~$2.80 |
+| 2026-07-15 | 1.5h | ~$16.10 | ~$10.73 |
+| 2026-07-16 | 7.5h | ~$20.87 | ~$2.78 |
+| 2026-07-20 | 2h | — (no metered events) | — |
+
+\*Jul 14 milestone rows sum above a single 7h day cap; treat as intense multi-slice day, not audited wall-clock.
+
+```mermaid
+xychart-beta
+    title "Est. Cursor $/hour by day (Jul 8–16)"
+    x-axis [Jul8, Jul9, Jul10, Jul13, Jul14, Jul15, Jul16]
+    y-axis "USD per hour" 0 --> 12
+    bar [0.81, 1.04, 2.64, 3.77, 2.80, 10.73, 2.78]
+```
+
+### Caveats (Cursor section)
+
+- **Not repo-scoped** — Cursor usage events have no workspace / GitHub project field; attribution is by PoC calendar days only.
+- **Jul 17 excluded from storefront total** — ~$11.27 / 17.1M tokens that day are not a TIME_REPORT work day (possible other-repo or unlogged work). Account total through Jul 17 ≈ **$111**.
+- **Jul 20 missing** — Phase 11 / docs (~2h) has no matching metered events in the recorded window (ends 2026-07-17).
+- **Included ≠ free forever** — $0 overage means usage sat inside plan pools; subscription fee still applies. Auto Cost and first-party pools are priced differently from API-pool models.
+- **List-price methodology** — `Input (w/o Cache Write)`, `Input (w/ Cache Write)`, `Cache Read`, and `Output Tokens` × published $/1M rates for `auto`, Composer 2.5, Grok 4.5, GPT-5.6 Terra, GPT-5.6 Sol.
 
 ---
 
@@ -190,3 +319,4 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 - [BUILD_LOG.md](../BUILD_LOG.md) — chronological dev log (source of truth)
 - [AGENT_CODING.md](./AGENT_CODING.md) — agent workflow and phase plan
 - [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) — sales demo scenarios
+- [Cursor Models & Pricing](https://cursor.com/docs/models-and-pricing) — rates used for list-price estimates in [Cursor usage & cost](#cursor-usage--cost)
