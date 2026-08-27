@@ -15,6 +15,13 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-08-27 — Mirror GitHub → Bitbucket Columbus
+- **Time:** 0.5h
+- **Phase:** phase-3-demo
+- **Milestone:** Private Bitbucket copy at `istonecrosscommerce/zero-to-ct-storefront`; GitHub stays source of truth. Added `.github/workflows/mirror-to-bitbucket.yml` (secret `BITBUCKET_MIRROR_TOKEN`).
+- **Agent vs manual:** ~80% agent / 20% manual (Bitbucket repos + GitHub secrets)
+- **Notes:** Portfolio remains public on GitHub. Company copy is private. Project assignment on Bitbucket can change later without affecting git URLs.
+
 ### 2026-07-20 — Dependabot: PostCSS XSS (GHSA-qx2v-qp2m-jg93)
 - **Time:** 0.25h
 - **Phase:** phase-3-demo
