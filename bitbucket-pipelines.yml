@@ -1,0 +1,23 @@
+image: node:24
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Lint, typecheck, unit tests, build
+          max-time: 15
+          caches:
+            - node
+          script:
+            - corepack enable
+            - corepack prepare pnpm@11.11.0 --activate
+            - pnpm install --frozen-lockfile
+            - pnpm lint
+            - pnpm typecheck
+            - pnpm test:unit
+            - export CTP_AUTH_URL=https://auth.europe-west1.gcp.commercetools.com
+            - export CTP_API_URL=https://api.europe-west1.gcp.commercetools.com
+            - export CTP_SESSION_URL=https://session.europe-west1.gcp.commercetools.com
+            - export NEXT_PUBLIC_CTP_PROJECT_KEY="$CTP_PROJECT_KEY"
+            - export NEXT_PUBLIC_CTP_REGION=europe-west1.gcp
+            - pnpm build

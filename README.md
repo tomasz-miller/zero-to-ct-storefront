@@ -45,11 +45,11 @@ Aligned with the [commercetools B2C Retail demo flow](https://docs.commercetools
 
 ### Related PoCs
 
-| Repo | Role |
-|------|------|
-| [commercetools-agentic-playbook](https://github.com/tomasz-miller/commercetools-agentic-playbook) | Capability map + recipes for CT AI tooling |
-| [ct-agentic-connect](https://github.com/tomasz-miller/ct-agentic-connect) | Connect service / Cart API Extension (optional on this Project) |
-| [commerce-ai-tool](https://github.com/tomasz-miller/commerce-ai-tool) | LLM voice / image / text product search widget |
+| Repo | Role | GitHub | Bitbucket |
+|------|------|--------|-----------|
+| commercetools-agentic-playbook | Capability map + recipes for CT AI tooling | [GitHub](https://github.com/tomasz-miller/commercetools-agentic-playbook) | [Bitbucket](https://bitbucket.org/istonecrosscommerce/commercetools-agentic-playbook) |
+| ct-agentic-connect | Connect service / Cart API Extension (optional on this Project) | [GitHub](https://github.com/tomasz-miller/ct-agentic-connect) | [Bitbucket](https://bitbucket.org/istonecrosscommerce/ct-agentic-connect) |
+| commerce-ai-tool | LLM voice / image / text product search widget | [GitHub](https://github.com/tomasz-miller/commerce-ai-tool) | [Bitbucket](https://bitbucket.org/istonecrosscommerce/commerce-ai-tool) |
 
 ## Documentation
 
@@ -93,6 +93,16 @@ pnpm lint && pnpm typecheck
 1. Install [commercetools AI plugin](https://github.com/commercetools/commercetools-ai-plugins) in Cursor
 2. Set up `.cursor/` — see [docs/CURSOR_SETUP.md](./docs/CURSOR_SETUP.md)
 3. Run `/nextjs-setup-project` (CT AI plugin) — **specify pnpm**
+
+## Hosting
+
+GitHub is the source of truth and public portfolio. Columbus keeps a private copy on Bitbucket; push day-to-day work to GitHub (`origin`). CI runs on GitHub Actions and, on `main`, as Bitbucket Pipelines.
+
+| | GitHub | Bitbucket |
+|--|--|--|
+| This repo | [tomasz-miller/zero-to-ct-storefront](https://github.com/tomasz-miller/zero-to-ct-storefront) | [istonecrosscommerce/zero-to-ct-storefront](https://bitbucket.org/istonecrosscommerce/zero-to-ct-storefront) |
+
+Bitbucket Pipelines must be **enabled** on the repository. Add secured Repository variables: `CTP_PROJECT_KEY`, `CTP_CLIENT_ID`, `CTP_CLIENT_SECRET`, `CTP_SCOPES` (same values as GitHub Actions secrets).
 
 ## License
 

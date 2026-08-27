@@ -15,6 +15,13 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-08-27 — Bitbucket Pipelines + dual-host links
+- **Time:** 0.5h
+- **Phase:** phase-3-demo
+- **Milestone:** `bitbucket-pipelines.yml` on `main` (same quality gates as GitHub Actions). README lists GitHub + Bitbucket URLs. Enable Pipelines and add `CTP_*` Repository variables on Bitbucket.
+- **Agent vs manual:** ~90% agent
+- **Notes:** GitHub remains source of truth. Playbook has no pipeline (docs-only).
+
 ### 2026-08-27 — Mirror GitHub → Bitbucket Columbus
 - **Time:** 0.5h
 - **Phase:** phase-3-demo
