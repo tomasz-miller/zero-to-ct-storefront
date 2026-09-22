@@ -69,7 +69,7 @@ Install on demand as features are built:
 | Product grid / PDP | `card`, `badge`, `skeleton`, `separator` |
 | Search | `input`, `input-group`, `button` |
 | Navigation | `breadcrumb`, `menu` |
-| Cart | `button`, `table` or `card`, `number-field`, `sheet` |
+| Cart / PDP quantity | `button`, `card`, `number-field`, `sheet` |
 | Filters (later) | `checkbox`, `select`, `accordion` |
 | Feedback | `toast`, `alert` |
 | Checkout embed wrapper | `frame`, `spinner` |

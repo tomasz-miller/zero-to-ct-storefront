@@ -15,6 +15,27 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-09-22 — Checkout embed width
+- **Time:** 0.3h
+- **Phase:** phase-3-demo
+- **Milestone:** Checkout page no longer places the embedded commercetools Checkout beside the order summary from `lg` up. That sidebar left the widget about 585px wide while its desktop skin (viewport ≥ 1024px) expects a 940px row, so address fields collided with the summary background. The widget now spans the content column, with padding inside the card on wide screens.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Narrow viewports keep the stacked Checkout layout. No BFF or Checkout Session change. DEMO_SCRIPT step 4, ROADMAP, and TIME_REPORT updated with this layout.
+
+### 2026-09-22 — PDP quantity stepper
+- **Time:** 0.5h
+- **Phase:** phase-3-demo
+- **Milestone:** `AddToCartButton` accepts opt-in `showQuantity` + `maxQuantity` and renders a coss `number-field` stepper next to the button; PDP single-variant block adds several units in one `POST /api/cart/items` call (BFF already accepted `quantity`). Stepper clamps to `availableQuantity` (ceiling 99) and disables with the button when out of stock. Installed `@coss/number-field`. Unit tests 351 → 358 (+7). Docs had still said 343 unit / ~37 E2E; README, ROADMAP, TIME_REPORT, and TESTING now say 358 unit + 41 E2E, and TESTING lists `market.spec.ts`.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Opt-in by design — PLP cards, Quick View, and the PDP variants list still add 1 unit. No BFF or CT API change. Included in the unreleased v0.1.0.
+
+### 2026-09-22 — Theme refresh + wishlist contrast (v0.1.0)
+- **Time:** 0.5h
+- **Phase:** phase-3-demo
+- **Milestone:** Light theme is now the default (`ThemeProvider defaultTheme="light"`); palette moved off pure white/near-black — warm off-white page background with pure-white product cards, dark mode on elevated slate charcoal instead of flat black. Wishlist heart on `ProductCardCompact` no longer disappears on pale product photos (frosted `bg-background/90` chip with soft shadow). README hero screenshot refreshed (`docs/homepage-best-sellers.png`). Version bumped `0.0.1` → `0.1.0`.
+- **Agent vs manual:** ~95% agent
+- **Notes:** First tracked version after the PoC closed at Phase 11 — visual-only change, no BFF or CT API surface touched. 351 unit tests green. Dark mode still reachable via the `D` hotkey; returning visitors may need to clear a stored `next-themes` preference. Old hero screenshot `docs/zero-to-ct-storefront.vercel.app_.png` is now unreferenced.
+
 ### 2026-08-27 — Bitbucket Pipelines + dual-host links
 - **Time:** 0.5h
 - **Phase:** phase-3-demo

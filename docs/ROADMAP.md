@@ -2,7 +2,7 @@
 
 Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on commercetools sample data. Complements [BUILD_LOG.md](../BUILD_LOG.md) (history) and [AGENT_CODING.md](./AGENT_CODING.md) (phases 0–3).
 
-**Last updated:** 2026-07-20 (PoC docs closure — auto-deploy + Commerce MCP out of storefront scope)
+**Last updated:** 2026-09-22 (v0.1.0 light theme, PDP quantity stepper, checkout embed width, test counts)
 
 **Live demo:** https://zero-to-ct-storefront.vercel.app/ (Vercel auto-deploy)
 
@@ -36,9 +36,9 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 
 - **Next.js 16** App Router with **BFF** (`/app/api/*`) — commercetools credentials stay server-side
 - **TypeScript SDK v3** (`ClientBuilder`) in [`lib/commercetools/`](../lib/commercetools/)
-- **coss ui** + Tailwind v4, dark/light theme (`next-themes`)
+- **coss ui** + Tailwind v4, light theme by default (`next-themes`; dark still available)
 - **CI** (`.github/workflows/ci.yml`): `lint`, `typecheck`, `test:unit`, `build` (with GitHub secrets)
-- **343 unit tests** (Vitest) + **~37 E2E tests** (Playwright: discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market + API smoke, local with `CTP_*`)
+- **358 unit tests** (Vitest) + **41 E2E tests** (Playwright: discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market + API smoke, local with `CTP_*`)
 
 ### Product discovery
 
@@ -69,7 +69,8 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 | Feature | Route / module | commercetools API |
 |---------|----------------|-------------------|
 | Guest cart (create, read, update, delete items) | `/cart`, `/api/cart/*` | [Carts API](https://docs.commercetools.com/api/projects/carts) |
-| Checkout embed | `/checkout` | [Checkout Session API](https://docs.commercetools.com/checkout/overview) + Browser SDK |
+| PDP quantity stepper (add several units at once) | `AddToCartButton` (`showQuantity`), coss `number-field` | `addLineItem` with `quantity`, clamped to `availableQuantity` |
+| Checkout embed | `/checkout` | [Checkout Session API](https://docs.commercetools.com/checkout/overview) + Browser SDK. Full content width — the desktop skin is a 940px row and must not sit in a sidebar |
 | Signed-in default address shortcut | `/checkout` | Customer addresses copied to Cart through `/api/checkout/default-address` |
 | Order confirmation | `/order-confirmation` | — |
 | Stripe payments | via CT Connect | Payment Integrations (MC) |
@@ -419,7 +420,9 @@ quadrantChart
 
 **PoC docs closure (done):** [DEPLOY.md](./DEPLOY.md) documents Vercel auto-deploy from `main`; DEMO_SCRIPT talking points cover multi-market, bestsellers, and Order again; AGENT_CODING points to Phases 4–11 complete; Commerce MCP remains out of storefront scope.
 
-**Phase 11 (done):** `reorderOrder` + `POST /api/cart/reorder` (batch add, skip missing SKU/OOS); Order again on `/account/orders/[id]` and account history; `listBestSellingProducts` ranks by recent Orders volume with catalog heuristic fallback; 343 unit tests; DEMO_SCRIPT sync.
+**Phase 11 (done):** `reorderOrder` + `POST /api/cart/reorder` (batch add, skip missing SKU/OOS); Order again on `/account/orders/[id]` and account history; `listBestSellingProducts` ranks by recent Orders volume with catalog heuristic fallback; 343 unit tests at close; DEMO_SCRIPT sync.
+
+**v0.1.0 follow-up (2026-09-22):** Light theme is the default (warm off-white, dark mode kept). Single-variant PDP can add more than one unit via a `number-field` stepper. The Checkout embed spans the content column so its 940px desktop skin is not squeezed beside the storefront order summary. 358 unit tests, 41 E2E tests.
 
 **Phase 10 slice 2 (done):** Unit tests for remaining BFF routes — cart GET/line-item PATCH+DELETE, auth register/session/logout/forgot/reset, customer addresses + orders, wishlist delete + move-to-cart.
 

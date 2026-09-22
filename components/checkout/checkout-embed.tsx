@@ -212,7 +212,7 @@ export function CheckoutEmbed({
       <div
         key={checkoutMountKey}
         data-ctc
-        className="min-h-[480px] rounded-xl border"
+        className="min-h-[480px] overflow-hidden rounded-xl border bg-card lg:px-6 lg:py-5"
       />
     </div>
   );

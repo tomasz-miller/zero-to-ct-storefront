@@ -6,7 +6,7 @@ A minimal B2C storefront on [commercetools](https://commercetools.com) Composabl
 
 **https://zero-to-ct-storefront.vercel.app/**
 
-[![Homepage — Best Sellers grid with wishlist and cart](./docs/zero-to-ct-storefront.vercel.app_.png)](https://zero-to-ct-storefront.vercel.app/)
+[![Homepage — Best Sellers grid with wishlist hearts, market switcher, and cart](./docs/homepage-best-sellers.png)](https://zero-to-ct-storefront.vercel.app/)
 
 ## Status
 
@@ -14,7 +14,7 @@ A minimal B2C storefront on [commercetools](https://commercetools.com) Composabl
 
 Aligned with the [commercetools B2C Retail demo flow](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail) for discovery, account, and checkout. Phase history: [docs/ROADMAP.md](./docs/ROADMAP.md). Sales script: [docs/DEMO_SCRIPT.md](./docs/DEMO_SCRIPT.md).
 
-**Talking point:** ~2 calendar weeks / ~42h net to a live B2C PoC.
+**Talking point:** ~2 calendar weeks / ~42h net to a live B2C PoC. v0.1.0 follow-ups (light theme, PDP quantity stepper, checkout layout) are logged on top of that in [TIME_REPORT.md](./docs/TIME_REPORT.md) (**44.72h** cumulative).
 
 ## Project summary
 
@@ -22,14 +22,15 @@ Aligned with the [commercetools B2C Retail demo flow](https://docs.commercetools
 |--|--|
 | **Goal** | Agent-assisted B2C PoC on CT sample data, delivered by a backend-focused developer |
 | **Calendar** | ~2 weeks (2026-07-08 → 2026-07-20, 8 working days) |
-| **Net effort** | **~42h** ([TIME_REPORT.md](./docs/TIME_REPORT.md)) |
+| **Net effort** | **~42h** PoC, **44.72h** cumulative ([TIME_REPORT.md](./docs/TIME_REPORT.md)) |
 | **Agent share** | ~85–95% of storefront code; human owns CT project, Stripe/Connect, Merchant Center |
 | **Architecture** | Next.js App Router BFF (`/app/api/*`) — CT credentials stay server-side |
-| **Quality** | ~343 unit tests + ~37 E2E tests; CI (`lint`, `typecheck`, `test:unit`, `build`) |
+| **Quality** | 358 unit tests + 41 E2E tests; CI (`lint`, `typecheck`, `test:unit`, `build`) |
 
 ### What shipped
 
-- **Purchase path** — browse → cart → commercetools Checkout + Stripe → order confirmation → account
+- **Purchase path** — browse → cart → commercetools Checkout + Stripe → order confirmation → account. v0.1.0 adds a PDP quantity stepper and gives the Checkout embed the full content width
+- **Theme** — light by default (warm off-white); dark mode still available
 - **Discovery** — category nav + CLP, full-text search, facets, sort, pagination, autocomplete, Quick View, New Arrivals, Orders-ranked Best Sellers (catalog fallback)
 - **Account** — register/login, cart merge, profile, addresses, password, order history + detail, Order again
 - **Wishlist** — Shopping Lists, heart icon, move to cart, guest merge on auth

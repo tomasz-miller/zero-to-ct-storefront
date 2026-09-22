@@ -46,7 +46,7 @@ Demonstrates the core B2C path: discover → cart → checkout → order confirm
 
 ### 2. Add to cart
 
-1. On the **Product Detail Page**, select a variant if multiple exist.
+1. On the **Product Detail Page**, select a variant if multiple exist. On a single-variant product, set the quantity with the stepper first.
 2. Click **Add to cart**.
 3. Show the **cart badge** updating in the header.
 
@@ -60,7 +60,7 @@ Demonstrates the core B2C path: discover → cart → checkout → order confirm
 
 The Checkout Browser SDK embed loads on `/checkout`.
 
-1. Show the **order summary** (left) and **Checkout embed** (right).
+1. Show the **order summary** card, then the **Checkout embed** on the full content width (address form and Checkout's own summary side by side).
 2. Enter a **shipping address** (Germany / `DE` matches default checkout app).
 3. Select a **shipping method**.
 4. **Manual step — Stripe test card:**

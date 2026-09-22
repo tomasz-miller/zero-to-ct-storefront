@@ -2,7 +2,7 @@
 
 End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived from [BUILD_LOG.md](../BUILD_LOG.md) and **git commit timestamps**.
 
-> **Status:** Estimated from BUILD_LOG + user-reported time (through 2026-07-20). Cursor usage & cost section included.
+> **Status:** PoC window estimated from BUILD_LOG + user-reported time (through 2026-07-20, **42.42h**). Post-PoC follow-ups (2026-08-27, 2026-09-22) add **2.3h**. Cursor usage & cost covers the PoC window only.
 
 ---
 
@@ -54,7 +54,10 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 | 2026-07-16 | Phase 8 low-stock + Phase 10 BFF route tests | **1h** |
 | 2026-07-20 | Phase 11 — reorder + real bestsellers (Orders ranking, BFF, UI, tests, docs) | **1.75h** |
 | 2026-07-20 | PoC documentation closure — auto-deploy docs, DEMO_SCRIPT talking points, ROADMAP/TIME_REPORT sync | **0.25h** |
-| **Total** | | **42.42h** |
+| **PoC total** | 2026-07-08 → 2026-07-20 | **42.42h** |
+| 2026-08-27 | Bitbucket mirror + Pipelines (BUILD_LOG; already on `main`) | **1h** |
+| 2026-09-22 | v0.1.0 — light theme, PDP quantity stepper, checkout embed width | **1.3h** |
+| **Cumulative** | PoC 42.42h + follow-up 2.3h | **44.72h** |
 
 ---
 
@@ -62,9 +65,9 @@ End-of-project time summary for **zero-to-ct-storefront** sales demos. Derived f
 
 | Metric | Value |
 |--------|-------|
-| Project duration | 8 working days (2026-07-08 → 2026-07-20) |
-| Total estimated time | **42.42h** net |
-| Current phase | PoC closed (docs closure) — storefront backlog complete through Phase 11 |
+| Project duration | PoC: 8 working days (2026-07-08 → 2026-07-20). Follow-ups: 2026-08-27, 2026-09-22 |
+| Total estimated time | **42.42h** PoC + **2.3h** follow-up = **44.72h** net |
+| Current phase | PoC closed through Phase 11. v0.1.0 follow-up: light theme, PDP quantity stepper, full-width checkout embed |
 | Developer profile | Backend-focused, agent-assisted (Cursor + commercetools AI plugin) |
 | Agent contribution | ~85–95% of storefront code; human owns CT project, Stripe/Connect, MC config |
 | Cursor overage (PoC window) | **$0** (all events `Included` / plan pools) |
@@ -236,7 +239,12 @@ xychart-beta
 | phase-10-quality | 2026-07-16 | BFF route unit tests (auth, cart, customer, wishlist) — 320 unit tests total | ~95% agent | 0.6h |
 | phase-11-post-purchase | 2026-07-20 | Reorder + real bestsellers — Orders ranking, `/api/cart/reorder`, UI, 343 unit tests, docs | ~95% agent | 1.75h |
 | phase-3-demo | 2026-07-20 | PoC documentation closure — auto-deploy confirmed, Commerce MCP out of storefront scope, doc drift fixed | ~95% agent | 0.25h |
-| **Total** | | | ~80% agent / ~20% manual | **42.42h** |
+| **PoC total** | | | ~80% agent / ~20% manual | **42.42h** |
+| phase-3-demo | 2026-08-27 | Private Bitbucket mirror + Pipelines on `main` | ~85% agent | 1h |
+| phase-3-demo | 2026-09-22 | v0.1.0 light theme (default) + wishlist contrast; README hero screenshot | ~95% agent | 0.5h |
+| phase-3-demo | 2026-09-22 | PDP quantity stepper (`number-field`); 358 unit tests | ~95% agent | 0.5h |
+| phase-3-demo | 2026-09-22 | Checkout embed full content width so the 940px desktop skin is not squeezed | ~95% agent | 0.3h |
+| **Cumulative** | | | | **44.72h** |
 
 ---
 
@@ -256,7 +264,9 @@ xychart-beta
 | phase-9-multi-market | 6.5h | 15% |
 | phase-10-quality | 1.1h | 3% |
 | phase-11-post-purchase | 1.75h | 4% |
-| **Total** | **42.42h** | 100% |
+| **PoC total** | **42.42h** | 100% |
+
+Post-PoC `phase-3-demo` follow-ups (Bitbucket 1h + v0.1.0 1.3h) are **not** inside the table above. Cumulative effort is **44.72h**.
 
 ---
 
@@ -284,7 +294,7 @@ xychart-beta
 | Per-market cart persistence (park/restore via `ct_market_carts`) | Done |
 | Order again / reorder from account order history | Done |
 | Real bestsellers from Orders API (catalog fallback) | Done |
-| Unit tests (CI) — 343 tests | Done |
+| Unit tests (CI) — 358 tests | Done |
 | E2E discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market (local) | Done |
 | SDK correlation ID middleware | Done |
 | BFF API route unit tests (auth/cart/customer/wishlist) | Done |
@@ -292,6 +302,10 @@ xychart-beta
 | Product roadmap | Done — [ROADMAP.md](./ROADMAP.md) |
 | Deploy to Vercel/Netlify | Done — https://zero-to-ct-storefront.vercel.app (auto-deploy from `main`; [DEPLOY.md](./DEPLOY.md)) |
 | PoC documentation closure (option A) | Done — deploy/docs drift cleared; Commerce MCP out of storefront scope |
+| Light theme default + wishlist contrast on product photos (v0.1.0) | Done |
+| PDP quantity stepper (single-variant PDP) | Done |
+| Checkout embed full content width (desktop skin) | Done |
+| Bitbucket mirror + Pipelines | Done |
 | This time report | Estimated from commits |
 
 ---
@@ -304,6 +318,8 @@ xychart-beta
 - **2026-07-14** includes 0.25h checkout cart-session cleanup, 1.5h Phase 5 slice 2, 40min account UX polish, 1.5h Phase 6 wishlist, 0.5h Vercel production deploy, 1.5h Phase 7 promotions core, 1h Phase 7 mobile cart drawer, 1.5h Phase 8 inventory availability, and 1.5h Phase 4 Quick View + Phase 10 quality slice (correlation ID, checkout session tests). Subsequent releases ship via Vercel auto-deploy from `main` (see [DEPLOY.md](./DEPLOY.md)).
 - **2026-07-20** includes 1.75h Phase 11 (reorder + bestsellers) and 0.25h PoC documentation closure.
 - **2026-07-15** has no git commits yet; 1h is user-reported for checkout payment status visibility and follow-up code review fixes; see BUILD_LOG.
+- **2026-08-27** is 1h from BUILD_LOG (0.5h mirror + 0.5h Pipelines). Those commits were already on `main`; this report picked them up with the v0.1.0 sync.
+- **2026-09-22** is 1.3h from BUILD_LOG (0.5h theme, 0.5h PDP quantity stepper, 0.3h checkout embed width). Not in the Cursor usage window above.
 - Milestone split within a day is approximate; use Clockify/WakaTime for audit-grade numbers.
 
 ### How to refine

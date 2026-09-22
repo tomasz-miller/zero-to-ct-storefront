@@ -63,6 +63,9 @@ export function WishlistButton({
   }
 
   const label = saved ? 'Saved to wishlist' : 'Save to wishlist';
+  // Icon-only overlays sit on product photos; a light chip + soft shadow stays
+  // readable on pale images without a heavy secondary fill.
+  const overlayIcon = !showLabel;
 
   return (
     <div className={cn('flex flex-col gap-1', className)}>
@@ -74,13 +77,16 @@ export function WishlistButton({
         aria-label={label}
         aria-pressed={saved}
         onClick={handleClick}
-        className={showLabel ? 'w-full sm:w-auto' : undefined}
+        className={cn(
+          showLabel && 'w-full sm:w-auto',
+          overlayIcon && 'border-border bg-background/90 shadow-sm backdrop-blur-sm',
+        )}
       >
         {isLoading ? (
           <Spinner className="size-4" />
         ) : (
           <Heart
-            className={cn('size-4', saved ? 'fill-current text-primary' : 'opacity-80')}
+            className={cn('size-4', saved && 'fill-current text-primary')}
             aria-hidden
           />
         )}

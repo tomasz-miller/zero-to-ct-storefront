@@ -153,6 +153,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
                     disabled={!defaultSku}
                     outOfStock={isAvailabilityOutOfStock(product.availability)}
                     fullWidthOnMobile
+                    showQuantity
+                    maxQuantity={product.availability.availableQuantity}
                   />
                   <WishlistButton
                     sku={defaultSku ?? ''}

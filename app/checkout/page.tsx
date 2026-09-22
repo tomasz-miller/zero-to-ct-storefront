@@ -56,8 +56,11 @@ export default async function CheckoutPage() {
   }
 
   return (
-    <main className="mx-auto grid max-w-6xl gap-8 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-      <section className="flex flex-col gap-4">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10">
+      {/* Checkout's desktop skin is a 940px row with its own summary column.
+          A page sidebar squeezes that row below its minimum and the address
+          fields collide with the summary background. */}
+      <section className="flex w-full max-w-lg flex-col gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Checkout</h1>
           <p className="text-sm text-muted-foreground">
