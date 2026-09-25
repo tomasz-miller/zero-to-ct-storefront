@@ -30,6 +30,37 @@ describe('mapCart', () => {
     });
   });
 
+  it('uses the gross total when tax is added on top of the price', () => {
+    const cart = createCartFixture({
+      taxedPrice: {
+        totalNet: {
+          type: 'centPrecision',
+          currencyCode: 'EUR',
+          centAmount: 6799,
+          fractionDigits: 2,
+        },
+        totalGross: {
+          type: 'centPrecision',
+          currencyCode: 'EUR',
+          centAmount: 8091,
+          fractionDigits: 2,
+        },
+        taxPortions: [],
+        totalTax: {
+          type: 'centPrecision',
+          currencyCode: 'EUR',
+          centAmount: 1292,
+          fractionDigits: 2,
+        },
+      },
+    });
+
+    expect(mapCart(cart, 'en-GB').total).toEqual({
+      centAmount: 8091,
+      currencyCode: 'EUR',
+    });
+  });
+
   it('maps discounted unit prices on line items', () => {
     const cart = createCartFixture({
       lineItems: [

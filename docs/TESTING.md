@@ -82,7 +82,7 @@ pnpm lint && pnpm typecheck && pnpm test:unit
 | `market.spec.ts` | DE/GB/US switcher with contextual prices, cart park/restore on market switch |
 | `api.spec.ts` | `GET /api/health`, `GET /api/categories` |
 
-**E2E boundaries:** Tests verify cart and checkout **session load** (order summary + `[data-ctc]` embed container). **Full Stripe payment** is not automated — the Checkout Browser SDK iframe is flaky in CI and requires manual card entry. Use [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) for payment demo steps.
+**E2E boundaries:** Tests verify cart and checkout **session load** (order summary + `[data-ctc]` embed container). With `CTP_MOCK_PAYMENTS=true`, the checkout spec expects the demo payment form (`[data-mock-checkout]`) instead of the embed. **Full Stripe payment** is not automated — the Checkout Browser SDK iframe is flaky in CI and requires manual card entry. Use [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) for payment demo steps.
 
 **webServer:** Playwright runs `pnpm build && pnpm start` on port 3000 (reuses an existing server locally when available).
 

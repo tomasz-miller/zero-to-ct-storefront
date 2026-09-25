@@ -17,6 +17,8 @@ Checkout involves **two separate configurations** that must not be mixed up:
 
 The Next.js app never talks to Stripe directly. The BFF creates Checkout sessions; the **Stripe Connect app** (processor + enabler) handles Payment Intents and webhooks.
 
+Set `CTP_MOCK_PAYMENTS=true` to skip this path. Checkout then collects email, address, and a matching shipping method in the storefront. Choosing a method applies it to the cart and shows the payable amount (gross when tax is exclusive) before Pay. Pay waits two seconds, then creates the Order with a successful `Charge` on a Payment whose `paymentInterface` is `mock`. Leave the variable unset to keep Stripe. The mock routes return 404 when the flag is off.
+
 ```
 Browser → BFF (/api/checkout/*) → Checkout Session API
                 ↓
@@ -354,6 +356,15 @@ view_categories:{projectKey}
 ```
 
 Guest cart uses server-side Cart API with `anonymousId` (requires `manage_orders`, not only `manage_my_orders`).
+
+Mock payments (`CTP_MOCK_PAYMENTS=true`) also need:
+
+```
+manage_payments:{projectKey}
+view_shipping_methods:{projectKey}
+```
+
+API client scopes are immutable. A client created without those two scopes cannot be updated; create a new client and point `CTP_CLIENT_ID` / `CTP_CLIENT_SECRET` / `CTP_SCOPES` at it. The target project must have a tax rate for the active market country (`DE`, `GB`, or `US`). Zone-based shipping methods are listed from `shipping-methods/matching-cart`. `CartClassification` and `CartScore` shipping rate inputs are not supported. A project Extension that rejects an unknown `paymentInterface` can still block the mock Payment.
 
 ```bash
 CTP_SESSION_URL=https://session.europe-west1.gcp.commercetools.com

@@ -39,6 +39,7 @@ async function getProductSkuWithStock(
 }
 
 test.describe('Cart and checkout flow', () => {
+  const mockPaymentsEnabled = process.env.CTP_MOCK_PAYMENTS === 'true';
   test('add to cart from homepage updates cart badge', async ({ page }) => {
     await page.goto('/');
 
@@ -96,6 +97,14 @@ test.describe('Cart and checkout flow', () => {
     await expect(page).toHaveURL(/\/checkout/);
     await expect(page.getByRole('heading', { name: 'Checkout' })).toBeVisible();
     await expect(page.getByText('Order summary')).toBeVisible();
+
+    if (mockPaymentsEnabled) {
+      await expect(page.getByRole('heading', { name: 'Demo payment' })).toBeVisible();
+      await expect(page.locator('[data-mock-checkout]')).toBeVisible();
+      await expect(page.locator('[data-ctc]')).toHaveCount(0);
+      return;
+    }
+
     await expect(page.locator('[data-ctc]')).toBeVisible({ timeout: 30_000 });
     await expect(
       page.getByText(/no_payment_integrations|error_loading_all_payment_integrations/i),
@@ -166,6 +175,14 @@ test.describe('Cart and checkout flow', () => {
     });
 
     await page.goto('/checkout');
+
+    if (mockPaymentsEnabled) {
+      await expect(page.locator('[data-mock-checkout]')).toBeVisible();
+      await expect(page.getByLabel('Email')).toHaveValue(email);
+      await expect(page.getByLabel('Street')).toHaveValue('Checkout Street');
+      return;
+    }
+
     await expect(
       page.getByRole('button', { name: 'Use my default address' }),
     ).toBeVisible({ timeout: 15_000 });

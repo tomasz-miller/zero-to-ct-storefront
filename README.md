@@ -25,7 +25,7 @@ Aligned with the [commercetools B2C Retail demo flow](https://docs.commercetools
 | **Net effort** | **~42h** PoC, **44.72h** cumulative ([TIME_REPORT.md](./docs/TIME_REPORT.md)) |
 | **Agent share** | ~85–95% of storefront code; human owns CT project, Stripe/Connect, Merchant Center |
 | **Architecture** | Next.js App Router BFF (`/app/api/*`) — CT credentials stay server-side |
-| **Quality** | 358 unit tests + 41 E2E tests; CI (`lint`, `typecheck`, `test:unit`, `build`) |
+| **Quality** | 387 unit tests + 41 E2E tests; CI (`lint`, `typecheck`, `test:unit`, `build`) |
 
 ### What shipped
 
@@ -94,6 +94,23 @@ pnpm lint && pnpm typecheck
 1. Install [commercetools AI plugin](https://github.com/commercetools/commercetools-ai-plugins) in Cursor
 2. Set up `.cursor/` — see [docs/CURSOR_SETUP.md](./docs/CURSOR_SETUP.md)
 3. Run `/nextjs-setup-project` (CT AI plugin) — **specify pnpm**
+
+## Mock payments
+
+Leave `CTP_MOCK_PAYMENTS` unset to keep commercetools Checkout and Stripe. Set `CTP_MOCK_PAYMENTS=true` to skip that path and place the Order from the storefront: the BFF lists matching shipping methods, waits two seconds, then creates a Payment with a successful Charge (`paymentInterface: mock`).
+
+The storefront API client used for Stripe does **not** create Payments. Checkout and the Stripe connector do, and `manage_payments` stays on the connector client. See [docs/CHECKOUT.md](./docs/CHECKOUT.md).
+
+Mock payments extend that same storefront client with two extra scopes, because the BFF calls the general Payments API and the matching-shipping-methods endpoint itself:
+
+```
+manage_payments:{projectKey}
+view_shipping_methods:{projectKey}
+```
+
+`manage_my_payments` is not a substitute. It only authorizes `/me/payments` with a customer or anonymous-session token. This BFF uses client credentials against `POST /{projectKey}/payments`, which requires `manage_payments`.
+
+Scopes are immutable. A client created for Stripe checkout cannot gain these two later; create a new client and update `CTP_CLIENT_ID`, `CTP_CLIENT_SECRET`, and `CTP_SCOPES`. The full list is in `.env.example`.
 
 ## Hosting
 

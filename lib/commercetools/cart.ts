@@ -864,6 +864,20 @@ export async function removeDiscountCode(
   }
 }
 
+export async function requireActiveCart(): Promise<Cart> {
+  const { cart } = await loadResolvedCartIfSessionExists();
+
+  if (cart.lineItems.length === 0) {
+    throw new CartNotFoundError('Cart is empty');
+  }
+
+  if (cart.cartState !== 'Active') {
+    throw new CartNotFoundError('Cart is not active');
+  }
+
+  return cart;
+}
+
 export async function getCartForCheckout(): Promise<{
   cart: StorefrontCart;
   anonymousId: string;
