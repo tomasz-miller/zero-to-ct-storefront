@@ -16,11 +16,11 @@ import {
 import { clearCartSession } from './cart-session';
 import { pickLocalized } from './product-mappers';
 import { getStorefrontContext } from './storefront-context';
+import { isValidEmail } from '@/lib/auth-validation';
 
 export const MOCK_PAYMENT_DELAY_MS = 2000;
 export const MOCK_PAYMENT_INTERFACE = 'mock';
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CART_EXPAND = ['paymentInfo.payments[*]'] as const;
 
 export class MockPaymentsDisabledError extends Error {
@@ -205,7 +205,7 @@ function delay(ms: number): Promise<void> {
 
 function parseAddress(input: MockCheckoutAddressInput): MockCheckoutAddress {
   const email = requiredText(input.email, 'Email');
-  if (!EMAIL_PATTERN.test(email)) {
+  if (!isValidEmail(email)) {
     throw new MockCheckoutError('Enter a valid email');
   }
 
