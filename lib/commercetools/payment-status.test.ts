@@ -157,6 +157,10 @@ describe('formatPaymentProvider', () => {
     expect(formatPaymentProvider('checkout-stripe')).toBe('Card via Stripe');
   });
 
+  it('maps the mock payment interface to Demo payment', () => {
+    expect(formatPaymentProvider('mock')).toBe('Demo payment');
+  });
+
   it('returns the raw interface for unknown providers', () => {
     expect(formatPaymentProvider('custom-psp')).toBe('custom-psp');
   });

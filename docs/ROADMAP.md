@@ -38,7 +38,7 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 - **TypeScript SDK v3** (`ClientBuilder`) in [`lib/commercetools/`](../lib/commercetools/)
 - **coss ui** + Tailwind v4, light theme by default (`next-themes`; dark still available)
 - **CI** (`.github/workflows/ci.yml`): `lint`, `typecheck`, `test:unit`, `build` (with GitHub secrets)
-- **358 unit tests** (Vitest) + **41 E2E tests** (Playwright: discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market + API smoke, local with `CTP_*`)
+- **387 unit tests** (Vitest) + **41 E2E tests** (Playwright: discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market + API smoke, local with `CTP_*`)
 
 ### Product discovery
 
@@ -70,7 +70,8 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 |---------|----------------|-------------------|
 | Guest cart (create, read, update, delete items) | `/cart`, `/api/cart/*` | [Carts API](https://docs.commercetools.com/api/projects/carts) |
 | PDP quantity stepper (add several units at once) | `AddToCartButton` (`showQuantity`), coss `number-field` | `addLineItem` with `quantity`, clamped to `availableQuantity` |
-| Checkout embed | `/checkout` | [Checkout Session API](https://docs.commercetools.com/checkout/overview) + Browser SDK. Full content width — the desktop skin is a 940px row and must not sit in a sidebar |
+| Checkout embed | `/checkout` | [Checkout Session API](https://docs.commercetools.com/checkout/overview) + Browser SDK when `CTP_MOCK_PAYMENTS` is unset. Full content width — the desktop skin is a 940px row and must not sit in a sidebar |
+| Mock payment | `/checkout`, `/api/checkout/mock-prepare`, `/api/checkout/mock-shipping`, `/api/checkout/mock-pay` | `CTP_MOCK_PAYMENTS=true` skips Checkout. Shipping is applied when selected so the summary matches the charge. BFF waits 2s, then `Payment` `Charge` `Success` (`paymentInterface: mock`) and Order `paymentState: Paid` |
 | Signed-in default address shortcut | `/checkout` | Customer addresses copied to Cart through `/api/checkout/default-address` |
 | Order confirmation | `/order-confirmation` | — |
 | Stripe payments | via CT Connect | Payment Integrations (MC) |
@@ -96,7 +97,7 @@ See [CUSTOMER_AUTH.md](./CUSTOMER_AUTH.md) for architecture and scopes.
 - Configurable store branding (`NEXT_PUBLIC_STORE_NAME`)
 - Catalog copy in `en-GB`; purchase defaults `en-GB` / `DE` / `EUR` (see `storefront-context.ts`)
 
-### BFF API endpoints (28 route files)
+### BFF API endpoints (31 route files)
 
 | Endpoint | Methods |
 |----------|---------|
@@ -111,6 +112,9 @@ See [CUSTOMER_AUTH.md](./CUSTOMER_AUTH.md) for architecture and scopes.
 | `/api/cart/reorder` | POST |
 | `/api/checkout/session` | POST |
 | `/api/checkout/default-address` | POST |
+| `/api/checkout/mock-prepare` | POST |
+| `/api/checkout/mock-shipping` | POST |
+| `/api/checkout/mock-pay` | POST |
 | `/api/storefront/market` | POST |
 | `/api/auth/login` | POST |
 | `/api/auth/register` | POST |

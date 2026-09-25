@@ -15,6 +15,20 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-09-25 — Mock checkout amount before pay
+- **Time:** 1h
+- **Phase:** phase-3-demo
+- **Milestone:** Mock checkout applies the shipping method when it is selected and shows the payable gross before Pay. The order summary refreshes to the same amount. A mock Payment is replaced when the charge no longer matches. Payment drafts omit a localized name. Address prefill copies a saved street only when its country is the active market. Amount due stays hidden until a shipping method is chosen; a method already on the cart is cleared when the address is saved. Unit tests 378 → 387.
+- **Agent vs manual:** ~95% agent
+- **Notes:** `POST /api/checkout/mock-shipping`. Stripe path is unchanged. Flag stays off unless `CTP_MOCK_PAYMENTS=true`.
+
+### 2026-09-24 — Mock checkout payments
+- **Time:** 2h
+- **Phase:** phase-3-demo
+- **Milestone:** `CTP_MOCK_PAYMENTS=true` replaces the Checkout embed with a storefront address and shipping-method form. The BFF waits 2 seconds, creates a Payment with a successful Charge (`paymentInterface: mock`), attaches it to the cart, and creates an Order with `paymentState: Paid`. The flag unset keeps Stripe. Mock routes return 404 when disabled. Unit tests 358 → 378.
+- **Agent vs manual:** ~95% agent
+- **Notes:** Storefront API client needs `manage_payments` and `view_shipping_methods`. Scopes are immutable, so an existing client may need to be recreated. Zone-based shipping only. The project must have a tax rate for the active market country.
+
 ### 2026-09-22 — Checkout embed width
 - **Time:** 0.3h
 - **Phase:** phase-3-demo

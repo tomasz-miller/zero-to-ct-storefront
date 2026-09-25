@@ -111,8 +111,9 @@ export function mapCart(
   const currency =
     cart.totalPrice.currencyCode ?? cart.lineItems[0]?.price.value.currencyCode ?? 'EUR';
   const subtotalCentAmount = calculateSubtotal(lineItems);
-  const totalCentAmount = cart.totalPrice.centAmount;
-  const savingsCentAmount = subtotalCentAmount - totalCentAmount;
+  const merchandiseCentAmount = cart.totalPrice.centAmount;
+  const payable = cart.taxedPrice?.totalGross ?? cart.totalPrice;
+  const savingsCentAmount = subtotalCentAmount - merchandiseCentAmount;
 
   return {
     id: cart.id,
@@ -135,8 +136,8 @@ export function mapCart(
           }
         : undefined,
     total: {
-      centAmount: totalCentAmount,
-      currencyCode: currency,
+      centAmount: payable.centAmount,
+      currencyCode: payable.currencyCode || currency,
     },
   };
 }

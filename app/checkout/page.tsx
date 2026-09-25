@@ -1,7 +1,10 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 
-import { CheckoutEmbed } from '@/components/checkout/checkout-embed';
+import {
+  CheckoutEmbed,
+} from '@/components/checkout/checkout-embed';
+import { MockCheckoutForm } from '@/components/checkout/mock-checkout-form';
 import { CartSummary } from '@/components/cart/cart-summary';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,6 +17,8 @@ import {
 import { customerCanUseDefaultAddress } from '@/lib/commercetools/checkout-cart-addresses';
 import { getGuestCart } from '@/lib/commercetools/cart';
 import { getAuthenticatedCustomerProfile } from '@/lib/commercetools/customer-auth';
+import { mockCheckoutDefaults } from '@/components/checkout/mock-checkout-defaults';
+import { isMockPaymentsEnabled } from '@/lib/commercetools/mock-payment';
 import { getPublicCheckoutConfig, getStorefrontContext } from '@/lib/commercetools/storefront-context';
 
 function CheckoutSkeleton() {
@@ -23,11 +28,12 @@ function CheckoutSkeleton() {
 }
 
 export default async function CheckoutPage() {
+  const mockPayments = isMockPaymentsEnabled();
   const cart = await getGuestCart();
   const customer = await getAuthenticatedCustomerProfile();
   const canUseDefaultAddress = customerCanUseDefaultAddress(customer);
   const checkoutConfig = await getPublicCheckoutConfig();
-  const { locale } = await getStorefrontContext();
+  const { country, locale } = await getStorefrontContext();
 
   if (!cart || cart.lineItems.length === 0) {
     return (
@@ -45,7 +51,7 @@ export default async function CheckoutPage() {
     );
   }
 
-  if (!checkoutConfig.projectKey) {
+  if (!mockPayments && !checkoutConfig.projectKey) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-10">
         <p className="text-sm text-destructive">
@@ -75,18 +81,33 @@ export default async function CheckoutPage() {
             <CartSummary cart={cart} showLineItems />
           </CardContent>
         </Card>
+        {mockPayments ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Demo payment</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <MockCheckoutForm
+                country={country}
+                defaults={mockCheckoutDefaults(customer, country)}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
       </section>
 
-      <section>
-        <Suspense fallback={<CheckoutSkeleton />}>
-          <CheckoutEmbed
-            projectKey={checkoutConfig.projectKey}
-            region={checkoutConfig.region}
-            locale={locale}
-            canUseDefaultAddress={canUseDefaultAddress}
-          />
-        </Suspense>
-      </section>
+      {mockPayments ? null : (
+        <section>
+          <Suspense fallback={<CheckoutSkeleton />}>
+            <CheckoutEmbed
+              projectKey={checkoutConfig.projectKey}
+              region={checkoutConfig.region}
+              locale={locale}
+              canUseDefaultAddress={canUseDefaultAddress}
+            />
+          </Suspense>
+        </section>
+      )}
     </main>
   );
 }

@@ -36,6 +36,7 @@ const PAYMENT_STATE_MAP: Record<string, DerivedPaymentStatus> = {
 
 const PAYMENT_PROVIDER_LABELS: Record<string, string> = {
   'checkout-stripe': 'Card via Stripe',
+  mock: 'Demo payment',
 };
 
 function successfulAmount(
