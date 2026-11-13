@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createProductProjection } from '@/test/fixtures/product-projection';
 
+vi.mock('@/lib/commercetools/env', () => import('@/test/mocks/commercetools-env'));
+
 const {
   mockExecute,
   mockProjectionsGet,

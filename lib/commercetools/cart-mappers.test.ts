@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { mapCart } from './cart-mappers';
 import { createCartFixture } from '@/test/fixtures/cart';
+
+vi.mock('@/lib/commercetools/env', () => import('@/test/mocks/commercetools-env'));
 
 describe('mapCart', () => {
   it('maps discount codes and savings from cart totals', () => {

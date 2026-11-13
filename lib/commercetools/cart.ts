@@ -2,6 +2,8 @@ import 'server-only';
 
 import type { Cart, CartUpdateAction } from '@commercetools/platform-sdk';
 
+import { isStorefrontCountry } from '@/lib/markets';
+
 import { apiRoot } from './api-root';
 import {
   DiscountCodeNotApplicableError,
@@ -34,16 +36,6 @@ type AlignCartResult = {
   restored: boolean;
   recreated: boolean;
 };
-
-function parseCartCountry(
-  country: string | undefined,
-): StorefrontCountry | null {
-  if (country === 'DE' || country === 'GB' || country === 'US') {
-    return country;
-  }
-
-  return null;
-}
 
 function cartItemCount(cart: Cart): number {
   return cart.lineItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -158,7 +150,7 @@ async function resolveCartForMarket(
       mappedCart &&
       isUsableMarketCart(mappedCart, session, customerId, country, currency)
     ) {
-      await rememberCartForCountry(country, mappedCart.id, session.anonymousId);
+      await rememberCartForCountry(country, mappedCart.id);
       return { cart: mappedCart, restored: true, recreated: false };
     }
 
@@ -172,25 +164,17 @@ async function resolveCartForMarket(
       currency,
     );
     if (existingCustomerCart) {
-      await rememberCartForCountry(
-        country,
-        existingCustomerCart.id,
-        session.anonymousId,
-      );
+      await rememberCartForCountry(country, existingCustomerCart.id);
       return { cart: existingCustomerCart, restored: true, recreated: false };
     }
 
     const createdCustomerCart = await createCustomerCart(customerId);
-    await rememberCartForCountry(
-      country,
-      createdCustomerCart.id,
-      session.anonymousId,
-    );
+    await rememberCartForCountry(country, createdCustomerCart.id);
     return { cart: createdCustomerCart, restored: false, recreated: true };
   }
 
   const createdGuestCart = await createGuestCart(session.anonymousId);
-  await rememberCartForCountry(country, createdGuestCart.id, session.anonymousId);
+  await rememberCartForCountry(country, createdGuestCart.id);
   return { cart: createdGuestCart, restored: false, recreated: true };
 }
 
@@ -201,11 +185,11 @@ async function alignCartWithStorefront(
   const { currency, country } = await getStorefrontContext();
 
   if (await cartMatchesStorefront(cart)) {
-    await rememberCartForCountry(country, cart.id, session.anonymousId);
+    await rememberCartForCountry(country, cart.id);
     return { cart, restored: false, recreated: false };
   }
 
-  const previousCountry = parseCartCountry(cart.country);
+  const previousCountry = isStorefrontCountry(cart.country) ? cart.country : null;
 
   // Empty cart with matching currency — update country in place.
   if (
@@ -230,12 +214,12 @@ async function alignCartWithStorefront(
       }
     }
 
-    await rememberCartForCountry(country, response.body.id, session.anonymousId);
+    await rememberCartForCountry(country, response.body.id);
     return { cart: response.body, restored: false, recreated: false };
   }
 
   if (previousCountry) {
-    await rememberCartForCountry(previousCountry, cart.id, session.anonymousId);
+    await rememberCartForCountry(previousCountry, cart.id);
   }
 
   const customerSession = await getCustomerSession();
@@ -342,7 +326,7 @@ async function createGuestCart(anonymousId: string): Promise<Cart> {
     })
     .execute();
 
-  await rememberCartForCountry(country, response.body.id, anonymousId);
+  await rememberCartForCountry(country, response.body.id);
   return response.body;
 }
 
@@ -526,7 +510,7 @@ async function resolveAnonymousCartForCustomer(
     return anonymousCart;
   }
 
-  const cartCountry = parseCartCountry(anonymousCart.country);
+  const cartCountry = isStorefrontCountry(anonymousCart.country) ? anonymousCart.country : null;
   const cartCurrency = anonymousCart.totalPrice.currencyCode;
 
   const existingCustomerCart = cartCountry
@@ -544,9 +528,9 @@ async function persistCartSession(anonymousId: string, cart: Cart): Promise<Cart
   const session = { anonymousId, cartId: cart.id };
   await setCartSession(session);
 
-  const cartCountry = parseCartCountry(cart.country);
+  const cartCountry = isStorefrontCountry(cart.country) ? cart.country : null;
   if (cartCountry) {
-    await rememberCartForCountry(cartCountry, cart.id, anonymousId);
+    await rememberCartForCountry(cartCountry, cart.id);
   }
 
   return session;
@@ -568,8 +552,8 @@ export async function restoreCustomerCartSession(customerId: string): Promise<vo
     cartId: customerCart.id,
   });
 
-  const cartCountry = parseCartCountry(customerCart.country) ?? country;
-  await rememberCartForCountry(cartCountry, customerCart.id, anonymousId);
+  const cartCountry = isStorefrontCountry(customerCart.country) ? customerCart.country : country;
+  await rememberCartForCountry(cartCountry, customerCart.id);
 }
 
 /** Assign or merge a guest cart to the customer after sign-in/sign-up. */
@@ -584,9 +568,9 @@ export async function reconcileCartOnAuth(customerId: string): Promise<void> {
         anonymousId,
         cartId: resolved.id,
       });
-      const cartCountry = parseCartCountry(resolved.country);
+      const cartCountry = isStorefrontCountry(resolved.country) ? resolved.country : null;
       if (cartCountry) {
-        await rememberCartForCountry(cartCountry, resolved.id, anonymousId);
+        await rememberCartForCountry(cartCountry, resolved.id);
       }
       await claimParkedGuestCartsForCustomer(customerId);
       return;
@@ -597,9 +581,9 @@ export async function reconcileCartOnAuth(customerId: string): Promise<void> {
         anonymousId,
         cartId: cart.id,
       });
-      const cartCountry = parseCartCountry(cart.country);
+      const cartCountry = isStorefrontCountry(cart.country) ? cart.country : null;
       if (cartCountry) {
-        await rememberCartForCountry(cartCountry, cart.id, anonymousId);
+        await rememberCartForCountry(cartCountry, cart.id);
       }
       await claimParkedGuestCartsForCustomer(customerId);
       return;

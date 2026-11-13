@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type {
   Address,
@@ -14,6 +14,8 @@ import {
   mapOrderDetail,
   mapOrders,
 } from './customer-mappers';
+
+vi.mock('@/lib/commercetools/env', () => import('@/test/mocks/commercetools-env'));
 
 function createAddress(overrides: Partial<Address> = {}): Address {
   return {

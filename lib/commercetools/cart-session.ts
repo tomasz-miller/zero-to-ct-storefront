@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { cookies } from 'next/headers';
+import { createCookieSession } from '@/lib/session/cookie-session';
 
 export const CART_SESSION_COOKIE = 'ct_guest_cart';
 
@@ -9,53 +9,35 @@ export type CartSession = {
   cartId: string;
 };
 
-export function parseCartSession(value: string | undefined): CartSession | null {
-  if (!value) {
+export function parseCartSession(value: unknown): CartSession | null {
+  if (!value || typeof value !== 'object') {
     return null;
   }
 
-  try {
-    const parsed = JSON.parse(value) as Partial<CartSession>;
-    if (
-      typeof parsed.anonymousId === 'string' &&
-      typeof parsed.cartId === 'string'
-    ) {
-      return { anonymousId: parsed.anonymousId, cartId: parsed.cartId };
-    }
-  } catch {
-    return null;
+  const parsed = value as Partial<CartSession>;
+  if (typeof parsed.anonymousId === 'string' && typeof parsed.cartId === 'string') {
+    return { anonymousId: parsed.anonymousId, cartId: parsed.cartId };
   }
 
   return null;
 }
 
-export async function getCartSession(): Promise<CartSession | null> {
-  const cookieStore = await cookies();
-  return parseCartSession(cookieStore.get(CART_SESSION_COOKIE)?.value);
+const cartSessionCookie = createCookieSession<CartSession>({
+  name: CART_SESSION_COOKIE,
+  maxAge: 60 * 60 * 24 * 30,
+  parse: parseCartSession,
+});
+
+export function getCartSession(): Promise<CartSession | null> {
+  return cartSessionCookie.read();
 }
 
-export async function setCartSession(session: CartSession): Promise<void> {
-  try {
-    const cookieStore = await cookies();
-    cookieStore.set(CART_SESSION_COOKIE, JSON.stringify(session), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 30,
-    });
-  } catch {
-    // Cookie writes are rejected during RSC render; Route Handlers still persist.
-  }
+export function setCartSession(session: CartSession): Promise<boolean> {
+  return cartSessionCookie.write(session);
 }
 
-export async function clearCartSession(): Promise<void> {
-  try {
-    const cookieStore = await cookies();
-    cookieStore.delete(CART_SESSION_COOKIE);
-  } catch {
-    // Same constraint as setCartSession.
-  }
+export function clearCartSession(): Promise<boolean> {
+  return cartSessionCookie.clear();
 }
 
 export function createAnonymousId(): string {

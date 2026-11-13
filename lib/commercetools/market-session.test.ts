@@ -4,8 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { mockCookies } = vi.hoisted(() => ({ mockCookies: vi.fn() }));
 
 vi.mock('next/headers', () => ({ cookies: mockCookies }));
+vi.mock('@/lib/commercetools/env', () => import('@/test/mocks/commercetools-env'));
 
-import { getMarketPreference, parseMarketPreference } from './market-session';
+import { createCookieSession } from '@/lib/session/cookie-session';
+
+import {
+  getMarketPreference,
+  MARKET_SESSION_COOKIE,
+  parseMarketPreference,
+} from './market-session';
 
 describe('parseMarketPreference', () => {
   it('parses supported storefront countries', () => {
@@ -17,6 +24,7 @@ describe('parseMarketPreference', () => {
   it('returns null for missing or unsupported values', () => {
     expect(parseMarketPreference(undefined)).toBeNull();
     expect(parseMarketPreference('FR')).toBeNull();
+    expect(parseMarketPreference(42)).toBeNull();
   });
 });
 
@@ -26,7 +34,14 @@ describe('getMarketPreference', () => {
   });
 
   it('reads the market cookie', async () => {
-    mockCookies.mockResolvedValueOnce({ get: () => ({ value: 'GB' }) });
+    const sealedGb = createCookieSession({
+      name: MARKET_SESSION_COOKIE,
+      maxAge: 60 * 60 * 24 * 365,
+      parse: parseMarketPreference,
+    }).serialize('GB');
+    mockCookies.mockResolvedValueOnce({
+      get: (name: string) => (name === MARKET_SESSION_COOKIE ? { value: sealedGb } : undefined),
+    });
     await expect(getMarketPreference()).resolves.toBe('GB');
   });
 

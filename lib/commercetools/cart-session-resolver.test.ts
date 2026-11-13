@@ -63,12 +63,7 @@ const {
       async (country: 'DE' | 'GB' | 'US') => marketCartMap.carts[country],
     ),
     mockRememberCartForCountry: vi.fn(
-      async (
-        country: 'DE' | 'GB' | 'US',
-        cartId: string,
-        anonymousId: string,
-      ) => {
-        marketCartMap.anonymousId = marketCartMap.anonymousId || anonymousId;
+      async (country: 'DE' | 'GB' | 'US', cartId: string) => {
         marketCartMap.carts[country] = cartId;
       },
     ),
@@ -647,11 +642,7 @@ describe('cart session resolver', () => {
       anonymousId: 'anon-new',
       cartId: 'cart-customer',
     });
-    expect(mockRememberCartForCountry).toHaveBeenCalledWith(
-      'DE',
-      'cart-customer',
-      'anon-new',
-    );
+    expect(mockRememberCartForCountry).toHaveBeenCalledWith('DE', 'cart-customer');
   });
 
   it('parks a guest cart and creates a new cart for the target market', async () => {
@@ -700,11 +691,7 @@ describe('cart session resolver', () => {
       previousHadItems: true,
     });
 
-    expect(mockRememberCartForCountry).toHaveBeenCalledWith(
-      'DE',
-      'cart-old',
-      'anon-1',
-    );
+    expect(mockRememberCartForCountry).toHaveBeenCalledWith('DE', 'cart-old');
     expect(mockCartsPost).toHaveBeenCalledWith({
       body: expect.objectContaining({
         anonymousId: 'anon-1',

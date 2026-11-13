@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createCategory } from '@/test/fixtures/category';
 
+vi.mock('@/lib/commercetools/env', () => import('@/test/mocks/commercetools-env'));
+
 const { mockExecute, mockCategoriesGet, mockApiRoot } = vi.hoisted(() => {
   const mockExecute = vi.fn();
   const mockCategoriesGet = vi.fn<

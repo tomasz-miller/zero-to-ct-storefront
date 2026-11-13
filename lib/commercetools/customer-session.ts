@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { cookies } from 'next/headers';
+import { createCookieSession } from '@/lib/session/cookie-session';
 
 export const CUSTOMER_SESSION_COOKIE = 'ct_customer_session';
 
@@ -11,50 +11,43 @@ export type CustomerSession = {
   customerId: string;
 };
 
-export function parseCustomerSession(value: string | undefined): CustomerSession | null {
-  if (!value) {
+export function parseCustomerSession(value: unknown): CustomerSession | null {
+  if (!value || typeof value !== 'object') {
     return null;
   }
 
-  try {
-    const parsed = JSON.parse(value) as Partial<CustomerSession>;
-    if (
-      typeof parsed.accessToken === 'string' &&
-      typeof parsed.refreshToken === 'string' &&
-      typeof parsed.expiresAt === 'number' &&
-      typeof parsed.customerId === 'string'
-    ) {
-      return {
-        accessToken: parsed.accessToken,
-        refreshToken: parsed.refreshToken,
-        expiresAt: parsed.expiresAt,
-        customerId: parsed.customerId,
-      };
-    }
-  } catch {
-    return null;
+  const parsed = value as Partial<CustomerSession>;
+  if (
+    typeof parsed.accessToken === 'string' &&
+    typeof parsed.refreshToken === 'string' &&
+    typeof parsed.expiresAt === 'number' &&
+    typeof parsed.customerId === 'string'
+  ) {
+    return {
+      accessToken: parsed.accessToken,
+      refreshToken: parsed.refreshToken,
+      expiresAt: parsed.expiresAt,
+      customerId: parsed.customerId,
+    };
   }
 
   return null;
 }
 
-export async function getCustomerSession(): Promise<CustomerSession | null> {
-  const cookieStore = await cookies();
-  return parseCustomerSession(cookieStore.get(CUSTOMER_SESSION_COOKIE)?.value);
+export const customerSessionCookie = createCookieSession<CustomerSession>({
+  name: CUSTOMER_SESSION_COOKIE,
+  maxAge: 60 * 60 * 24 * 30,
+  parse: parseCustomerSession,
+});
+
+export function getCustomerSession(): Promise<CustomerSession | null> {
+  return customerSessionCookie.read();
 }
 
-export async function setCustomerSession(session: CustomerSession): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(CUSTOMER_SESSION_COOKIE, JSON.stringify(session), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-  });
+export function setCustomerSession(session: CustomerSession): Promise<boolean> {
+  return customerSessionCookie.write(session);
 }
 
-export async function clearCustomerSession(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(CUSTOMER_SESSION_COOKIE);
+export function clearCustomerSession(): Promise<boolean> {
+  return customerSessionCookie.clear();
 }

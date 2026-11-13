@@ -2,14 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { realignCartForStorefront } from '@/lib/commercetools/cart';
 import { setMarketPreference } from '@/lib/commercetools/market-session';
-import {
-  getStorefrontContext,
-  type StorefrontCountry,
-} from '@/lib/commercetools/storefront-context';
-
-function isStorefrontCountry(value: unknown): value is StorefrontCountry {
-  return value === 'DE' || value === 'GB' || value === 'US';
-}
+import { getStorefrontContext } from '@/lib/commercetools/storefront-context';
+import { isStorefrontCountry } from '@/lib/markets';
 
 export async function POST(request: NextRequest) {
   let body: { country?: unknown };

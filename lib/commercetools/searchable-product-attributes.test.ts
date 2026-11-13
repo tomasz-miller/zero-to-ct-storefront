@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { AttributeDefinition } from '@commercetools/platform-sdk';
 
 import { collectSearchableAttributeFacetConfigs } from './searchable-product-attribute-configs';
+
+vi.mock('@/lib/commercetools/env', () => import('@/test/mocks/commercetools-env'));
 
 function createAttribute(
   overrides: Partial<AttributeDefinition> & Pick<AttributeDefinition, 'name' | 'type'>,
