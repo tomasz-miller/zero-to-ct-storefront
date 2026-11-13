@@ -130,7 +130,8 @@ describe('POST /api/checkout/session', () => {
     const body = await response.json();
 
     expect(response.status).toBe(500);
-    expect(JSON.stringify(body)).not.toMatch(/insufficient_scope|403/);
+    expect(body.error).toBe('Something went wrong. Please try again.');
+    expect(body.error).not.toMatch(/insufficient_scope|403/);
   });
 
   it('maps CheckoutSessionError to 502 with fixed copy', async () => {
