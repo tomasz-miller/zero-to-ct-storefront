@@ -18,11 +18,19 @@ const {
   orderPost,
   orderPostExecute,
   shippingGetExecute,
+  paymentByKeyExecute,
+  paymentDeleteExecute,
+  paymentDelete,
 } = vi.hoisted(() => {
   const cartPostExecute = vi.fn();
   const paymentPostExecute = vi.fn();
   const orderPostExecute = vi.fn();
   const shippingGetExecute = vi.fn();
+  const paymentByKeyExecute = vi.fn();
+  const paymentDeleteExecute = vi.fn();
+  const paymentDelete = vi.fn((args: unknown) => ({
+    execute: () => paymentDeleteExecute(args),
+  }));
   const cartPost = vi.fn((args: unknown) => ({
     execute: () => cartPostExecute(args),
   }));
@@ -46,6 +54,9 @@ const {
     orderPost,
     orderPostExecute,
     shippingGetExecute,
+    paymentByKeyExecute,
+    paymentDeleteExecute,
+    paymentDelete,
   };
 });
 
@@ -59,6 +70,12 @@ vi.mock('./api-root', () => ({
     }),
     payments: () => ({
       post: paymentPost,
+      withKey: ({ key }: { key: string }) => ({
+        get: () => ({ execute: () => paymentByKeyExecute(key) }),
+      }),
+      withId: ({ ID }: { ID: string }) => ({
+        delete: (args: unknown) => paymentDelete({ ID, ...(args as object) }),
+      }),
     }),
     orders: () => ({
       post: orderPost,
@@ -93,6 +110,7 @@ vi.mock('./storefront-context', () => ({
 
 import {
   MOCK_PAYMENT_DELAY_MS,
+  MockCheckoutConflictError,
   MockCheckoutError,
   MockPaymentsDisabledError,
   isMockPaymentsEnabled,
@@ -173,9 +191,66 @@ function matchingShippingMethods() {
   };
 }
 
+function ctError(statusCode: number, code: string, message = 'm') {
+  return Object.assign(new Error(message), {
+    statusCode,
+    body: { statusCode, message, errors: [{ code, message }] },
+  });
+}
+
+// The arrangement of the 'charges the gross total after a provider delay and creates a paid order' test.
+function arrangeReadyCart(): Cart {
+  const cart = createCart();
+  mockRequireActiveCart.mockResolvedValue(cart);
+  cartGetExecute.mockResolvedValue({ body: cart });
+  shippingGetExecute.mockResolvedValue(matchingShippingMethods());
+  cartPostExecute
+    .mockResolvedValueOnce({ body: createCart({ version: 4 }) })
+    .mockResolvedValueOnce({ body: createCart({ version: 5 }) });
+  paymentPostExecute.mockResolvedValue({ body: { id: 'pay-1' } });
+  orderPostExecute.mockResolvedValue({ body: { id: 'order-1' } });
+  return cart;
+}
+
+// The arrangement of the 'replaces a mock payment when the charged amount changed' test,
+// with version 2 on the expanded pay-existing payment so the delete can send it.
+function arrangeChangedAmountCart(): Cart {
+  const paidCart = createCart({
+    paymentInfo: {
+      payments: [
+        {
+          typeId: 'payment',
+          id: 'pay-existing',
+          obj: {
+            id: 'pay-existing',
+            version: 2,
+            paymentMethodInfo: { paymentInterface: 'mock' },
+            amountPlanned: {
+              centAmount: 500,
+              currencyCode: 'EUR',
+              type: 'centPrecision',
+              fractionDigits: 2,
+            },
+          },
+        },
+      ],
+    },
+  } as Partial<Cart>);
+  mockRequireActiveCart.mockResolvedValue(paidCart);
+  cartGetExecute.mockResolvedValue({ body: paidCart });
+  shippingGetExecute.mockResolvedValue({ body: { results: [] } });
+  cartPostExecute.mockResolvedValue({ body: createCart({ version: 6 }) });
+  paymentPostExecute.mockResolvedValue({ body: { id: 'pay-new' } });
+  orderPostExecute.mockResolvedValue({ body: { id: 'order-3' } });
+  paymentDeleteExecute.mockResolvedValue({ body: {} });
+  return paidCart;
+}
+
 describe('mock payments', () => {
   beforeEach(() => {
     vi.stubEnv('CTP_MOCK_PAYMENTS', 'true');
+    vi.stubEnv('CTP_PROJECT_KEY', 'demo');
+    vi.stubEnv('CTP_MOCK_PAYMENTS_PROJECT_KEY', 'demo');
     mockRequireActiveCart.mockReset();
     mockClearCartSession.mockReset();
     mockGetStorefrontContext.mockReset();
@@ -187,6 +262,9 @@ describe('mock payments', () => {
     orderPost.mockClear();
     orderPostExecute.mockReset();
     shippingGetExecute.mockReset();
+    paymentByKeyExecute.mockReset();
+    paymentDeleteExecute.mockReset();
+    paymentDelete.mockClear();
     mockGetStorefrontContext.mockResolvedValue({
       country: 'DE',
       currency: 'EUR',
@@ -197,12 +275,83 @@ describe('mock payments', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it('is disabled unless the env flag is exactly true', () => {
     expect(isMockPaymentsEnabled()).toBe(true);
     vi.stubEnv('CTP_MOCK_PAYMENTS', 'false');
     expect(isMockPaymentsEnabled()).toBe(false);
+  });
+
+  it('stays disabled unless the project key opt-in matches', () => {
+    expect(isMockPaymentsEnabled({ CTP_MOCK_PAYMENTS: 'true', CTP_PROJECT_KEY: 'p', CTP_MOCK_PAYMENTS_PROJECT_KEY: 'p' } as never)).toBe(true);
+    expect(isMockPaymentsEnabled({ CTP_MOCK_PAYMENTS: 'true', CTP_PROJECT_KEY: 'p', CTP_MOCK_PAYMENTS_PROJECT_KEY: 'other' } as never)).toBe(false);
+    expect(isMockPaymentsEnabled({ CTP_MOCK_PAYMENTS: 'true', CTP_PROJECT_KEY: 'p' } as never)).toBe(false);
+    expect(isMockPaymentsEnabled({ CTP_MOCK_PAYMENTS: 'false', CTP_PROJECT_KEY: 'p', CTP_MOCK_PAYMENTS_PROJECT_KEY: 'p' } as never)).toBe(false);
+  });
+
+  it('creates the payment with a deterministic key', async () => {
+    arrangeReadyCart();
+    await placeMockPayment({ shippingMethodId: 'ship-1' }, { sleep: vi.fn().mockResolvedValue(undefined) });
+    expect(paymentPost.mock.calls[0]?.[0]).toMatchObject({ body: { key: 'mock-cart-1-1190-EUR' } });
+  });
+
+  it('reuses an existing payment when the key already exists', async () => {
+    const cartWithPayment = createCart({ version: 5, paymentInfo: { payments: [{ typeId: 'payment', id: 'pay-1' }] } } as Partial<Cart>);
+    mockRequireActiveCart.mockResolvedValue(createCart());
+    cartGetExecute.mockResolvedValueOnce({ body: createCart() }).mockResolvedValue({ body: cartWithPayment });
+    shippingGetExecute.mockResolvedValue({ body: { results: [] } });
+    paymentPostExecute.mockRejectedValue(ctError(400, 'DuplicateField'));
+    paymentByKeyExecute.mockResolvedValue({ body: { id: 'pay-1', version: 1 } });
+    orderPostExecute.mockResolvedValue({ body: { id: 'order-1' } });
+    await placeMockPayment({}, { sleep: vi.fn().mockResolvedValue(undefined) });
+    const actions = cartPost.mock.calls.flatMap(([args]) => (args as { body: { actions: Array<{ action: string }> } }).body.actions.map((a) => a.action));
+    expect(actions).not.toContain('addPayment');
+    expect(orderPost).toHaveBeenCalledOnce();
+  });
+
+  it('reloads the cart after the provider delay', async () => {
+    mockRequireActiveCart.mockResolvedValue(createCart());
+    cartGetExecute.mockResolvedValueOnce({ body: createCart({ version: 3 }) }).mockResolvedValue({ body: createCart({ version: 7 }) });
+    shippingGetExecute.mockResolvedValue({ body: { results: [] } });
+    cartPostExecute.mockResolvedValue({ body: createCart({ version: 8 }) });
+    paymentPostExecute.mockResolvedValue({ body: { id: 'pay-1' } });
+    orderPostExecute.mockResolvedValue({ body: { id: 'order-1' } });
+    await placeMockPayment({}, { sleep: vi.fn().mockResolvedValue(undefined) });
+    expect(cartGetExecute).toHaveBeenCalledTimes(2);
+    expect((cartPost.mock.calls[0]?.[0] as { body: { version: number } }).body.version).toBe(7);
+  });
+
+  it('maps a concurrent modification on order creation to MockCheckoutConflictError', async () => {
+    arrangeReadyCart();
+    orderPostExecute.mockRejectedValue(ctError(409, 'ConcurrentModification'));
+    const err = await placeMockPayment({ shippingMethodId: 'ship-1' }, { sleep: vi.fn().mockResolvedValue(undefined) }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(MockCheckoutConflictError);
+    expect(err).toMatchObject({ status: 409 });
+  });
+
+  it('does not forward commercetools 400 messages', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    arrangeReadyCart();
+    orderPostExecute.mockRejectedValue(ctError(400, 'InvalidOperation', 'internal detail'));
+    const err = await placeMockPayment({ shippingMethodId: 'ship-1' }, { sleep: vi.fn().mockResolvedValue(undefined) }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(MockCheckoutError);
+    expect((err as Error).message).toBe('Checkout could not be completed. Please review your details and try again.');
+  });
+
+  it('deletes the replaced mock payment', async () => {
+    arrangeChangedAmountCart();
+    await placeMockPayment({}, { sleep: vi.fn().mockResolvedValue(undefined) });
+    expect(paymentDelete).toHaveBeenCalledWith({ ID: 'pay-existing', queryArgs: { version: 2 } });
+  });
+
+  it('logs and continues when deleting the replaced payment fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    arrangeChangedAmountCart();
+    paymentDeleteExecute.mockRejectedValue(ctError(409, 'ConcurrentModification'));
+    await expect(placeMockPayment({}, { sleep: vi.fn().mockResolvedValue(undefined) })).resolves.toMatchObject({ orderId: 'order-3' });
+    expect(JSON.stringify(warn.mock.calls)).toContain('pay-existing');
   });
 
   it('saves the market country on the cart and returns matching shipping methods', async () => {
@@ -301,18 +450,8 @@ describe('mock payments', () => {
   });
 
   it('charges the gross total after a provider delay and creates a paid order', async () => {
-    const cart = createCart();
-    const withShipping = createCart({ version: 4 });
-    const withPayment = createCart({ version: 5 });
+    const cart = arrangeReadyCart();
     const sleep = vi.fn().mockResolvedValue(undefined);
-    mockRequireActiveCart.mockResolvedValue(cart);
-    cartGetExecute.mockResolvedValue({ body: cart });
-    shippingGetExecute.mockResolvedValue(matchingShippingMethods());
-    cartPostExecute
-      .mockResolvedValueOnce({ body: withShipping })
-      .mockResolvedValueOnce({ body: withPayment });
-    paymentPostExecute.mockResolvedValue({ body: { id: 'pay-1' } });
-    orderPostExecute.mockResolvedValue({ body: { id: 'order-1' } });
 
     const result = await placeMockPayment({ shippingMethodId: 'ship-1' }, { sleep });
 
@@ -385,33 +524,8 @@ describe('mock payments', () => {
   });
 
   it('replaces a mock payment when the charged amount changed', async () => {
-    const paidCart = createCart({
-      paymentInfo: {
-        payments: [
-          {
-            typeId: 'payment',
-            id: 'pay-existing',
-            obj: {
-              id: 'pay-existing',
-              paymentMethodInfo: { paymentInterface: 'mock' },
-              amountPlanned: {
-                centAmount: 500,
-                currencyCode: 'EUR',
-                type: 'centPrecision',
-                fractionDigits: 2,
-              },
-            },
-          },
-        ],
-      },
-    } as Partial<Cart>);
+    arrangeChangedAmountCart();
     const sleep = vi.fn().mockResolvedValue(undefined);
-    mockRequireActiveCart.mockResolvedValue(paidCart);
-    cartGetExecute.mockResolvedValue({ body: paidCart });
-    shippingGetExecute.mockResolvedValue({ body: { results: [] } });
-    cartPostExecute.mockResolvedValue({ body: createCart({ version: 6 }) });
-    paymentPostExecute.mockResolvedValue({ body: { id: 'pay-new' } });
-    orderPostExecute.mockResolvedValue({ body: { id: 'order-3' } });
 
     await placeMockPayment({}, { sleep });
 

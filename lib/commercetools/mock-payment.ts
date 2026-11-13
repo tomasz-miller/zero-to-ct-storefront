@@ -11,7 +11,14 @@ import { apiRoot } from './api-root';
 import { requireActiveCart } from './cart';
 import { clearCartSession } from './cart-session';
 import {
+  getCtCorrelationId,
+  getCtErrorObjects,
+  isCtConcurrentModification,
+  parseCtError,
+} from './ct-errors';
+import {
   CartNotFoundError,
+  MockCheckoutConflictError,
   MockCheckoutError,
   MockPaymentsDisabledError,
 } from './domain-errors';
@@ -26,7 +33,11 @@ export const MOCK_PAYMENT_INTERFACE = 'mock';
 
 const CART_EXPAND = ['paymentInfo.payments[*]'] as const;
 
-export { MockCheckoutError, MockPaymentsDisabledError };
+export {
+  MockCheckoutConflictError,
+  MockCheckoutError,
+  MockPaymentsDisabledError,
+};
 
 export type MockCheckoutAddressInput = {
   email?: unknown;
@@ -67,13 +78,41 @@ type PlaceMockPaymentDeps = {
   sleep?: (ms: number) => Promise<void>;
 };
 
-type CommercetoolsErrorBody = {
-  message?: string;
-  errors?: Array<{ code?: string; message?: string }>;
-};
+let loggedEnabled = false;
+let loggedMismatch = false;
 
-export function isMockPaymentsEnabled(): boolean {
-  return process.env.CTP_MOCK_PAYMENTS === 'true';
+/**
+ * Mock payments need both the flag and an explicit opt-in naming the project
+ * they are allowed to run against, so a copied env file cannot switch them on
+ * in another project.
+ */
+export function isMockPaymentsEnabled(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (env.CTP_MOCK_PAYMENTS !== 'true') {
+    return false;
+  }
+
+  const optIn = env.CTP_MOCK_PAYMENTS_PROJECT_KEY;
+  if (!optIn || optIn !== env.CTP_PROJECT_KEY) {
+    if (!loggedMismatch) {
+      loggedMismatch = true;
+      console.error(
+        '[mock-payments] CTP_MOCK_PAYMENTS is true but CTP_MOCK_PAYMENTS_PROJECT_KEY does not match CTP_PROJECT_KEY; mock payments stay disabled',
+      );
+    }
+    return false;
+  }
+
+  if (!loggedEnabled) {
+    loggedEnabled = true;
+    console.warn('[mock-payments] enabled for project', optIn);
+  }
+  return true;
+}
+
+export function mockPaymentKey(cartId: string, amount: Money): string {
+  return `mock-${cartId}-${amount.centAmount}-${amount.currencyCode}`;
 }
 
 export async function prepareMockCheckout(
@@ -144,6 +183,8 @@ export async function placeMockPayment(
   }
 
   await (deps.sleep ?? delay)(MOCK_PAYMENT_DELAY_MS);
+  cart = await loadExpandedActiveCart();
+  assertCartReadyForPayment(cart);
   cart = await ensureMockPayment(cart);
 
   const orderNumber = createOrderNumber();
@@ -370,52 +411,101 @@ async function ensureMockPayment(cart: Cart): Promise<Cart> {
     return cart;
   }
 
-  const payment = await executeCommercetools(() =>
-    apiRoot
-      .payments()
-      .post({
-        body: {
-          amountPlanned: amount,
-          paymentMethodInfo: {
-            paymentInterface: MOCK_PAYMENT_INTERFACE,
-            method: 'card',
-          },
-          transactions: [
-            {
-              type: 'Charge',
-              amount,
-              state: 'Success',
+  const key = mockPaymentKey(cart.id, amount);
+  const payment = await executeCommercetools(async () => {
+    try {
+      const created = await apiRoot
+        .payments()
+        .post({
+          body: {
+            key,
+            amountPlanned: amount,
+            paymentMethodInfo: {
+              paymentInterface: MOCK_PAYMENT_INTERFACE,
+              method: 'card',
             },
-          ],
-        },
-      })
-      .execute(),
-  );
+            transactions: [
+              {
+                type: 'Charge',
+                amount,
+                state: 'Success',
+              },
+            ],
+          },
+        })
+        .execute();
+      return created.body;
+    } catch (error) {
+      if (parseCtError(error).code !== 'DuplicateField') {
+        throw error;
+      }
+
+      const found = await apiRoot.payments().withKey({ key }).get().execute();
+      return found.body;
+    }
+  });
 
   const actions: CartUpdateAction[] = [];
-  if (existing) {
+  const replaced = existing && existing.id !== payment.id ? existing : undefined;
+  if (replaced) {
     actions.push({
       action: 'removePayment',
       payment: {
         typeId: 'payment',
-        id: existing.id,
+        id: replaced.id,
       },
     });
   }
-  actions.push({
-    action: 'addPayment',
-    payment: {
-      typeId: 'payment',
-      id: payment.body.id,
-    },
-  });
+  const alreadyOnCart = cart.paymentInfo?.payments?.some(
+    (entry) => entry.id === payment.id,
+  );
+  if (!alreadyOnCart) {
+    actions.push({
+      action: 'addPayment',
+      payment: {
+        typeId: 'payment',
+        id: payment.id,
+      },
+    });
+  }
 
-  return updateCart(cart, actions);
+  if (actions.length === 0) {
+    return cart;
+  }
+
+  const updated = await updateCart(cart, actions);
+  if (replaced) {
+    await deleteReplacedPayment(replaced);
+  }
+
+  return updated;
+}
+
+async function deleteReplacedPayment(payment: {
+  id: string;
+  version?: number;
+}): Promise<void> {
+  if (payment.version === undefined) {
+    return;
+  }
+
+  try {
+    await apiRoot
+      .payments()
+      .withId({ ID: payment.id })
+      .delete({ queryArgs: { version: payment.version } })
+      .execute();
+  } catch (error) {
+    console.warn('[mock-payment] could not delete replaced payment', {
+      paymentId: payment.id,
+      code: parseCtError(error).code,
+    });
+  }
 }
 
 function findMockPayment(
   cart: Cart,
-): { id: string; amount?: Money } | undefined {
+): { id: string; version?: number; amount?: Money } | undefined {
   const payment = cart.paymentInfo?.payments?.find(
     (entry) =>
       entry.obj?.paymentMethodInfo?.paymentInterface === MOCK_PAYMENT_INTERFACE,
@@ -427,6 +517,7 @@ function findMockPayment(
 
   return {
     id: payment.id,
+    version: payment.version,
     amount: payment.amountPlanned,
   };
 }
@@ -460,27 +551,32 @@ async function executeCommercetools<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 
-function mapCommercetoolsError(error: unknown): MockCheckoutError | null {
-  if (typeof error !== 'object' || error === null || !('body' in error)) {
-    return null;
+function mapCommercetoolsError(
+  error: unknown,
+): MockCheckoutConflictError | MockCheckoutError | null {
+  if (isCtConcurrentModification(error)) {
+    return new MockCheckoutConflictError();
   }
 
-  const statusCode =
-    'statusCode' in error && typeof error.statusCode === 'number'
-      ? error.statusCode
-      : undefined;
-  const body = error.body as CommercetoolsErrorBody | undefined;
-  const code = body?.errors?.[0]?.code;
-  const message = body?.errors?.[0]?.message ?? body?.message;
-
-  if (code === 'MissingTaxRateForCountry') {
+  if (
+    getCtErrorObjects(error).some(
+      (entry) => entry.code === 'MissingTaxRateForCountry',
+    )
+  ) {
     return new MockCheckoutError(
       'This project has no tax rate for the selected market country.',
     );
   }
 
-  if (statusCode === 400 && message) {
-    return new MockCheckoutError(message);
+  const { statusCode, code } = parseCtError(error);
+  if (statusCode === 400) {
+    console.warn('[mock-payment]', {
+      code,
+      ctCorrelationId: getCtCorrelationId(error),
+    });
+    return new MockCheckoutError(
+      'Checkout could not be completed. Please review your details and try again.',
+    );
   }
 
   return null;

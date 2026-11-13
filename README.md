@@ -99,6 +99,8 @@ pnpm lint && pnpm typecheck
 
 Leave `CTP_MOCK_PAYMENTS` unset to keep commercetools Checkout and Stripe. Set `CTP_MOCK_PAYMENTS=true` to skip that path and place the Order from the storefront: the BFF lists matching shipping methods, waits two seconds, then creates a Payment with a successful Charge (`paymentInterface: mock`).
 
+Mock payments only switch on when `CTP_MOCK_PAYMENTS_PROJECT_KEY` is also set and equals `CTP_PROJECT_KEY`. If it is missing or differs, they stay disabled and the server logs an error once per process. This stops a copied env file from creating paid mock orders in a real project.
+
 The storefront API client used for Stripe does **not** create Payments. Checkout and the Stripe connector do, and `manage_payments` stays on the connector client. See [docs/CHECKOUT.md](./docs/CHECKOUT.md).
 
 Mock payments extend that same storefront client with two extra scopes, because the BFF calls the general Payments API and the matching-shipping-methods endpoint itself:
