@@ -1,6 +1,8 @@
 import 'server-only';
 
 import { getClientCredentialsAccessToken } from './access-token';
+import { getCtCorrelationId, toCtFetchError } from './ct-errors';
+import { CheckoutSessionError } from './domain-errors';
 import { commercetoolsEnv } from './env';
 import { resolveCheckoutApplicationKey } from './storefront-context';
 
@@ -40,9 +42,11 @@ export async function createCheckoutSession(
 
   const raw = await response.text();
   if (!response.ok) {
-    throw new Error(
-      `Failed to create checkout session (${response.status}): ${raw || 'empty response'}`,
-    );
+    console.error('[checkout-session]', {
+      status: response.status,
+      ctCorrelationId: getCtCorrelationId(toCtFetchError(response, raw)),
+    });
+    throw new CheckoutSessionError();
   }
 
   let body: SessionResponse;

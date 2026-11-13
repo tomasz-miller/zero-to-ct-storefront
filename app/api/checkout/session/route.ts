@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
 
-import {
-  CartAccessError,
-  CartNotFoundError,
-  getCartForCheckout,
-} from '@/lib/commercetools/cart';
+import { getCartForCheckout } from '@/lib/commercetools/cart';
 import { createCheckoutSession } from '@/lib/commercetools/checkout-session';
 import { setLastOrderSession } from '@/lib/commercetools/last-order-session';
 import { createOrderNumber } from '@/lib/commercetools/order-number';
 import { getStorefrontContext } from '@/lib/commercetools/storefront-context';
+import { toErrorResponse } from '@/lib/http/route-errors';
 
 export async function POST() {
   try {
@@ -26,16 +23,6 @@ export async function POST() {
 
     return NextResponse.json({ sessionId });
   } catch (error) {
-    if (error instanceof CartAccessError) {
-      return NextResponse.json({ error: 'Cart access denied' }, { status: 403 });
-    }
-    if (error instanceof CartNotFoundError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    console.error('[api/checkout/session]', error);
-    const message =
-      error instanceof Error ? error.message : 'Failed to create checkout session';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return toErrorResponse(error, 'api/checkout/session');
   }
 }

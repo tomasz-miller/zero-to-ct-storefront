@@ -65,4 +65,24 @@ describe('getClientCredentialsAccessToken', () => {
       'Failed to obtain access token (401)',
     );
   });
+
+  it('throws a status-only error when the token request fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response('{"error":"invalid_client","message":"secret detail"}', {
+            status: 401,
+          }),
+        ),
+    );
+
+    const err = await getClientCredentialsAccessToken().catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toBe('Failed to obtain access token (401)');
+    expect((err as Error).message).not.toContain('secret detail');
+  });
 });

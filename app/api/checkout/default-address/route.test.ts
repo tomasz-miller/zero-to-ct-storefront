@@ -11,21 +11,10 @@ vi.mock('@/lib/commercetools/checkout-cart-addresses', () => ({
   applyDefaultAddressesToCart: mockApplyDefaultAddressesToCart,
 }));
 
-vi.mock('@/lib/commercetools/cart', () => ({
-  CartAccessError: class CartAccessError extends Error {},
-  CartNotFoundError: class CartNotFoundError extends Error {
-    constructor(message = 'Cart not found') {
-      super(message);
-      this.name = 'CartNotFoundError';
-    }
-  },
-  NoDefaultAddressError: class NoDefaultAddressError extends Error {
-    constructor(message = 'No default address configured on your account') {
-      super(message);
-      this.name = 'NoDefaultAddressError';
-    }
-  },
-}));
+import {
+  NoDefaultAddressError,
+  UnauthorizedError,
+} from '@/lib/commercetools/domain-errors';
 
 import { POST } from './route';
 
@@ -49,27 +38,21 @@ describe('POST /api/checkout/default-address', () => {
     });
   });
 
-  it('returns 401 when the customer is not signed in', async () => {
-    const { CartAccessError } = await import('@/lib/commercetools/cart');
-    mockApplyDefaultAddressesToCart.mockRejectedValue(
-      new CartAccessError('Sign in required'),
-    );
-
-    const response = await POST();
-
-    expect(response.status).toBe(401);
-    expect((await response.json()).error).toBe('Sign in required');
-  });
-
-  it('returns 400 when no default address is configured', async () => {
-    const { NoDefaultAddressError } = await import('@/lib/commercetools/cart');
-    mockApplyDefaultAddressesToCart.mockRejectedValue(
+  it.each([
+    [new UnauthorizedError(), 401, 'Sign in required'],
+    [
       new NoDefaultAddressError(),
-    );
+      400,
+      'No default address configured on your account',
+    ],
+    [new Error('ct'), 500, 'Something went wrong. Please try again.'],
+  ])('maps %s', async (error, status, message) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockApplyDefaultAddressesToCart.mockRejectedValue(error);
 
     const response = await POST();
 
-    expect(response.status).toBe(400);
-    expect((await response.json()).error).toMatch(/default address/i);
+    expect(response.status).toBe(status);
+    expect((await response.json()).error).toBe(message);
   });
 });

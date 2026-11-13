@@ -17,13 +17,6 @@ const {
 
 vi.mock('@/lib/commercetools/cart', () => ({
   getCartForCheckout: mockGetCartForCheckout,
-  CartAccessError: class CartAccessError extends Error {},
-  CartNotFoundError: class CartNotFoundError extends Error {
-    constructor(message = 'Cart not found') {
-      super(message);
-      this.name = 'CartNotFoundError';
-    }
-  },
 }));
 
 vi.mock('@/lib/commercetools/checkout-session', () => ({
@@ -41,6 +34,12 @@ vi.mock('@/lib/commercetools/order-number', () => ({
 vi.mock('@/lib/commercetools/storefront-context', () => ({
   getStorefrontContext: mockGetStorefrontContext,
 }));
+
+import {
+  CartAccessError,
+  CartNotFoundError,
+  CheckoutSessionError,
+} from '@/lib/commercetools/domain-errors';
 
 import { POST } from './route';
 
@@ -106,7 +105,6 @@ describe('POST /api/checkout/session', () => {
   });
 
   it('returns 403 when cart access is denied', async () => {
-    const { CartAccessError } = await import('@/lib/commercetools/cart');
     mockGetCartForCheckout.mockRejectedValue(new CartAccessError());
 
     const response = await POST();
@@ -117,33 +115,48 @@ describe('POST /api/checkout/session', () => {
     expect(body.error).toMatch(/access denied/i);
   });
 
-  it('returns 400 when cart is not found', async () => {
-    const { CartNotFoundError } = await import('@/lib/commercetools/cart');
-    mockGetCartForCheckout.mockRejectedValue(
-      new CartNotFoundError('No active cart'),
-    );
-
-    const response = await POST();
-
-    expect(response.status).toBe(400);
-
-    const body = await response.json();
-    expect(body.error).toBe('No active cart');
-  });
-
-  it('returns 500 when checkout session creation fails', async () => {
+  it('returns a generic message when session creation fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGetCartForCheckout.mockResolvedValue({
       cart: { id: 'cart-1', country: 'DE' },
     });
     mockCreateCheckoutSession.mockRejectedValue(
-      new Error('Checkout session unavailable'),
+      new Error(
+        'Failed to create checkout session (403): {"message":"insufficient_scope manage_orders"}',
+      ),
     );
 
     const response = await POST();
+    const body = await response.json();
 
     expect(response.status).toBe(500);
+    expect(JSON.stringify(body)).not.toMatch(/insufficient_scope|403/);
+  });
 
-    const body = await response.json();
-    expect(body.error).toBe('Checkout session unavailable');
+  it('maps CheckoutSessionError to 502 with fixed copy', async () => {
+    mockGetCartForCheckout.mockResolvedValue({
+      cart: { id: 'cart-1', country: 'DE' },
+    });
+    mockCreateCheckoutSession.mockRejectedValue(new CheckoutSessionError());
+
+    const response = await POST();
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: 'Checkout is temporarily unavailable. Please try again.',
+      code: 'CheckoutUnavailable',
+    });
+  });
+
+  it('maps CartNotFoundError to 404', async () => {
+    mockGetCartForCheckout.mockRejectedValue(new CartNotFoundError());
+
+    const response = await POST();
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      error: 'Cart not found',
+      code: 'CartNotFound',
+    });
   });
 });

@@ -1,40 +1,30 @@
 import { NextResponse } from 'next/server';
 
-import { isMockPaymentsEnabled, mockCheckoutFailure, prepareMockCheckout } from '@/lib/commercetools/mock-payment';
+import { MockPaymentsDisabledError } from '@/lib/commercetools/domain-errors';
+import {
+  isMockPaymentsEnabled,
+  prepareMockCheckout,
+} from '@/lib/commercetools/mock-payment';
+import { parseJsonBody } from '@/lib/http/parse-json-body';
+import { MockPrepareBodySchema } from '@/lib/http/request-schemas';
+import { toErrorResponse } from '@/lib/http/route-errors';
 
 export async function POST(request: Request) {
   if (!isMockPaymentsEnabled()) {
-    return NextResponse.json(
-      { error: 'Mock payments are disabled' },
-      { status: 404 },
+    return toErrorResponse(
+      new MockPaymentsDisabledError(),
+      'api/checkout/mock-prepare',
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
-  }
-
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(request, MockPrepareBodySchema);
+  if (!parsed.ok) return parsed.response;
 
   try {
-    const result = await prepareMockCheckout(body);
+    const result = await prepareMockCheckout(parsed.data);
 
     return NextResponse.json(result);
   } catch (error) {
-    const failure = mockCheckoutFailure(error);
-    if (failure) {
-      return NextResponse.json({ error: failure.error }, { status: failure.status });
-    }
-
-    console.error('[api/checkout/mock-prepare]', error);
-    return NextResponse.json(
-      { error: 'Failed to prepare checkout' },
-      { status: 500 },
-    );
+    return toErrorResponse(error, 'api/checkout/mock-prepare');
   }
 }

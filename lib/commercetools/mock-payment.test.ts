@@ -91,13 +91,11 @@ vi.mock('./storefront-context', () => ({
   getStorefrontContext: mockGetStorefrontContext,
 }));
 
-import { CartAccessError, CartNotFoundError } from './domain-errors';
 import {
   MOCK_PAYMENT_DELAY_MS,
   MockCheckoutError,
   MockPaymentsDisabledError,
   isMockPaymentsEnabled,
-  mockCheckoutFailure,
   placeMockPayment,
   prepareMockCheckout,
 } from './mock-payment';
@@ -461,26 +459,5 @@ describe('mock payments', () => {
       MockPaymentsDisabledError,
     );
     expect(mockRequireActiveCart).not.toHaveBeenCalled();
-  });
-});
-
-describe('mockCheckoutFailure', () => {
-  it('maps known checkout errors to HTTP statuses', () => {
-    expect(
-      mockCheckoutFailure(new MockPaymentsDisabledError()),
-    ).toEqual({ status: 404, error: 'Mock payments are disabled' });
-    expect(mockCheckoutFailure(new MockCheckoutError('Email is required'))).toEqual({
-      status: 400,
-      error: 'Email is required',
-    });
-    expect(mockCheckoutFailure(new CartNotFoundError('Cart is empty'))).toEqual({
-      status: 400,
-      error: 'Cart is empty',
-    });
-    expect(mockCheckoutFailure(new CartAccessError())).toEqual({
-      status: 403,
-      error: 'Cart access denied',
-    });
-    expect(mockCheckoutFailure(new Error('boom'))).toBeNull();
   });
 });

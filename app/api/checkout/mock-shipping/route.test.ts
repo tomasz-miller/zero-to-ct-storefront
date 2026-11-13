@@ -1,44 +1,42 @@
 /**
  * @vitest-environment node
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockIsEnabled, mockApply, mockFailure } = vi.hoisted(() => ({
+const { mockIsEnabled, mockApply } = vi.hoisted(() => ({
   mockIsEnabled: vi.fn(),
   mockApply: vi.fn(),
-  mockFailure: vi.fn(),
 }));
 
 vi.mock('@/lib/commercetools/mock-payment', () => ({
   isMockPaymentsEnabled: mockIsEnabled,
   applyMockShippingMethod: mockApply,
-  mockCheckoutFailure: mockFailure,
 }));
+
+import { jsonRequest } from '@/test/helpers/json-request';
 
 import { POST } from './route';
 
-function post(body: unknown) {
-  return new Request('http://localhost/api/checkout/mock-shipping', {
-    method: 'POST',
-    body: JSON.stringify(body),
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
+const ENDPOINT = 'http://localhost/api/checkout/mock-shipping';
 
 describe('POST /api/checkout/mock-shipping', () => {
   beforeEach(() => {
     mockIsEnabled.mockReset();
     mockApply.mockReset();
-    mockFailure.mockReset();
     mockIsEnabled.mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('returns 404 when mock payments are disabled', async () => {
     mockIsEnabled.mockReturnValue(false);
 
-    const response = await POST(post({ shippingMethodId: 'ship-1' }));
+    const response = await POST(jsonRequest(ENDPOINT, { shippingMethodId: 'ship-1' }));
 
     expect(response.status).toBe(404);
+    expect((await response.json()).error).toBe('Mock payments are disabled');
     expect(mockApply).not.toHaveBeenCalled();
   });
 
@@ -47,7 +45,7 @@ describe('POST /api/checkout/mock-shipping', () => {
       total: { centAmount: 1680, currencyCode: 'EUR' },
     });
 
-    const response = await POST(post({ shippingMethodId: 'ship-1' }));
+    const response = await POST(jsonRequest(ENDPOINT, { shippingMethodId: 'ship-1' }));
 
     expect(response.status).toBe(200);
     expect(mockApply).toHaveBeenCalledWith('ship-1');
@@ -57,14 +55,29 @@ describe('POST /api/checkout/mock-shipping', () => {
   });
 
   it('returns a generic message when shipping update fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     mockApply.mockRejectedValue(new Error('scope missing'));
-    mockFailure.mockReturnValue(null);
 
-    const response = await POST(post({ shippingMethodId: 'ship-1' }));
+    const response = await POST(jsonRequest(ENDPOINT, { shippingMethodId: 'ship-1' }));
+    const body = await response.json();
 
     expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({
-      error: 'Failed to update shipping method',
-    });
+    expect(body.error).toBe('Something went wrong. Please try again.');
+    expect(JSON.stringify(body)).not.toContain('scope missing');
+  });
+
+  it('returns 400 for a null body', async () => {
+    mockIsEnabled.mockReturnValue(true);
+
+    expect((await POST(jsonRequest(ENDPOINT, null))).status).toBe(400);
+  });
+
+  it('returns 415 for text/plain', async () => {
+    mockIsEnabled.mockReturnValue(true);
+
+    expect(
+      (await POST(jsonRequest(ENDPOINT, {}, { headers: { 'content-type': 'text/plain' } })))
+        .status,
+    ).toBe(415);
   });
 });

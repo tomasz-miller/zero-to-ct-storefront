@@ -33,9 +33,7 @@ export async function getClientCredentialsAccessToken(): Promise<string> {
 
   const raw = await response.text();
   if (!response.ok) {
-    throw new Error(
-      `Failed to obtain access token (${response.status}): ${raw || 'empty response'}`,
-    );
+    throw new Error(`Failed to obtain access token (${response.status})`);
   }
 
   let body: { access_token?: string; expires_in?: number };

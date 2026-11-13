@@ -11,7 +11,6 @@ import { apiRoot } from './api-root';
 import { requireActiveCart } from './cart';
 import { clearCartSession } from './cart-session';
 import {
-  CartAccessError,
   CartNotFoundError,
   MockCheckoutError,
   MockPaymentsDisabledError,
@@ -75,24 +74,6 @@ type CommercetoolsErrorBody = {
 
 export function isMockPaymentsEnabled(): boolean {
   return process.env.CTP_MOCK_PAYMENTS === 'true';
-}
-
-export function mockCheckoutFailure(
-  error: unknown,
-): { status: number; error: string } | null {
-  if (error instanceof MockPaymentsDisabledError) {
-    return { status: 404, error: error.message };
-  }
-
-  if (error instanceof MockCheckoutError || error instanceof CartNotFoundError) {
-    return { status: 400, error: error.message };
-  }
-
-  if (error instanceof CartAccessError) {
-    return { status: 403, error: 'Cart access denied' };
-  }
-
-  return null;
 }
 
 export async function prepareMockCheckout(

@@ -4,7 +4,7 @@ import type { Address, CartUpdateAction } from '@commercetools/platform-sdk';
 
 import { updateActiveCart } from './cart';
 import { getAuthenticatedCustomerProfile } from './customer-auth';
-import { CartAccessError, NoDefaultAddressError } from './domain-errors';
+import { NoDefaultAddressError, UnauthorizedError } from './domain-errors';
 import type {
   StorefrontCustomer,
   StorefrontCustomerAddress,
@@ -39,7 +39,7 @@ export function customerCanUseDefaultAddress(
 export async function applyDefaultAddressesToCart() {
   const customer = await getAuthenticatedCustomerProfile();
   if (!customer) {
-    throw new CartAccessError('Sign in required');
+    throw new UnauthorizedError();
   }
 
   const defaultShippingAddress = customer.addresses.find(
