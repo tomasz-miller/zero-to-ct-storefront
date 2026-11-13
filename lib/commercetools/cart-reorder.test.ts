@@ -22,12 +22,6 @@ vi.mock('./cart', () => ({
 
 vi.mock('./customer-api', () => ({
   getMyOrder: mockGetMyOrder,
-  CustomerOrderNotFoundError: class CustomerOrderNotFoundError extends Error {
-    constructor() {
-      super('Order not found');
-      this.name = 'CustomerOrderNotFoundError';
-    }
-  },
 }));
 
 vi.mock('./products', () => ({
@@ -39,7 +33,7 @@ import {
   reorderOrder,
   ReorderUnauthorizedError,
 } from './cart-reorder';
-import { CustomerOrderNotFoundError } from './customer-api';
+import { CustomerOrderNotFoundError } from './domain-errors';
 
 function money(centAmount: number) {
   return {

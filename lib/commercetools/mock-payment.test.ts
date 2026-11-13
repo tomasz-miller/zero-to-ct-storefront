@@ -73,18 +73,6 @@ vi.mock('./api-root', () => ({
 
 vi.mock('./cart', () => ({
   requireActiveCart: mockRequireActiveCart,
-  CartAccessError: class CartAccessError extends Error {
-    constructor(message = 'Cart access denied') {
-      super(message);
-      this.name = 'CartAccessError';
-    }
-  },
-  CartNotFoundError: class CartNotFoundError extends Error {
-    constructor(message = 'Cart not found') {
-      super(message);
-      this.name = 'CartNotFoundError';
-    }
-  },
 }));
 
 vi.mock('./cart-session', () => ({
@@ -103,7 +91,7 @@ vi.mock('./storefront-context', () => ({
   getStorefrontContext: mockGetStorefrontContext,
 }));
 
-import { CartAccessError, CartNotFoundError } from './cart';
+import { CartAccessError, CartNotFoundError } from './domain-errors';
 import {
   MOCK_PAYMENT_DELAY_MS,
   MockCheckoutError,

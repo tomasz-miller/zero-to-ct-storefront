@@ -13,10 +13,11 @@ import {
   NumberFieldInput,
 } from '@/components/ui/number-field';
 import { Spinner } from '@/components/ui/spinner';
+import { MAX_LINE_ITEM_QUANTITY } from '@/lib/cart-limits';
 import type { StorefrontCart } from '@/lib/commercetools/cart-mappers';
 import { cn } from '@/lib/utils';
 
-const QUANTITY_CEILING = 99;
+const QUANTITY_CEILING = MAX_LINE_ITEM_QUANTITY;
 
 type AddToCartButtonProps = {
   sku: string;

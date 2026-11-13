@@ -5,11 +5,7 @@ import type { Cart, CartUpdateAction } from '@commercetools/platform-sdk';
 import { isStorefrontCountry } from '@/lib/markets';
 
 import { apiRoot } from './api-root';
-import {
-  DiscountCodeNotApplicableError,
-  InvalidDiscountCodeError,
-  mapDiscountCodeCartError,
-} from './cart-discount-errors';
+import { mapDiscountCodeCartError } from './cart-discount-errors';
 import { mapCart, type StorefrontCart } from './cart-mappers';
 import {
   clearCartSession,
@@ -19,6 +15,14 @@ import {
   type CartSession,
 } from './cart-session';
 import { getCustomerSession } from './customer-session';
+import {
+  CartAccessError,
+  CartNotFoundError,
+  DiscountCodeNotApplicableError,
+  InvalidDiscountCodeError,
+  NoDefaultAddressError,
+  OutOfStockError,
+} from './domain-errors';
 import {
   forgetCartForCountry,
   getCartIdForCountry,
@@ -30,6 +34,13 @@ import {
 } from './storefront-context';
 import { getProductAvailabilityBySku } from './products';
 
+export {
+  CartAccessError,
+  CartNotFoundError,
+  NoDefaultAddressError,
+  OutOfStockError,
+};
+
 type AlignCartResult = {
   cart: Cart;
   restored: boolean;
@@ -38,34 +49,6 @@ type AlignCartResult = {
 
 function cartItemCount(cart: Cart): number {
   return cart.lineItems.reduce((sum, item) => sum + item.quantity, 0);
-}
-
-export class CartAccessError extends Error {
-  constructor(message = 'Cart access denied') {
-    super(message);
-    this.name = 'CartAccessError';
-  }
-}
-
-export class CartNotFoundError extends Error {
-  constructor(message = 'Cart not found') {
-    super(message);
-    this.name = 'CartNotFoundError';
-  }
-}
-
-export class OutOfStockError extends Error {
-  constructor(message = 'This product is out of stock') {
-    super(message);
-    this.name = 'OutOfStockError';
-  }
-}
-
-export class NoDefaultAddressError extends Error {
-  constructor(message = 'No default address configured on your account') {
-    super(message);
-    this.name = 'NoDefaultAddressError';
-  }
 }
 
 async function fetchCartById(cartId: string): Promise<Cart | null> {

@@ -5,6 +5,11 @@ import type { ShoppingList } from '@commercetools/platform-sdk';
 import { apiRoot } from './api-root';
 import { addLineItem } from './cart';
 import { getCustomerSession } from './customer-session';
+import {
+  WishlistAccessError,
+  WishlistLineItemNotFoundError,
+  WishlistNotFoundError,
+} from './domain-errors';
 import { pickLocalized } from './product-mappers';
 import { getStorefrontContext } from './storefront-context';
 import { mapWishlist, type StorefrontWishlist } from './wishlist-mappers';
@@ -17,26 +22,11 @@ import {
   type WishlistSession,
 } from './wishlist-session';
 
-export class WishlistAccessError extends Error {
-  constructor(message = 'Wishlist access denied') {
-    super(message);
-    this.name = 'WishlistAccessError';
-  }
-}
-
-export class WishlistNotFoundError extends Error {
-  constructor(message = 'Wishlist not found') {
-    super(message);
-    this.name = 'WishlistNotFoundError';
-  }
-}
-
-export class WishlistLineItemNotFoundError extends Error {
-  constructor(message = 'Wishlist item not found') {
-    super(message);
-    this.name = 'WishlistLineItemNotFoundError';
-  }
-}
+export {
+  WishlistAccessError,
+  WishlistLineItemNotFoundError,
+  WishlistNotFoundError,
+};
 
 async function fetchShoppingListById(shoppingListId: string): Promise<ShoppingList | null> {
   try {

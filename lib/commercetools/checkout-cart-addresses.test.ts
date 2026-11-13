@@ -14,13 +14,6 @@ vi.mock('./customer-auth', () => ({
 }));
 
 vi.mock('./cart', () => ({
-  CartAccessError: class CartAccessError extends Error {},
-  NoDefaultAddressError: class NoDefaultAddressError extends Error {
-    constructor(message = 'No default address configured on your account') {
-      super(message);
-      this.name = 'NoDefaultAddressError';
-    }
-  },
   updateActiveCart: mockUpdateActiveCart,
 }));
 
@@ -28,6 +21,7 @@ import {
   applyDefaultAddressesToCart,
   customerCanUseDefaultAddress,
 } from './checkout-cart-addresses';
+import { NoDefaultAddressError } from './domain-errors';
 
 function createCustomer(
   overrides: Partial<StorefrontCustomer> = {},
@@ -146,7 +140,6 @@ describe('applyDefaultAddressesToCart', () => {
   });
 
   it('throws when the customer has no default addresses', async () => {
-    const { NoDefaultAddressError } = await import('./cart');
     mockGetAuthenticatedCustomerProfile.mockResolvedValue(createCustomer());
 
     await expect(applyDefaultAddressesToCart()).rejects.toBeInstanceOf(

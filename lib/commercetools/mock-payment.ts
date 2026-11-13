@@ -8,12 +8,14 @@ import type {
 } from '@commercetools/platform-sdk';
 
 import { apiRoot } from './api-root';
+import { requireActiveCart } from './cart';
+import { clearCartSession } from './cart-session';
 import {
   CartAccessError,
   CartNotFoundError,
-  requireActiveCart,
-} from './cart';
-import { clearCartSession } from './cart-session';
+  MockCheckoutError,
+  MockPaymentsDisabledError,
+} from './domain-errors';
 import { setLastOrderSession } from './last-order-session';
 import { createOrderNumber } from './order-number';
 import { pickLocalized } from './product-mappers';
@@ -25,19 +27,7 @@ export const MOCK_PAYMENT_INTERFACE = 'mock';
 
 const CART_EXPAND = ['paymentInfo.payments[*]'] as const;
 
-export class MockPaymentsDisabledError extends Error {
-  constructor(message = 'Mock payments are disabled') {
-    super(message);
-    this.name = 'MockPaymentsDisabledError';
-  }
-}
-
-export class MockCheckoutError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'MockCheckoutError';
-  }
-}
+export { MockCheckoutError, MockPaymentsDisabledError };
 
 export type MockCheckoutAddressInput = {
   email?: unknown;

@@ -3,23 +3,10 @@ import 'server-only';
 import { addLineItems } from './cart';
 import type { StorefrontCart } from './cart-mappers';
 import { getMyOrder } from './customer-api';
+import { NothingToReorderError, ReorderUnauthorizedError } from './domain-errors';
 import { getProductAvailabilityBySku } from './products';
 
-export class ReorderUnauthorizedError extends Error {
-  constructor(message = 'Sign in required to reorder') {
-    super(message);
-    this.name = 'ReorderUnauthorizedError';
-  }
-}
-
-export class NothingToReorderError extends Error {
-  constructor(
-    message = 'No available items from this order could be added to the cart',
-  ) {
-    super(message);
-    this.name = 'NothingToReorderError';
-  }
-}
+export { NothingToReorderError, ReorderUnauthorizedError };
 
 export type ReorderResult = {
   cart: StorefrontCart;

@@ -12,6 +12,7 @@ import {
   type StorefrontOrder,
   type StorefrontOrderDetail,
 } from './customer-mappers';
+import { CustomerOrderNotFoundError } from './domain-errors';
 import { commercetoolsEnv } from './env';
 import { getStorefrontContext } from './storefront-context';
 
@@ -22,12 +23,7 @@ type OrdersResponse = {
   offset: number;
 };
 
-export class CustomerOrderNotFoundError extends Error {
-  constructor() {
-    super('Order not found');
-    this.name = 'CustomerOrderNotFoundError';
-  }
-}
+export { CustomerOrderNotFoundError };
 
 export async function getMyOrders(options?: {
   limit?: number;

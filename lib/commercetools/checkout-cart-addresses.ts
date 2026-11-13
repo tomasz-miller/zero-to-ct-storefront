@@ -2,12 +2,9 @@ import 'server-only';
 
 import type { Address, CartUpdateAction } from '@commercetools/platform-sdk';
 
-import {
-  CartAccessError,
-  NoDefaultAddressError,
-  updateActiveCart,
-} from './cart';
+import { updateActiveCart } from './cart';
 import { getAuthenticatedCustomerProfile } from './customer-auth';
+import { CartAccessError, NoDefaultAddressError } from './domain-errors';
 import type {
   StorefrontCustomer,
   StorefrontCustomerAddress,
