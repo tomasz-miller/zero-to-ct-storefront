@@ -83,7 +83,7 @@ Use these only when connecting a new Vercel project or forcing a one-off product
 
 ### Stripe connector CORS
 
-After the first production URL is live, ensure the Stripe connector `ALLOWED_ORIGINS` includes your production URL (e.g. `https://zero-to-ct-storefront.vercel.app`). See [CHECKOUT.md](./CHECKOUT.md).
+After the first production URL is live, ensure the Stripe connector `ALLOWED_ORIGINS` includes your production URL (e.g. `https://<your-app>.vercel.app`). See [CHECKOUT.md](./CHECKOUT.md).
 
 ---
 
@@ -102,9 +102,9 @@ CI runs `pnpm build` with live CT credentials ([`.github/workflows/ci.yml`](../.
 
 ---
 
-## Production URL (current)
+## Previous deployment (retired)
 
-**https://zero-to-ct-storefront.vercel.app** — first deployed 2026-07-14 via Vercel CLI; thereafter **auto-deploy from `main`**.
+`https://zero-to-ct-storefront.vercel.app` ran from 2026-07-14 (first deployed via Vercel CLI, then auto-deploy from `main`) until the commercetools trial project expired. The URL no longer serves the storefront. A new deployment needs a new commercetools project and fresh environment variables.
 
 ---
 
@@ -112,7 +112,7 @@ CI runs `pnpm build` with live CT credentials ([`.github/workflows/ci.yml`](../.
 
 | Check | How |
 |-------|-----|
-| Health | `GET https://zero-to-ct-storefront.vercel.app/api/health` → `{ "ok": true }` |
+| Health | `GET https://<your-app>.vercel.app/api/health` → `{ "ok": true }` |
 | Products | Homepage loads Best Sellers grid |
 | Add to cart | Add item from homepage; cart badge updates |
 | Checkout embed | `/checkout` loads without `no_payment_integrations` error |

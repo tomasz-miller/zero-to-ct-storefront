@@ -15,6 +15,15 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-11-13 — Hosted demo retired; project review
+- **Time:** —
+- **Phase:** maintenance
+- **Milestone:** The commercetools trial project expired, so the Vercel demo no longer works. README, AGENTS.md and the guides now point to local runs; historical entries keep the old URL. A full security, clean-code and accessibility review followed, with remediation tracked as serial PRs (dependency updates first).
+- **Agent vs manual:** 100% agent, human review pending
+- **Notes:** e2e tests need a new commercetools project before they can run again.
+
+---
+
 ### 2026-09-25 — Mock checkout amount before pay
 - **Time:** 1h
 - **Phase:** phase-3-demo

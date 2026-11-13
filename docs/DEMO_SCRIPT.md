@@ -2,7 +2,7 @@
 
 Step-by-step script for demonstrating **zero-to-ct-storefront** to prospects. Aligned with the [commercetools B2C Retail demo flow](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail).
 
-**Production URL:** https://zero-to-ct-storefront.vercel.app/  
+**Where to run:** locally (`pnpm dev` → http://localhost:3000). The hosted demo is retired because the commercetools trial project expired.  
 **Duration:** ~10–15 minutes (Scenarios A + B).  
 **Audience:** Technical buyers, solution architects, backend leads evaluating agent-assisted delivery.
 
@@ -12,7 +12,7 @@ Step-by-step script for demonstrating **zero-to-ct-storefront** to prospects. Al
 
 Before the demo, verify:
 
-1. **Production demo** is live at https://zero-to-ct-storefront.vercel.app/ (or run locally with `pnpm dev`).
+1. **Local app** is running with `pnpm dev` against a commercetools project that has the B2C sample data.
 2. **`.env.local`** is configured for local runs — see [`.env.example`](../.env.example) and [CHECKOUT.md](./CHECKOUT.md).
 3. **Payment Integrations** are **Active** in Merchant Center (Checkout → Applications). If checkout shows `no_payment_integrations`, see [CHECKOUT.md troubleshooting](./CHECKOUT.md).
 4. **Stripe test mode** is enabled on the connector (test keys in CT Connect).
@@ -20,10 +20,10 @@ Before the demo, verify:
 Quick health check:
 
 ```bash
-curl -s https://zero-to-ct-storefront.vercel.app/api/health | jq .
+curl -s http://localhost:3000/api/health | jq .
 ```
 
-Expect `"ok": true` and a valid `projectKey`. For local dev, use `http://localhost:3000/api/health`.
+Expect `"ok": true` and a valid `projectKey`.
 
 ---
 

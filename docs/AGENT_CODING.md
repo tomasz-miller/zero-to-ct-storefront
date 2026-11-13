@@ -12,7 +12,7 @@ This document describes how to develop **zero-to-ct-storefront** using AI coding
 2. Demonstrate **agent-assisted delivery** by a backend-focused developer
 3. Produce measurable evidence (time logs, git history) for sales demos
 
-**Live demo:** https://zero-to-ct-storefront.vercel.app/
+**Demo:** the hosted demo is retired (commercetools trial project expired). Run locally with `pnpm dev`.
 
 ---
 
