@@ -2,7 +2,7 @@
 
 How to deploy **zero-to-ct-storefront** to production (Vercel recommended).
 
-**Production path:** the GitHub repo is linked to Vercel — pushes to `main` **auto-deploy**. Initial project import, env vars, and Stripe connector `ALLOWED_ORIGINS` remain a one-time human setup. CLI / plugin deploy is optional for first-time bootstrap or emergency redeploys.
+**Production path:** when a Vercel project is linked to the repository, pushes to `main` **auto-deploy**. Initial project import, env vars, and Stripe connector `ALLOWED_ORIGINS` remain a one-time human setup. CLI / plugin deploy is optional for first-time bootstrap or emergency redeploys.
 
 ---
 
@@ -120,7 +120,7 @@ CI runs `pnpm build` with live CT credentials ([`.github/workflows/ci.yml`](../.
 | Auth | Register, sign in, view `/account` order history |
 | Wishlist | Save item from homepage, view `/wishlist`, move to cart |
 
-Run through [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) on the production URL before a sales call.
+Run through [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) on your deployment, or locally, before a sales call.
 
 ---
 
