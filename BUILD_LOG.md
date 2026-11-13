@@ -15,6 +15,15 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-11-13 — Track 0: dependency updates
+- **Time:** —
+- **Phase:** maintenance
+- **Milestone:** pnpm 12.19.0 with a strict 3-day `minimumReleaseAge`, Next 16.4.6, React 19.3.1, Vitest 5.1.0 with vite 8.3.7, jsdom 31.0.0, jest-dom 7.0.1, ESLint 10.14.0, platform-sdk 9.8.0, ts-client 5.2.0, checkout-browser-sdk 1.7.5, Playwright 1.65.0, and the other bumps from `pnpm list --depth 0`. shadcn moved to devDependencies, the postcss override was removed (next pins 8.5.23), and the Node floor is now `^22.22.2 || ^24.15.0 || >=26.0.0`. Unit tests 387 → 396 (84 → 85 files).
+- **Agent vs manual:** 100% agent, human review pending
+- **Notes:** Fallbacks for releases younger than 3 days at execution: pnpm 12.19.0 (not 12.20.0), lucide-react ^1.71.0, @testing-library/user-event ^14.6.9, prettier ^3.9.10, vite ^8.3.7. Held back: jsdom 31.0.1 (not mature), TypeScript 7.1 (beta; `typescript` stays aliased to typescript6 for typescript-eslint, `typescript-7` provides `tsc`), Node 26 in CI (corepack is not bundled with Node 25+), pnpm `lockfile.format: v13`, Next `cacheComponents` (Track 3), Vitest `clearMocks: false`. ts-client 5.2.0 declares `useRetryAfter?: boolean` (`types.d.ts:245`). Neither fallback was needed: `next build` finds the `tsc` CLI (no `useTypeScriptCli: false`) and no jest-dom types file was added. platform-sdk 9.8.0 made `AttributeDefinition.savedToLineItem` required, so the test fixture in `lib/commercetools/searchable-product-attributes.test.ts` gained it. The placeholder build still fails as on the baseline (`Error occurred prerendering page "/"`, exit 1) until Track 1A T4. e2e still needs a new commercetools project plus `pnpm exec playwright install chromium` for Playwright 1.65. `pnpm audit --prod` reports 1 high (source-map-js <1.2.2 via next > postcss, GHSA-68fv-2mgg-jv7q), left as is.
+
+---
+
 ### 2026-11-13 — Hosted demo retired; project review
 - **Time:** —
 - **Phase:** maintenance
