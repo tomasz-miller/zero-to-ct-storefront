@@ -40,4 +40,9 @@ describe('toolchain', () => {
     expect(pkg.dependencies.shadcn).toBeUndefined();
     expect(pkg.devDependencies.shadcn).toMatch(/^\^4\./);
   });
+
+  it('declares vite, the required Vitest 5 peer', () => {
+    expect(pkg.devDependencies.vitest).toMatch(/^\^5\./);
+    expect(pkg.devDependencies.vite).toMatch(/^\^8\./);
+  });
 });
