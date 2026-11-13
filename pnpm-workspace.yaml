@@ -1,12 +1,7 @@
 allowBuilds:
   sharp: true
   unrs-resolver: true
-minimumReleaseAgeExclude:
-  - '@commercetools/checkout-browser-sdk@1.7.3'
-  - lucide-react@1.24.0
-  - prettier@3.9.5
-onlyBuiltDependencies:
-  - sharp
-  - unrs-resolver
+minimumReleaseAge: 4320
+minimumReleaseAgeStrict: true
 overrides:
   postcss: '>=8.5.10'
