@@ -52,6 +52,8 @@ Tokens never reach the client JavaScript bundle. Customer tokens request only th
 | `/api/customer/addresses/[addressId]` | PATCH, DELETE | Update or remove address |
 | `/api/customer/password` | POST | Change password (`POST /me/password`); clears session |
 
+The four unauthenticated routes (`login`, `register`, `forgot-password`, `reset-password`) are rate limited in memory per client IP and, for login and forgot-password, per email; five failed sign-ins for one email within 15 minutes lock that email for the rest of the window (a successful sign-in clears the count). Over the limit they return `429` with `Retry-After` before calling commercetools. Limits are per serverless instance, so production also needs the WAF rule in [DEPLOY.md](./DEPLOY.md#rate-limiting).
+
 Order detail is loaded server-side on `/account/orders/[id]` via `GET /me/orders/{id}` (no separate BFF route).
 
 ## Required API client scopes

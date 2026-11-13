@@ -6,6 +6,7 @@ import {
   isPasswordResetDeliveryConfigured,
   isPasswordResetDevLinkEnabled,
 } from '@/lib/commercetools/password-reset-delivery';
+import { limitAuthRequest } from '@/lib/http/auth-rate-limits';
 import { parseJsonBody } from '@/lib/http/parse-json-body';
 import { ForgotPasswordBodySchema } from '@/lib/http/request-schemas';
 import { toErrorResponse } from '@/lib/http/route-errors';
@@ -18,6 +19,10 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return parsed.response;
 
   const { email } = parsed.data;
+
+  const limited = limitAuthRequest(request, 'forgot-password', email);
+  if (limited) return limited;
+
   const emailError = validateEmail(email);
   if (emailError) {
     return NextResponse.json({ error: emailError }, { status: 400 });

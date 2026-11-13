@@ -90,6 +90,33 @@ After the first production URL is live, ensure the Stripe connector `ALLOWED_ORI
 
 ---
 
+## Rate limiting
+
+The auth routes (`/api/auth/login`, `register`, `forgot-password`, `reset-password`) limit attempts in memory (`lib/http/auth-rate-limits.ts`):
+
+| Route | Per IP | Per email | Lockout |
+|-------|--------|-----------|---------|
+| login | 20 / 15 min | 10 / 15 min | 5 failed sign-ins / 15 min per email |
+| register | 5 / 60 min | n/a | n/a |
+| forgot-password | 5 / 15 min | 3 / 60 min | n/a |
+| reset-password | 10 / 15 min | n/a | n/a |
+
+Over the limit, a route answers `429` with a `Retry-After` header. The counters live in one serverless instance, so they are best effort: a request that lands on another instance starts with fresh counters. On Vercel `x-forwarded-for` is overwritten by the platform, so the client IP cannot be spoofed through that header; outside Vercel, make sure your proxy does the same.
+
+Production must also add a Vercel WAF rate-limit rule, which is enforced across all instances. Custom-rule changes are staged until you publish them, so run all three commands (a rule that is added but not published has no effect):
+
+```bash
+vercel firewall rules add "Rate limit auth" --condition '{"type":"path","op":"pre","value":"/api/auth"}' --action rate_limit --rate-limit-window 60 --rate-limit-requests 20 --rate-limit-keys ip --rate-limit-action rate_limit --yes
+vercel firewall diff
+vercel firewall publish --confirm-name <project-name>
+```
+
+`vercel firewall diff` shows the staged changes for review. `--confirm-name` publishes without the prompt and publishes nothing if the name does not match the project. Requests over the limit get `429`. Fixed-window rate limiting is available on all plans ([Vercel WAF rate limiting](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting), [firewall CLI](https://vercel.com/docs/cli/firewall)).
+
+Registration still answers `409` for an email that already has an account, because the form needs it. The 5 / hour per-IP register limit and the WAF rule slow bulk probing of that response; they do not remove it.
+
+---
+
 ## CI environment
 
 CI (`.github/workflows/ci.yml` and `bitbucket-pipelines.yml`) runs `pnpm build` with placeholder `CTP_*` values and needs no commercetools secrets. `lib/commercetools/env.ts` only checks that the variables are set, and every route renders per request, so the build never calls the commercetools API.

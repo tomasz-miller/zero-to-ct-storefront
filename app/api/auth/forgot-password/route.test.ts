@@ -3,6 +3,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resetAuthRateLimits } from '@/lib/http/auth-rate-limits';
 import { jsonRequest } from '@/test/helpers/json-request';
 
 const { mockRequestPasswordReset, mockDeliveryConfigured, mockDevLink } =
@@ -29,6 +30,7 @@ const createRequest = (body: unknown) => jsonRequest(FORGOT_URL, body);
 describe('POST /api/auth/forgot-password', () => {
   // Existing tests keep reaching commercetools: delivery on, dev link off unless a test says otherwise.
   beforeEach(() => {
+    resetAuthRateLimits();
     mockDeliveryConfigured.mockReset().mockReturnValue(true);
     mockDevLink.mockReset().mockReturnValue(false);
   });

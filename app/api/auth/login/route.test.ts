@@ -1,9 +1,10 @@
 /**
  * @vitest-environment node
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CustomerError } from '@/lib/commercetools/domain-errors';
+import { resetAuthRateLimits } from '@/lib/http/auth-rate-limits';
 import { jsonRequest } from '@/test/helpers/json-request';
 
 const { mockLoginCustomer } = vi.hoisted(() => ({
@@ -19,6 +20,10 @@ import { POST } from './route';
 const LOGIN_URL = 'http://localhost/api/auth/login';
 
 describe('POST /api/auth/login', () => {
+  beforeEach(() => {
+    resetAuthRateLimits();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     mockLoginCustomer.mockReset();
@@ -86,5 +91,18 @@ describe('POST /api/auth/login', () => {
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body.customer.email).toBe('jane@example.com');
+  });
+
+  it('locks out after 5 invalid credentials without calling commercetools again', async () => {
+    mockLoginCustomer.mockRejectedValue(
+      new CustomerError('InvalidCredentials', 'Invalid email or password', 401),
+    );
+    const attempt = () =>
+      POST(jsonRequest(LOGIN_URL, { email: 'jane@example.com', password: 'wrong-pass' }));
+    for (let i = 0; i < 5; i++) expect((await attempt()).status).toBe(401);
+    const sixth = await attempt();
+    expect(sixth.status).toBe(429);
+    expect(sixth.headers.get('Retry-After')).not.toBeNull();
+    expect(mockLoginCustomer).toHaveBeenCalledTimes(5);
   });
 });

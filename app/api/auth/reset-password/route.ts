@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { validatePassword } from '@/lib/auth-validation';
 import { resetCustomerPassword } from '@/lib/commercetools/customer-auth';
+import { limitAuthRequest } from '@/lib/http/auth-rate-limits';
 import { parseJsonBody } from '@/lib/http/parse-json-body';
 import { ResetPasswordBodySchema } from '@/lib/http/request-schemas';
 import { toErrorResponse } from '@/lib/http/route-errors';
@@ -11,6 +12,9 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return parsed.response;
 
   const { token, newPassword } = parsed.data;
+
+  const limited = limitAuthRequest(request, 'reset-password');
+  if (limited) return limited;
 
   if (!token) {
     return NextResponse.json({ error: 'Reset token is required' }, { status: 400 });

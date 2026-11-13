@@ -1,9 +1,10 @@
 /**
  * @vitest-environment node
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CustomerError } from '@/lib/commercetools/domain-errors';
+import { resetAuthRateLimits } from '@/lib/http/auth-rate-limits';
 import { jsonRequest } from '@/test/helpers/json-request';
 
 const { mockRegisterCustomer } = vi.hoisted(() => ({
@@ -19,6 +20,10 @@ import { POST } from './route';
 const REGISTER_URL = 'http://localhost/api/auth/register';
 
 describe('POST /api/auth/register', () => {
+  beforeEach(() => {
+    resetAuthRateLimits();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     mockRegisterCustomer.mockReset();

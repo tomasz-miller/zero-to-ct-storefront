@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { validateEmail, validatePassword } from '@/lib/auth-validation';
 import { registerCustomer } from '@/lib/commercetools/customer-auth';
+import { limitAuthRequest } from '@/lib/http/auth-rate-limits';
 import { parseJsonBody } from '@/lib/http/parse-json-body';
 import { RegisterBodySchema } from '@/lib/http/request-schemas';
 import { toErrorResponse } from '@/lib/http/route-errors';
@@ -11,6 +12,9 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return parsed.response;
 
   const { email, password, firstName, lastName } = parsed.data;
+
+  const limited = limitAuthRequest(request, 'register');
+  if (limited) return limited;
 
   const emailError = validateEmail(email);
   if (emailError) {
