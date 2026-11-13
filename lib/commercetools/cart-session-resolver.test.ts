@@ -390,7 +390,7 @@ describe('cart session resolver', () => {
   });
 
   it.each([
-    ['customer cart', { customerId: 'cust-9', anonymousId: undefined }],
+    ['customer cart', { customerId: 'cust-9' }],
     ['other anonymousId', { anonymousId: 'anon-other' }],
     ['Ordered cart', { cartState: 'Ordered' as const }],
   ])('getOwnedGuestCartRef returns null for a %s', async (_label, overrides) => {
