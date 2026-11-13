@@ -10,6 +10,7 @@ import { SiteHeader } from '@/components/layout/site-header';
 import { ThemeProvider } from '@/components/theme-provider';
 import { WishlistProvider } from '@/components/wishlist/wishlist-context';
 import { getNavigationCategories } from '@/lib/commercetools/categories';
+import { isPasswordResetDeliveryConfigured } from '@/lib/commercetools/password-reset-delivery';
 import { getStoreBrandConfig } from '@/lib/store-brand';
 import { getStorefrontContext } from '@/lib/commercetools/storefront-context';
 import { cn } from '@/lib/utils';
@@ -63,7 +64,9 @@ export default async function RootLayout({
                     {children}
                     <SiteFooter />
                   </div>
-                  <LoginDialog />
+                  <LoginDialog
+                    passwordResetEnabled={isPasswordResetDeliveryConfigured()}
+                  />
                 </WishlistProvider>
               </CartProvider>
             </AuthProvider>

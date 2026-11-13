@@ -36,7 +36,11 @@ const initialFormState: FormState = {
   lastName: '',
 };
 
-export function LoginDialog() {
+export function LoginDialog({
+  passwordResetEnabled = false,
+}: {
+  passwordResetEnabled?: boolean;
+}) {
   const router = useRouter();
   const {
     authView,
@@ -350,17 +354,19 @@ export function LoginDialog() {
         <DialogFooter>
           {authView === 'login' ? (
             <div className="flex w-full flex-col gap-2 text-sm">
-              <button
-                className="text-left text-muted-foreground underline-offset-4 hover:underline"
-                type="button"
-                onClick={() => {
-                  setAuthView('forgot');
-                  setError(null);
-                  setSuccessMessage(null);
-                }}
-              >
-                Forgot password?
-              </button>
+              {passwordResetEnabled ? (
+                <button
+                  className="text-left text-muted-foreground underline-offset-4 hover:underline"
+                  type="button"
+                  onClick={() => {
+                    setAuthView('forgot');
+                    setError(null);
+                    setSuccessMessage(null);
+                  }}
+                >
+                  Forgot password?
+                </button>
+              ) : null}
               <button
                 className="text-left text-muted-foreground underline-offset-4 hover:underline"
                 type="button"

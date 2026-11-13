@@ -367,6 +367,7 @@ export async function requestPasswordReset(email: string): Promise<{
       body: {
         email,
         ttlMinutes: 60,
+        invalidateOlderTokens: true,
       },
     })
     .execute()

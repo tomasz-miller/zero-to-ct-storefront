@@ -115,7 +115,7 @@ The BFF sends commercetools `changeEmail` and relies on it to enforce uniqueness
 
 ## Development-only password reset
 
-When `NODE_ENV !== 'production'`, `POST /api/auth/forgot-password` may include `devResetUrl` in the JSON response because this PoC does not send emails. Production returns only the generic message.
+This PoC has no email transport, so `POST /api/auth/forgot-password` mints a reset token only when `NODE_ENV === 'development'` and `AUTH_DEV_EXPOSE_RESET_TOKEN=true`; in that case the JSON response includes `devResetUrl`. In every other environment (production, test, or the flag unset) the route returns the generic message without calling commercetools, so no token is minted, and the sign-in dialog hides "Forgot password?". Tokens are requested with `invalidateOlderTokens: true`, so a newer token invalidates older ones. When an email transport is added, enable it in `isPasswordResetDeliveryConfigured` (`lib/commercetools/password-reset-delivery.ts`).
 
 ## Out of scope (PoC)
 

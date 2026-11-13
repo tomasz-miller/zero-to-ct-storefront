@@ -475,6 +475,18 @@ describe('customer-auth', () => {
     });
   });
 
+  it('requests reset tokens that invalidate older ones', async () => {
+    mockExecute.mockResolvedValueOnce({ body: { value: 't' } });
+    await requestPasswordReset('jane@example.com');
+    expect(mockPasswordTokenPost).toHaveBeenCalledWith({
+      body: {
+        email: 'jane@example.com',
+        ttlMinutes: 60,
+        invalidateOlderTokens: true,
+      },
+    });
+  });
+
   it('resets customer password with token', async () => {
     mockExecute.mockResolvedValueOnce({ body: {} });
 

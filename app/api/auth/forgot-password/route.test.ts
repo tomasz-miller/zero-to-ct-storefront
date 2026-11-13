@@ -1,12 +1,15 @@
 /**
  * @vitest-environment node
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
-const { mockRequestPasswordReset } = vi.hoisted(() => ({
-  mockRequestPasswordReset: vi.fn(),
-}));
+const { mockRequestPasswordReset, mockDeliveryConfigured, mockDevLink } =
+  vi.hoisted(() => ({
+    mockRequestPasswordReset: vi.fn(),
+    mockDeliveryConfigured: vi.fn(),
+    mockDevLink: vi.fn(),
+  }));
 
 vi.mock('@/lib/commercetools/customer-auth', () => ({
   CustomerAuthError: class CustomerAuthError extends Error {
@@ -22,6 +25,11 @@ vi.mock('@/lib/commercetools/customer-auth', () => ({
   requestPasswordReset: mockRequestPasswordReset,
 }));
 
+vi.mock('@/lib/commercetools/password-reset-delivery', () => ({
+  isPasswordResetDeliveryConfigured: mockDeliveryConfigured,
+  isPasswordResetDevLinkEnabled: mockDevLink,
+}));
+
 import { POST } from './route';
 
 function createRequest(body: unknown): NextRequest {
@@ -32,6 +40,12 @@ function createRequest(body: unknown): NextRequest {
 }
 
 describe('POST /api/auth/forgot-password', () => {
+  // Existing tests keep reaching commercetools: delivery on, dev link off unless a test says otherwise.
+  beforeEach(() => {
+    mockDeliveryConfigured.mockReset().mockReturnValue(true);
+    mockDevLink.mockReset().mockReturnValue(false);
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     mockRequestPasswordReset.mockReset();
@@ -64,5 +78,23 @@ describe('POST /api/auth/forgot-password', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.message).toMatch(/if an account exists/i);
+  });
+
+  it('does not mint a token when no delivery is configured', async () => {
+    mockDeliveryConfigured.mockReturnValue(false);
+    const res = await POST(createRequest({ email: 'jane@example.com' }));
+    expect(res.status).toBe(200);
+    expect(mockRequestPasswordReset).not.toHaveBeenCalled();
+    expect((await res.json()).devResetUrl).toBeUndefined();
+  });
+
+  it('returns devResetUrl only when the dev link is enabled', async () => {
+    mockDeliveryConfigured.mockReturnValue(true);
+    mockDevLink.mockReturnValue(true);
+    mockRequestPasswordReset.mockResolvedValue({ tokenValue: 'tok 1' });
+    expect(
+      (await (await POST(createRequest({ email: 'jane@example.com' }))).json())
+        .devResetUrl,
+    ).toBe('/reset-password?token=tok%201');
   });
 });
