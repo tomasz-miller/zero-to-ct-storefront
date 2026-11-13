@@ -35,3 +35,7 @@ export function getLastOrderSession(): Promise<LastOrderSession | null> {
 export function setLastOrderSession(session: LastOrderSession): Promise<boolean> {
   return lastOrderCookie.write(session);
 }
+
+export function clearLastOrderSession(): Promise<boolean> {
+  return lastOrderCookie.clear();
+}

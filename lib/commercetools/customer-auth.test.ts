@@ -23,6 +23,7 @@ const {
   mockRevokeCustomerAccessToken,
   mockClearMarketCartMap,
   mockClearWishlistOnLogout,
+  mockClearLastOrderSession,
 } = vi.hoisted(() => ({
   mockExecute: vi.fn(),
   mockLoginPost: vi.fn(() => ({ execute: mockExecute })),
@@ -43,6 +44,7 @@ const {
   mockRevokeCustomerAccessToken: vi.fn(),
   mockClearMarketCartMap: vi.fn(),
   mockClearWishlistOnLogout: vi.fn(),
+  mockClearLastOrderSession: vi.fn(),
 }));
 
 vi.mock('./customer-token', async (importOriginal) => ({
@@ -54,6 +56,10 @@ vi.mock('./customer-token', async (importOriginal) => ({
 
 vi.mock('./market-cart-session', () => ({
   clearMarketCartMap: mockClearMarketCartMap,
+}));
+
+vi.mock('./last-order-session', () => ({
+  clearLastOrderSession: mockClearLastOrderSession,
 }));
 
 vi.mock('./cart', () => ({
@@ -417,7 +423,7 @@ describe('customer-auth', () => {
     });
   });
 
-  it('revokes both tokens, then clears customer, cart, market-cart and wishlist cookies', async () => {
+  it('revokes both tokens, then clears customer, cart, market-cart, wishlist and last-order cookies', async () => {
     mockGetCustomerSession.mockResolvedValueOnce({
       accessToken: 'a',
       refreshToken: 'r',
@@ -432,6 +438,7 @@ describe('customer-auth', () => {
       mockClearCartSession,
       mockClearMarketCartMap,
       mockClearWishlistOnLogout,
+      mockClearLastOrderSession,
     ]) {
       expect(clear).toHaveBeenCalledTimes(1);
     }

@@ -27,6 +27,7 @@ import {
   revokeCustomerRefreshToken,
 } from './customer-token';
 import { commercetoolsEnv } from './env';
+import { clearLastOrderSession } from './last-order-session';
 import { clearMarketCartMap } from './market-cart-session';
 import {
   clearWishlistOnLogout,
@@ -352,6 +353,8 @@ export async function logoutCustomer(): Promise<void> {
   await clearCartSession();
   await clearMarketCartMap();
   await clearWishlistOnLogout();
+  // The sealed last-order cookie names the order the confirmation page shows; drop it with the rest.
+  await clearLastOrderSession();
 }
 
 export async function requestPasswordReset(email: string): Promise<{
