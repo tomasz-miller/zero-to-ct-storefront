@@ -45,4 +45,9 @@ describe('toolchain', () => {
     expect(pkg.devDependencies.vitest).toMatch(/^\^5\./);
     expect(pkg.devDependencies.vite).toMatch(/^\^8\./);
   });
+
+  it('engines.node matches the jsdom 30+ floor', () => {
+    expect(pkg.devDependencies.jsdom).toMatch(/^\^31\./);
+    expect(pkg.engines.node).toBe('^22.22.2 || ^24.15.0 || >=26.0.0');
+  });
 });

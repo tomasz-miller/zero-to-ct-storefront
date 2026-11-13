@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@12.19.0",
   "engines": {
-    "node": ">=22",
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
     "pnpm": ">=12"
   },
   "scripts": {
@@ -47,7 +47,7 @@
     "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.4.6",
-    "jsdom": "^29.1.1",
+    "jsdom": "^31.0.0",
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "shadcn": "^4.23.0",
