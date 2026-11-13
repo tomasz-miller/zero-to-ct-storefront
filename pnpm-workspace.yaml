@@ -3,5 +3,3 @@ allowBuilds:
   unrs-resolver: true
 minimumReleaseAge: 4320
 minimumReleaseAgeStrict: true
-overrides:
-  postcss: '>=8.5.10'
