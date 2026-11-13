@@ -27,6 +27,7 @@ export async function getClientCredentialsAccessToken(): Promise<string> {
     },
     body: new URLSearchParams({
       grant_type: 'client_credentials',
+      scope: `manage_sessions:${commercetoolsEnv.projectKey}`,
     }),
   });
 

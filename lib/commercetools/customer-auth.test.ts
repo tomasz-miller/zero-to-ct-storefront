@@ -75,6 +75,7 @@ vi.mock('./env', () => ({
     projectKey: 'demo-project',
     clientId: 'client-id',
     clientSecret: 'client-secret',
+    customerScopes: 'manage_my_profile:demo-project manage_my_orders:demo-project',
   },
 }));
 
@@ -151,6 +152,9 @@ describe('customer-auth', () => {
     const customer = await loginCustomer('jane@example.com', 'password123');
 
     expect(customer.email).toBe('jane@example.com');
+    expect(new URLSearchParams(fetchMock.mock.calls[0][1].body).get('scope')).toBe(
+      'manage_my_profile:demo-project manage_my_orders:demo-project',
+    );
     expect(mockLoginPost).toHaveBeenCalledWith({
       body: {
         email: 'jane@example.com',

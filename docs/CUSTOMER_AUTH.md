@@ -60,12 +60,14 @@ manage_my_orders:{projectKey}
 manage_shopping_lists:{projectKey}
 ```
 
-Update `CTP_SCOPES` in `.env.local` accordingly.
+Update `CTP_SCOPES` in `.env.local` accordingly. `create_anonymous_token` is not used by this storefront and is not required.
+
+Customer sessions request only the scopes in `CTP_CUSTOMER_SCOPES` (space-separated; `{pk}` is replaced by `CTP_PROJECT_KEY`). The default is `manage_my_profile:{pk} manage_my_orders:{pk}`. Every entry must exist on the API client, otherwise the password grant fails with `invalid_scope` and the BFF logs a configuration hint. The Checkout session token is limited to `manage_sessions:{pk}`.
 
 | Operation | CT endpoint | Scope |
 |-----------|-------------|-------|
 | Register / login / password reset | Platform API (`/customers`, `/login`) | `manage_customers` |
-| Customer session token | OAuth `/customers/token` | Grantable customer scopes on client |
+| Customer session token | OAuth `/customers/token` | `CTP_CUSTOMER_SCOPES` (must exist on the client) |
 | Profile | `GET /me`, `POST /me` | Customer token (`manage_my_profile`) |
 | Change password | `POST /me/password` | Customer token (`manage_my_profile`) |
 | Order history | `GET /me/orders` | Customer token (`manage_my_orders`) |

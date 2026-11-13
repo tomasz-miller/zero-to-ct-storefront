@@ -18,37 +18,22 @@ import {
   type CustomerSession,
 } from './customer-session';
 import { mapCustomer, type StorefrontCustomer } from './customer-mappers';
+import { CustomerAuthError, requestCustomerPasswordToken, type CustomerTokenResponse } from './customer-token';
 import { commercetoolsEnv } from './env';
 import {
   clearWishlistOnLogout,
   reconcileWishlistOnAuth,
 } from './shopping-lists';
 
-const TOKEN_REFRESH_BUFFER_MS = 60_000;
+export { CustomerAuthError } from './customer-token';
 
-type CustomerTokenResponse = {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-};
+const TOKEN_REFRESH_BUFFER_MS = 60_000;
 
 type CommercetoolsErrorBody = {
   statusCode?: number;
   errors?: Array<{ code?: string; message?: string }>;
   message?: string;
 };
-
-export class CustomerAuthError extends Error {
-  readonly code: string;
-  readonly statusCode: number;
-
-  constructor(code: string, message: string, statusCode: number) {
-    super(message);
-    this.name = 'CustomerAuthError';
-    this.code = code;
-    this.statusCode = statusCode;
-  }
-}
 
 function getBasicAuthHeader(): string {
   return Buffer.from(
@@ -121,7 +106,7 @@ function mapCommercetoolsError(
 
 async function requestCustomerToken(
   params: URLSearchParams,
-): Promise<CustomerTokenResponse> {
+): Promise<CustomerTokenResponse & { refresh_token: string }> {
   const response = await fetch(
     `${commercetoolsEnv.authUrl}/oauth/${commercetoolsEnv.projectKey}/customers/token`,
     {
@@ -154,27 +139,21 @@ async function requestCustomerToken(
     );
   }
 
-  return body;
+  return { ...body, refresh_token: body.refresh_token };
 }
 
 async function exchangePasswordForCustomerToken(
   email: string,
   password: string,
 ): Promise<CustomerSession> {
-  const token = await requestCustomerToken(
-    new URLSearchParams({
-      grant_type: 'password',
-      username: email,
-      password,
-    }),
-  );
+  const token = await requestCustomerPasswordToken(email, password);
 
-  const customerId = await resolveCustomerIdFromAccessToken(token.access_token);
+  const customerId = await resolveCustomerIdFromAccessToken(token.accessToken);
 
   return {
-    accessToken: token.access_token,
-    refreshToken: token.refresh_token,
-    expiresAt: Date.now() + token.expires_in * 1000,
+    accessToken: token.accessToken,
+    refreshToken: token.refreshToken,
+    expiresAt: token.expiresAt,
     customerId,
   };
 }

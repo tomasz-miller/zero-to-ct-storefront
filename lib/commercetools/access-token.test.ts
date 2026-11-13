@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('./env', () => ({
   commercetoolsEnv: {
     authUrl: 'https://auth.example.com',
+    projectKey: 'demo-project',
     clientId: 'client-id',
     clientSecret: 'client-secret',
   },
@@ -32,6 +33,21 @@ describe('getClientCredentialsAccessToken', () => {
     await expect(getClientCredentialsAccessToken()).resolves.toBe('token-abc');
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('requests client credentials limited to manage_sessions', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () =>
+        JSON.stringify({ access_token: 'token-abc', expires_in: 3600 }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await getClientCredentialsAccessToken();
+
+    expect(new URLSearchParams(fetchMock.mock.calls[0][1].body).get('scope')).toBe(
+      'manage_sessions:demo-project',
+    );
   });
 
   it('throws when token endpoint fails', async () => {
