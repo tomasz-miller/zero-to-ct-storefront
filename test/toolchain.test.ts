@@ -50,4 +50,9 @@ describe('toolchain', () => {
     expect(pkg.devDependencies.jsdom).toMatch(/^\^31\./);
     expect(pkg.engines.node).toBe('^22.22.2 || ^24.15.0 || >=26.0.0');
   });
+
+  it('declares @testing-library/dom, the required jest-dom 7 peer', () => {
+    expect(pkg.devDependencies['@testing-library/jest-dom']).toMatch(/^\^7\./);
+    expect(pkg.devDependencies['@testing-library/dom']).toMatch(/^\^10\./);
+  });
 });
