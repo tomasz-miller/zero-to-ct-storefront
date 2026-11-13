@@ -71,7 +71,7 @@ The Checkout Browser SDK embed loads on `/checkout`.
    | Expiry | Any future date (e.g. `12/34`) |
    | CVC | Any 3 digits (e.g. `123`) |
 
-5. Complete payment. You are redirected to **Order confirmation** (`/order-confirmation?orderId=...`).
+5. Complete payment. You are redirected to **Order confirmation** (`/order-confirmation`), which shows the order number read from the sealed `ct_last_order` cookie, not from the URL.
 
 **Talking point:** Payments go through **commercetools Checkout** + **Stripe connector** (CT Connect). The storefront never holds Stripe secret keys.
 

@@ -23,7 +23,7 @@ sequenceDiagram
 
 ## Session cookies
 
-Every `ct_*` cookie is sealed: the value is encrypted and authenticated with AES-256-GCM, with a key derived from `SESSION_SECRET`, and is bound to its own cookie name, so a value copied from one cookie into another is rejected. All of them are `httpOnly`, `sameSite=lax`, `path=/`, and `secure` in production. A cookie that is missing, plain JSON from an older version, tampered with or sealed under another secret reads as "no session" (the user is signed out, the guest cart restarts). If `SESSION_SECRET` is unset or shorter than 32 random bytes, reading or writing a session fails with an error that names the variable. Generate one with `openssl rand -base64 32`; rotating it signs everyone out.
+Every `ct_*` cookie is sealed: the value is encrypted and authenticated with AES-256-GCM, with a key derived from `SESSION_SECRET`, and is bound to its own cookie name, so a value copied from one cookie into another is rejected. All of them are `httpOnly`, `sameSite=lax`, `path=/`, and `secure` in production. A cookie that is missing, plain JSON from an older version, tampered with or sealed under another secret reads as "no session" (the user is signed out, the guest cart restarts). If `SESSION_SECRET` is unset or shorter than 32 random bytes, writing a session fails with an error that names the variable, and so does reading a cookie that is present (an absent cookie reads as "no session" before the key is derived). Generate one with `openssl rand -base64 32`; rotating it signs everyone out.
 
 | Cookie | Lifetime | Purpose |
 |--------|----------|---------|
@@ -42,7 +42,7 @@ Tokens never reach the client JavaScript bundle. Customer tokens request only th
 |-------|--------|-------------|
 | `/api/auth/login` | POST | Sign in; merges guest cart when present |
 | `/api/auth/register` | POST | Create account; merges guest cart when present |
-| `/api/auth/logout` | POST | Clear customer session and browser cart cookie |
+| `/api/auth/logout` | POST | Revoke the refresh and access tokens (best effort), then clear the customer, cart, wishlist, market-cart and last-order cookies |
 | `/api/auth/session` | GET | Safe customer profile DTO or `null` |
 | `/api/auth/forgot-password` | POST | Request password reset token |
 | `/api/auth/reset-password` | POST | Set new password from token |
@@ -107,7 +107,7 @@ The proxy also refuses cross-origin state-changing requests to `/api/*` with 403
 
 ### Email change
 
-Before updating email, the BFF checks `lowercaseEmail` via the Customers API (excluding the current customer). The update still relies on commercetools `changeEmail`, which enforces uniqueness atomically (`DuplicateField` → HTTP 409). Changing email resets `isEmailVerified` in commercetools (email verification remains out of scope without an ESP).
+The BFF sends commercetools `changeEmail` and relies on it to enforce uniqueness atomically: a `DuplicateField` error maps to HTTP 409 ("An account with this email already exists"). There is no separate availability pre-check. Changing email resets `isEmailVerified` in commercetools (email verification remains out of scope without an ESP).
 
 ### Change password on account
 
