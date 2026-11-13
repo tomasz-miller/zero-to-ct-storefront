@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { cookies } from 'next/headers';
+import { unstable_rethrow } from 'next/navigation';
 
 import type { StorefrontCountry } from './storefront-context';
 
@@ -20,7 +21,10 @@ export async function getMarketPreference(): Promise<StorefrontCountry | null> {
   try {
     const cookieStore = await cookies();
     return parseMarketPreference(cookieStore.get(MARKET_SESSION_COOKIE)?.value);
-  } catch {
+  } catch (error) {
+    // Let Next.js see cookies() dynamic usage so pages reading the market are
+    // rendered per request instead of prerendered with the default market.
+    unstable_rethrow(error);
     return null;
   }
 }
