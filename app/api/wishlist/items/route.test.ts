@@ -2,7 +2,6 @@
  * @vitest-environment node
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
 
 const { mockAddWishlistItem } = vi.hoisted(() => ({
   mockAddWishlistItem: vi.fn(),
@@ -10,17 +9,14 @@ const { mockAddWishlistItem } = vi.hoisted(() => ({
 
 vi.mock('@/lib/commercetools/shopping-lists', () => ({
   addWishlistItem: mockAddWishlistItem,
-  WishlistAccessError: class WishlistAccessError extends Error {},
-  WishlistNotFoundError: class WishlistNotFoundError extends Error {},
 }));
+
+import { jsonRequest } from '@/test/helpers/json-request';
 
 import { POST } from './route';
 
-function createRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/wishlist/items', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
+function createRequest(body: unknown) {
+  return jsonRequest('http://localhost/api/wishlist/items', body);
 }
 
 const sampleWishlist = {
@@ -53,7 +49,7 @@ describe('POST /api/wishlist/items', () => {
     expect(response.status).toBe(400);
 
     const body = await response.json();
-    expect(body.error).toMatch(/sku/i);
+    expect(body.field).toBe('sku');
   });
 
   it('returns wishlist on successful add', async () => {

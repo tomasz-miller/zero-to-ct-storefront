@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { Cart, CartUpdateAction } from '@commercetools/platform-sdk';
 
+import { MAX_LINE_ITEM_QUANTITY } from '@/lib/cart-limits';
 import { isStorefrontCountry } from '@/lib/markets';
 
 import { apiRoot } from './api-root';
@@ -20,6 +21,7 @@ import {
   CartNotFoundError,
   DiscountCodeNotApplicableError,
   InvalidDiscountCodeError,
+  InvalidQuantityError,
   NoDefaultAddressError,
   OutOfStockError,
 } from './domain-errors';
@@ -514,10 +516,22 @@ async function loadResolvedCartIfSessionExists(): Promise<{
   return loadResolvedCart();
 }
 
+export function assertValidLineItemQuantity(quantity: number): void {
+  if (
+    !Number.isInteger(quantity) ||
+    quantity < 1 ||
+    quantity > MAX_LINE_ITEM_QUANTITY
+  ) {
+    throw new InvalidQuantityError();
+  }
+}
+
 export async function addLineItem(
   sku: string,
   quantity: number,
 ): Promise<StorefrontCart> {
+  assertValidLineItemQuantity(quantity);
+
   const availability = await getProductAvailabilityBySku(sku);
   if (availability && availability.status === 'out_of_stock') {
     throw new OutOfStockError();
@@ -555,6 +569,9 @@ export async function addLineItems(
   if (items.length === 0) {
     throw new Error('At least one line item is required');
   }
+  for (const item of items) {
+    assertValidLineItemQuantity(item.quantity);
+  }
 
   const checkAvailability = options?.checkAvailability ?? true;
   if (checkAvailability) {
@@ -581,10 +598,15 @@ export async function updateLineItemQuantity(
   lineItemId: string,
   quantity: number,
 ): Promise<StorefrontCart> {
+  const isRemoval = quantity <= 0;
+  if (!isRemoval) {
+    assertValidLineItemQuantity(quantity);
+  }
+
   const { cart } = await loadResolvedCartIfSessionExists();
 
   const action =
-    quantity <= 0
+    isRemoval
       ? { action: 'removeLineItem' as const, lineItemId }
       : {
           action: 'changeLineItemQuantity' as const,

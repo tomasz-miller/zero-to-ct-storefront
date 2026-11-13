@@ -79,6 +79,17 @@ describe('GET /api/products', () => {
     const body = await response.json();
 
     expect(response.status).toBe(500);
-    expect(body).toEqual({ error: 'Failed to fetch products' });
+    expect(body.error).toBe('Something went wrong. Please try again.');
+    expect(JSON.stringify(body)).not.toContain('CT unavailable');
+  });
+
+  it.each([
+    ['?limit=500', { limit: 100, offset: 0 }],
+    ['?limit=abc', { limit: 12, offset: 0 }],
+    ['?offset=20000&limit=20', { limit: 20, offset: 9980 }],
+  ])('clamps %s', async (query, expected) => {
+    listProducts.mockResolvedValue({ products: [], total: 0 });
+    await GET(new NextRequest(`http://localhost/api/products${query}`));
+    expect(listProducts).toHaveBeenCalledWith(expect.objectContaining(expected));
   });
 });

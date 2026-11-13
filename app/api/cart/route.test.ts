@@ -33,12 +33,14 @@ describe('GET /api/cart', () => {
   });
 
   it('returns 500 when fetch fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGetGuestCart.mockRejectedValue(new Error('CT down'));
 
     const response = await GET();
 
     expect(response.status).toBe(500);
     const body = await response.json();
-    expect(body.error).toMatch(/failed to fetch cart/i);
+    expect(body.error).toBe('Something went wrong. Please try again.');
+    expect(JSON.stringify(body)).not.toContain('CT down');
   });
 });

@@ -5,13 +5,23 @@ import {
   parseProductListingSort,
 } from '@/lib/commercetools/product-listing-params';
 import { parseProductListingFilters } from '@/lib/commercetools/product-search-facets';
+import { clampInteger } from '@/lib/http/query-params';
+import { toErrorResponse } from '@/lib/http/route-errors';
 import { getCatalogContext } from '@/lib/commercetools/storefront-context';
 import { listProducts } from '@/lib/commercetools/products';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const limit = Number(searchParams.get('limit') ?? '12');
-  const offset = Number(searchParams.get('offset') ?? '0');
+  const limit = clampInteger(searchParams.get('limit'), {
+    min: 1,
+    max: 100,
+    fallback: 12,
+  });
+  const offset = clampInteger(searchParams.get('offset'), {
+    min: 0,
+    max: 10_000 - limit,
+    fallback: 0,
+  });
   const { locale: catalogLocale, currency: catalogCurrency } =
     await getCatalogContext();
   const locale = searchParams.get('locale') ?? catalogLocale;
@@ -30,8 +40,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await listProducts({
-      limit: Number.isFinite(limit) ? limit : 12,
-      offset: Number.isFinite(offset) ? offset : 0,
+      limit,
+      offset,
       locale,
       currency,
       query,
@@ -41,10 +51,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('[api/products]', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch products' },
-      { status: 500 },
-    );
+    return toErrorResponse(error, 'api/products');
   }
 }

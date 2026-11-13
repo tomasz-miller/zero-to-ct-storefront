@@ -12,16 +12,19 @@ const { mockUpdateLineItemQuantity, mockRemoveLineItem } = vi.hoisted(() => ({
 vi.mock('@/lib/commercetools/cart', () => ({
   updateLineItemQuantity: mockUpdateLineItemQuantity,
   removeLineItem: mockRemoveLineItem,
-  CartAccessError: class CartAccessError extends Error {},
-  CartNotFoundError: class CartNotFoundError extends Error {},
 }));
+
+import {
+  CartAccessError,
+  CartNotFoundError,
+} from '@/lib/commercetools/domain-errors';
+import { jsonRequest } from '@/test/helpers/json-request';
 
 import { DELETE, PATCH } from './route';
 
-function createPatchRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/cart/items/line-1', {
+function createPatchRequest(body: unknown) {
+  return jsonRequest('http://localhost/api/cart/items/line-1', body, {
     method: 'PATCH',
-    body: JSON.stringify(body),
   });
 }
 
@@ -40,6 +43,24 @@ describe('PATCH /api/cart/items/[lineItemId]', () => {
     expect(response.status).toBe(400);
   });
 
+  it.each([0, 1.5, 100, '2'])('returns 400 for quantity %j', async (quantity) => {
+    expect((await PATCH(createPatchRequest({ quantity }), context)).status).toBe(400);
+    expect(mockUpdateLineItemQuantity).not.toHaveBeenCalled();
+  });
+
+  it('updates a valid quantity', async () => {
+    mockUpdateLineItemQuantity.mockResolvedValue({ id: 'cart-1' });
+    expect(
+      (
+        await PATCH(
+          jsonRequest('http://localhost/api/cart/items/line-1', { quantity: 3 }, { method: 'PATCH' }),
+          context,
+        )
+      ).status,
+    ).toBe(200);
+    expect(mockUpdateLineItemQuantity).toHaveBeenCalledWith('line-1', 3);
+  });
+
   it('returns updated cart on success', async () => {
     mockUpdateLineItemQuantity.mockResolvedValue({ id: 'cart-1' });
 
@@ -52,7 +73,6 @@ describe('PATCH /api/cart/items/[lineItemId]', () => {
   });
 
   it('returns 404 when cart is not found', async () => {
-    const { CartNotFoundError } = await import('@/lib/commercetools/cart');
     mockUpdateLineItemQuantity.mockRejectedValue(new CartNotFoundError());
 
     const response = await PATCH(createPatchRequest({ quantity: 2 }), context);
@@ -83,7 +103,6 @@ describe('DELETE /api/cart/items/[lineItemId]', () => {
   });
 
   it('returns 403 when cart access is denied', async () => {
-    const { CartAccessError } = await import('@/lib/commercetools/cart');
     mockRemoveLineItem.mockRejectedValue(new CartAccessError());
 
     const response = await DELETE(

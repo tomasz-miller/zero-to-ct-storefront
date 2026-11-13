@@ -2,7 +2,6 @@
  * @vitest-environment node
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
 
 const { mockAddDiscountCode, mockRemoveDiscountCode } = vi.hoisted(() => ({
   mockAddDiscountCode: vi.fn(),
@@ -12,19 +11,14 @@ const { mockAddDiscountCode, mockRemoveDiscountCode } = vi.hoisted(() => ({
 vi.mock('@/lib/commercetools/cart', () => ({
   addDiscountCode: mockAddDiscountCode,
   removeDiscountCode: mockRemoveDiscountCode,
-  CartAccessError: class CartAccessError extends Error {},
-  CartNotFoundError: class CartNotFoundError extends Error {},
 }));
-
-vi.mock('@/lib/commercetools/cart-discount-errors', async () => {
-  const actual = await vi.importActual('@/lib/commercetools/cart-discount-errors');
-  return actual;
-});
 
 import {
   DiscountCodeNotApplicableError,
   InvalidDiscountCodeError,
-} from '@/lib/commercetools/cart-discount-errors';
+} from '@/lib/commercetools/domain-errors';
+import { jsonRequest } from '@/test/helpers/json-request';
+
 import { DELETE, POST } from './route';
 
 const sampleCart = {
@@ -39,11 +33,8 @@ const sampleCart = {
   savings: { centAmount: 93001, currencyCode: 'EUR' },
 };
 
-function createRequest(method: 'POST' | 'DELETE', body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/cart/discount-code', {
-    method,
-    body: JSON.stringify(body),
-  });
+function createRequest(method: 'POST' | 'DELETE', body: unknown) {
+  return jsonRequest('http://localhost/api/cart/discount-code', body, { method });
 }
 
 describe('/api/cart/discount-code', () => {

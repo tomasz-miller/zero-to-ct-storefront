@@ -3,26 +3,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { realignCartForStorefront } from '@/lib/commercetools/cart';
 import { setMarketPreference } from '@/lib/commercetools/market-session';
 import { getStorefrontContext } from '@/lib/commercetools/storefront-context';
-import { isStorefrontCountry } from '@/lib/markets';
+import { parseJsonBody } from '@/lib/http/parse-json-body';
+import { MarketBodySchema } from '@/lib/http/request-schemas';
+import { toErrorResponse } from '@/lib/http/route-errors';
 
 export async function POST(request: NextRequest) {
-  let body: { country?: unknown };
+  const parsed = await parseJsonBody(request, MarketBodySchema);
+  if (!parsed.ok) return parsed.response;
 
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
-
-  if (!isStorefrontCountry(body.country)) {
-    return NextResponse.json(
-      { error: 'country must be one of DE, GB, or US' },
-      { status: 400 },
-    );
-  }
-
-  try {
-    await setMarketPreference(body.country);
+    await setMarketPreference(parsed.data.country);
     const [
       { cartRecreated, cartRestored, itemCount, previousHadItems },
       context,
@@ -41,10 +31,6 @@ export async function POST(request: NextRequest) {
       previousHadItems,
     });
   } catch (error) {
-    console.error('[api/storefront/market]', error);
-    return NextResponse.json(
-      { error: 'Failed to change storefront market' },
-      { status: 500 },
-    );
+    return toErrorResponse(error, 'api/storefront/market');
   }
 }

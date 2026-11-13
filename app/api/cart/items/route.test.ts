@@ -2,7 +2,6 @@
  * @vitest-environment node
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
 
 const { mockAddLineItem } = vi.hoisted(() => ({
   mockAddLineItem: vi.fn(),
@@ -10,24 +9,17 @@ const { mockAddLineItem } = vi.hoisted(() => ({
 
 vi.mock('@/lib/commercetools/cart', () => ({
   addLineItem: mockAddLineItem,
-  CartAccessError: class CartAccessError extends Error {},
-  CartNotFoundError: class CartNotFoundError extends Error {},
-  OutOfStockError: class OutOfStockError extends Error {
-    constructor(message = 'This product is out of stock') {
-      super(message);
-      this.name = 'OutOfStockError';
-    }
-  },
 }));
 
-import { POST } from './route';
-import { OutOfStockError } from '@/lib/commercetools/cart';
+import { OutOfStockError } from '@/lib/commercetools/domain-errors';
+import { jsonRequest } from '@/test/helpers/json-request';
 
-function createRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/cart/items', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
+import { POST } from './route';
+
+const URL_ITEMS = 'http://localhost/api/cart/items';
+
+function createRequest(body: unknown) {
+  return jsonRequest(URL_ITEMS, body);
 }
 
 const sampleCart = {
@@ -64,7 +56,7 @@ describe('POST /api/cart/items', () => {
     expect(response.status).toBe(400);
 
     const body = await response.json();
-    expect(body.error).toMatch(/sku/i);
+    expect(body.field).toBe('sku');
   });
 
   it('returns 400 for invalid quantity', async () => {
@@ -98,5 +90,45 @@ describe('POST /api/cart/items', () => {
 
     const body = await response.json();
     expect(body.error).toMatch(/out of stock/i);
+  });
+
+  it.each([
+    [{ sku: 'A', quantity: 1.5 }],
+    [{ sku: 'A', quantity: 100 }],
+    [{ sku: 1 }],
+    [null],
+  ])('returns 400 for %j', async (body) => {
+    expect((await POST(jsonRequest(URL_ITEMS, body))).status).toBe(400);
+    expect(mockAddLineItem).not.toHaveBeenCalled();
+  });
+
+  it('returns 415 without a JSON content type', async () => {
+    expect(
+      (
+        await POST(
+          jsonRequest(URL_ITEMS, { sku: 'A' }, { headers: { 'content-type': 'text/plain' } }),
+        )
+      ).status,
+    ).toBe(415);
+  });
+
+  it('maps OutOfStockError to 409 with its message', async () => {
+    mockAddLineItem.mockRejectedValue(new OutOfStockError());
+    const res = await POST(jsonRequest(URL_ITEMS, { sku: 'A' }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: 'This product is out of stock',
+      code: 'OutOfStock',
+    });
+  });
+
+  it('returns a generic 500 without the error message', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockAddLineItem.mockRejectedValue(new Error('ct detail'));
+    const res = await POST(jsonRequest(URL_ITEMS, { sku: 'A' }));
+    const body = await res.json();
+    expect(res.status).toBe(500);
+    expect(body.error).toBe('Something went wrong. Please try again.');
+    expect(JSON.stringify(body)).not.toContain('ct detail');
   });
 });

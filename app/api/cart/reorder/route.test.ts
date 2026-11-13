@@ -2,62 +2,27 @@
  * @vitest-environment node
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
 
 const { mockReorderOrder } = vi.hoisted(() => ({
   mockReorderOrder: vi.fn(),
 }));
 
-vi.mock('@/lib/commercetools/cart', () => ({
-  CartAccessError: class CartAccessError extends Error {},
-  CartNotFoundError: class CartNotFoundError extends Error {},
-  OutOfStockError: class OutOfStockError extends Error {
-    constructor(message = 'This product is out of stock') {
-      super(message);
-      this.name = 'OutOfStockError';
-    }
-  },
-}));
-
 vi.mock('@/lib/commercetools/cart-reorder', () => ({
   reorderOrder: mockReorderOrder,
-  NothingToReorderError: class NothingToReorderError extends Error {
-    constructor(message = 'No available items from this order could be added to the cart') {
-      super(message);
-      this.name = 'NothingToReorderError';
-    }
-  },
-  ReorderUnauthorizedError: class ReorderUnauthorizedError extends Error {
-    constructor(message = 'Sign in required to reorder') {
-      super(message);
-      this.name = 'ReorderUnauthorizedError';
-    }
-  },
 }));
 
-vi.mock('@/lib/commercetools/customer-api', () => ({
-  CustomerOrderNotFoundError: class CustomerOrderNotFoundError extends Error {
-    constructor() {
-      super('Order not found');
-      this.name = 'CustomerOrderNotFoundError';
-    }
-  },
-}));
-
-import { OutOfStockError } from '@/lib/commercetools/cart';
 import {
+  CustomerOrderNotFoundError,
   NothingToReorderError,
+  OutOfStockError,
   ReorderUnauthorizedError,
-} from '@/lib/commercetools/cart-reorder';
-import { CustomerOrderNotFoundError } from '@/lib/commercetools/customer-api';
+} from '@/lib/commercetools/domain-errors';
+import { jsonRequest } from '@/test/helpers/json-request';
 
 import { POST } from './route';
 
-function createRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/cart/reorder', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
+function createRequest(body: unknown) {
+  return jsonRequest('http://localhost/api/cart/reorder', body);
 }
 
 const sampleCart = {
@@ -82,7 +47,14 @@ describe('POST /api/cart/reorder', () => {
 
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body.error).toMatch(/orderId/i);
+    expect(body.field).toBe('orderId');
+  });
+
+  it('rejects a path-traversal order id with 400', async () => {
+    expect(
+      (await POST(jsonRequest('http://localhost/api/cart/reorder', { orderId: '..' }))).status,
+    ).toBe(400);
+    expect(mockReorderOrder).not.toHaveBeenCalled();
   });
 
   it('returns 401 when the customer is not signed in', async () => {

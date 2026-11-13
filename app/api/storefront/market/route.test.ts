@@ -2,7 +2,6 @@
  * @vitest-environment node
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
 
 const { realignCartForStorefront, setMarketPreference, getStorefrontContext } =
   vi.hoisted(() => ({
@@ -23,13 +22,12 @@ vi.mock('@/lib/commercetools/storefront-context', () => ({
   getStorefrontContext,
 }));
 
+import { jsonRequest } from '@/test/helpers/json-request';
+
 import { POST } from './route';
 
-function createRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/storefront/market', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
+function createRequest(body: unknown) {
+  return jsonRequest('http://localhost/api/storefront/market', body);
 }
 
 describe('POST /api/storefront/market', () => {
@@ -57,10 +55,7 @@ describe('POST /api/storefront/market', () => {
 
   it('returns 400 when the request body is invalid', async () => {
     const response = await POST(
-      new NextRequest('http://localhost/api/storefront/market', {
-        method: 'POST',
-        body: '{',
-      }),
+      jsonRequest('http://localhost/api/storefront/market', '{'),
     );
 
     expect(response.status).toBe(400);
@@ -70,6 +65,20 @@ describe('POST /api/storefront/market', () => {
     const response = await POST(createRequest({ country: 'FR' }));
 
     expect(response.status).toBe(400);
+  });
+
+  it('rejects an unknown market', async () => {
+    const res = await POST(
+      jsonRequest('http://localhost/api/storefront/market', { country: 'FR' }),
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('country must be one of DE, GB, or US');
+  });
+
+  it('rejects a null body', async () => {
+    expect(
+      (await POST(jsonRequest('http://localhost/api/storefront/market', null))).status,
+    ).toBe(400);
   });
 
   it('persists the market and returns its contextual values', async () => {
@@ -103,5 +112,9 @@ describe('POST /api/storefront/market', () => {
     const response = await POST(createRequest({ country: 'US' }));
 
     expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: 'Something went wrong. Please try again.',
+      errorId: expect.any(String),
+    });
   });
 });

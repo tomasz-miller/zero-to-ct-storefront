@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { toErrorResponse } from '@/lib/http/route-errors';
 import { getWishlist } from '@/lib/commercetools/shopping-lists';
 
 export async function GET() {
@@ -7,7 +8,6 @@ export async function GET() {
     const wishlist = await getWishlist();
     return NextResponse.json({ wishlist });
   } catch (error) {
-    console.error('[api/wishlist]', error);
-    return NextResponse.json({ error: 'Failed to load wishlist' }, { status: 500 });
+    return toErrorResponse(error, 'api/wishlist');
   }
 }
