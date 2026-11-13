@@ -1,5 +1,6 @@
 import 'server-only';
 
+import type { CustomerSession } from './customer-session';
 import { commercetoolsEnv } from './env';
 
 export type CustomerTokenResponse = {
@@ -20,6 +21,8 @@ export class CustomerAuthError extends Error {
     this.statusCode = statusCode;
   }
 }
+
+export const CUSTOMER_TOKEN_REFRESH_BUFFER_MS = 60_000;
 
 type TokenErrorBody = {
   error?: string;
@@ -94,5 +97,60 @@ export async function requestCustomerPasswordToken(
     accessToken: body.access_token,
     refreshToken: body.refresh_token,
     expiresAt: Date.now() + body.expires_in * 1000,
+  };
+}
+
+/**
+ * True only when the token endpoint rejected the refresh token (400/401). Network errors and 5xx
+ * are transient: callers keep the cookie and retry later.
+ */
+export function isCustomerSessionRejected(error: unknown): boolean {
+  return (
+    error instanceof CustomerAuthError &&
+    (error.statusCode === 400 || error.statusCode === 401)
+  );
+}
+
+/**
+ * Refresh-token flow: no scope is sent, the new access token keeps the scope of the original
+ * grant. The refresh token is not rotated, so concurrent refreshes are safe.
+ * https://docs.commercetools.com/api/authorization.md#refresh-token-flow
+ */
+export async function refreshCustomerSession(
+  session: CustomerSession,
+): Promise<CustomerSession> {
+  const response = await fetch(`${commercetoolsEnv.authUrl}/oauth/token`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${getBasicAuthHeader()}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: session.refreshToken,
+    }),
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new CustomerAuthError('RefreshFailed', 'Session expired', response.status);
+  }
+
+  let body: CustomerTokenResponse;
+  try {
+    body = JSON.parse(raw) as CustomerTokenResponse;
+  } catch {
+    throw new CustomerAuthError('ParseError', 'Failed to parse token response', 500);
+  }
+
+  if (!body.access_token) {
+    throw new CustomerAuthError('TokenError', 'Customer token response missing tokens', 500);
+  }
+
+  return {
+    accessToken: body.access_token,
+    refreshToken: body.refresh_token ?? session.refreshToken,
+    expiresAt: Date.now() + body.expires_in * 1000,
+    customerId: session.customerId,
   };
 }

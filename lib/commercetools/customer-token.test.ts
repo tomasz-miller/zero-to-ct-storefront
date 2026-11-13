@@ -5,7 +5,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./env', () => import('@/test/mocks/commercetools-env'));
 
-import { CustomerAuthError, requestCustomerPasswordToken } from './customer-token';
+import {
+  CustomerAuthError,
+  isCustomerSessionRejected,
+  refreshCustomerSession,
+  requestCustomerPasswordToken,
+} from './customer-token';
 
 const fetchMock = vi.fn();
 vi.stubGlobal('fetch', fetchMock);
@@ -62,5 +67,56 @@ describe('requestCustomerPasswordToken', () => {
     await expect(
       requestCustomerPasswordToken('jane@example.com', 'pw'),
     ).rejects.toMatchObject({ code: 'TokenError' });
+  });
+});
+
+describe('refreshCustomerSession', () => {
+  const session = {
+    accessToken: 'a-old',
+    refreshToken: 'r-old',
+    expiresAt: 0,
+    customerId: 'cust-1',
+  };
+
+  afterEach(() => {
+    fetchMock.mockReset();
+    vi.useRealTimers();
+  });
+
+  it('refreshes at {authUrl}/oauth/token with grant_type=refresh_token and no scope', async () => {
+    fetchMock.mockResolvedValueOnce(reply(200, { access_token: 'a-new', expires_in: 172800 }));
+    await refreshCustomerSession(session);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://auth.example.com/oauth/token');
+    const body = new URLSearchParams(init.body);
+    expect(body.get('grant_type')).toBe('refresh_token');
+    expect(body.get('refresh_token')).toBe('r-old');
+    expect(body.get('scope')).toBeNull();
+  });
+
+  it('keeps the previous refresh token when the response has none', async () => {
+    vi.useFakeTimers({ now: 1_000 });
+    fetchMock.mockResolvedValueOnce(reply(200, { access_token: 'a-new', expires_in: 172800 }));
+    await expect(refreshCustomerSession(session)).resolves.toEqual({
+      accessToken: 'a-new',
+      refreshToken: 'r-old',
+      expiresAt: 1_000 + 172_800_000,
+      customerId: 'cust-1',
+    });
+  });
+
+  it('throws a rejected-session CustomerAuthError on invalid_grant', async () => {
+    fetchMock.mockResolvedValueOnce(reply(400, { error: 'invalid_grant' }));
+    const error = await refreshCustomerSession(session).catch((e) => e);
+    expect(error).toBeInstanceOf(CustomerAuthError);
+    expect(error).toMatchObject({ code: 'RefreshFailed', statusCode: 400 });
+    expect(isCustomerSessionRejected(error)).toBe(true);
+  });
+
+  it('does not treat a 503 or a network error as a rejected session', () => {
+    expect(
+      isCustomerSessionRejected(new CustomerAuthError('RefreshFailed', 'Session expired', 503)),
+    ).toBe(false);
+    expect(isCustomerSessionRejected(new TypeError('fetch failed'))).toBe(false);
   });
 });

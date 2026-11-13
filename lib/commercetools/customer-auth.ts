@@ -18,28 +18,26 @@ import {
   type CustomerSession,
 } from './customer-session';
 import { mapCustomer, type StorefrontCustomer } from './customer-mappers';
-import { CustomerAuthError, requestCustomerPasswordToken, type CustomerTokenResponse } from './customer-token';
+import {
+  CUSTOMER_TOKEN_REFRESH_BUFFER_MS,
+  CustomerAuthError,
+  isCustomerSessionRejected,
+  refreshCustomerSession,
+  requestCustomerPasswordToken,
+} from './customer-token';
 import { commercetoolsEnv } from './env';
 import {
   clearWishlistOnLogout,
   reconcileWishlistOnAuth,
 } from './shopping-lists';
 
-export { CustomerAuthError } from './customer-token';
-
-const TOKEN_REFRESH_BUFFER_MS = 60_000;
+export { CustomerAuthError, refreshCustomerSession } from './customer-token';
 
 type CommercetoolsErrorBody = {
   statusCode?: number;
   errors?: Array<{ code?: string; message?: string }>;
   message?: string;
 };
-
-function getBasicAuthHeader(): string {
-  return Buffer.from(
-    `${commercetoolsEnv.clientId}:${commercetoolsEnv.clientSecret}`,
-  ).toString('base64');
-}
 
 function parseCommercetoolsError(raw: string): CommercetoolsErrorBody {
   try {
@@ -104,44 +102,6 @@ function mapCommercetoolsError(
   return new CustomerAuthError(code, message, status);
 }
 
-async function requestCustomerToken(
-  params: URLSearchParams,
-): Promise<CustomerTokenResponse & { refresh_token: string }> {
-  const response = await fetch(
-    `${commercetoolsEnv.authUrl}/oauth/${commercetoolsEnv.projectKey}/customers/token`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${getBasicAuthHeader()}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params,
-    },
-  );
-
-  const raw = await response.text();
-  if (!response.ok) {
-    throw mapCommercetoolsError(response.status, parseCommercetoolsError(raw));
-  }
-
-  let body: CustomerTokenResponse;
-  try {
-    body = JSON.parse(raw) as CustomerTokenResponse;
-  } catch {
-    throw new CustomerAuthError('ParseError', 'Failed to parse token response', 500);
-  }
-
-  if (!body.access_token || !body.refresh_token) {
-    throw new CustomerAuthError(
-      'TokenError',
-      'Customer token response missing tokens',
-      500,
-    );
-  }
-
-  return { ...body, refresh_token: body.refresh_token };
-}
-
 async function exchangePasswordForCustomerToken(
   email: string,
   password: string,
@@ -154,24 +114,6 @@ async function exchangePasswordForCustomerToken(
     accessToken: token.accessToken,
     refreshToken: token.refreshToken,
     expiresAt: token.expiresAt,
-    customerId,
-  };
-}
-
-async function refreshCustomerToken(refreshToken: string): Promise<CustomerSession> {
-  const token = await requestCustomerToken(
-    new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-    }),
-  );
-
-  const customerId = await resolveCustomerIdFromAccessToken(token.access_token);
-
-  return {
-    accessToken: token.access_token,
-    refreshToken: token.refresh_token,
-    expiresAt: Date.now() + token.expires_in * 1000,
     customerId,
   };
 }
@@ -195,23 +137,39 @@ async function resolveCustomerIdFromAccessToken(accessToken: string): Promise<st
   return customer.id;
 }
 
+/**
+ * Server Component path: cookies are read-only during render, so this never refreshes or writes.
+ * Token refresh happens in the root proxy (and in getValidCustomerAccessToken for Route Handlers).
+ */
+export async function getCustomerAccessTokenForRender(): Promise<string | null> {
+  const session = await getCustomerSession();
+  if (!session || session.expiresAt <= Date.now()) {
+    return null;
+  }
+  return session.accessToken;
+}
+
+/** Route Handler / Server Action path: cookies are writable, so refresh when near expiry. */
 export async function getValidCustomerAccessToken(): Promise<string | null> {
   const session = await getCustomerSession();
   if (!session) {
     return null;
   }
 
-  if (session.expiresAt > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
+  if (session.expiresAt > Date.now() + CUSTOMER_TOKEN_REFRESH_BUFFER_MS) {
     return session.accessToken;
   }
 
   try {
-    const refreshed = await refreshCustomerToken(session.refreshToken);
+    const refreshed = await refreshCustomerSession(session);
     await setCustomerSession(refreshed);
     return refreshed.accessToken;
-  } catch {
-    await clearCustomerSession();
-    return null;
+  } catch (error) {
+    if (isCustomerSessionRejected(error)) {
+      await clearCustomerSession();
+      return null;
+    }
+    return session.expiresAt > Date.now() ? session.accessToken : null;
   }
 }
 
@@ -434,7 +392,7 @@ export async function resetCustomerPassword(
 }
 
 export async function getAuthenticatedCustomerProfile(): Promise<StorefrontCustomer | null> {
-  const accessToken = await getValidCustomerAccessToken();
+  const accessToken = await getCustomerAccessTokenForRender();
   if (!accessToken) {
     return null;
   }

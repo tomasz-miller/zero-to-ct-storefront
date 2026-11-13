@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   mockExecute,
@@ -17,6 +17,7 @@ const {
   mockClearCartSession,
   mockRestoreCustomerCartSession,
   mockReconcileCartOnAuth,
+  mockRefreshCustomerSession,
 } = vi.hoisted(() => ({
   mockExecute: vi.fn(),
   mockLoginPost: vi.fn(() => ({ execute: mockExecute })),
@@ -31,6 +32,12 @@ const {
   mockClearCartSession: vi.fn(),
   mockRestoreCustomerCartSession: vi.fn(),
   mockReconcileCartOnAuth: vi.fn(),
+  mockRefreshCustomerSession: vi.fn(),
+}));
+
+vi.mock('./customer-token', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./customer-token')>()),
+  refreshCustomerSession: mockRefreshCustomerSession,
 }));
 
 vi.mock('./cart', () => ({
@@ -81,6 +88,9 @@ vi.mock('./env', () => ({
 
 import {
   CustomerAuthError,
+  getAuthenticatedCustomerProfile,
+  getCustomerAccessTokenForRender,
+  getValidCustomerAccessToken,
   loginCustomer,
   registerCustomer,
   logoutCustomer,
@@ -349,5 +359,87 @@ describe('customer-auth', () => {
         newPassword: 'newpassword1',
       },
     });
+  });
+});
+
+describe('customer access tokens', () => {
+  const session = { accessToken: 'a-old', refreshToken: 'r-old', customerId: 'cust-1' };
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    fetchMock.mockReset();
+    mockGetCustomerSession.mockReset();
+    mockRefreshCustomerSession.mockReset();
+    mockSetCustomerSession.mockReset();
+    mockClearCustomerSession.mockReset();
+  });
+
+  it('getCustomerAccessTokenForRender returns null for an expired session and never refreshes or writes', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() - 1 });
+    await expect(getCustomerAccessTokenForRender()).resolves.toBeNull();
+    expect(mockRefreshCustomerSession).not.toHaveBeenCalled();
+    expect(mockSetCustomerSession).not.toHaveBeenCalled();
+    expect(mockClearCustomerSession).not.toHaveBeenCalled();
+  });
+
+  it('getCustomerAccessTokenForRender returns the stored token while it is valid', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({
+      ...session,
+      accessToken: 'a-valid',
+      expiresAt: Date.now() + 10_000,
+    });
+    await expect(getCustomerAccessTokenForRender()).resolves.toBe('a-valid');
+  });
+
+  it('getValidCustomerAccessToken refreshes within 60 s of expiry and stores the new session', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() + 30_000 });
+    mockRefreshCustomerSession.mockResolvedValueOnce({
+      ...session,
+      accessToken: 'a-new',
+      expiresAt: Date.now() + 172_800_000,
+    });
+    await expect(getValidCustomerAccessToken()).resolves.toBe('a-new');
+    expect(mockSetCustomerSession).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: 'a-new', customerId: 'cust-1' }),
+    );
+  });
+
+  it('getValidCustomerAccessToken clears the session when refresh fails with 400', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() + 30_000 });
+    mockRefreshCustomerSession.mockRejectedValueOnce(
+      new CustomerAuthError('RefreshFailed', 'Session expired', 400),
+    );
+    await expect(getValidCustomerAccessToken()).resolves.toBeNull();
+    expect(mockClearCustomerSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('getValidCustomerAccessToken keeps a still-valid token when refresh fails with 503', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() + 30_000 });
+    mockRefreshCustomerSession.mockRejectedValueOnce(
+      new CustomerAuthError('RefreshFailed', 'Session expired', 503),
+    );
+    await expect(getValidCustomerAccessToken()).resolves.toBe('a-old');
+    expect(mockClearCustomerSession).not.toHaveBeenCalled();
+  });
+
+  it('getAuthenticatedCustomerProfile does not call /me, refresh or write when the token is expired', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() - 1 });
+    await expect(getAuthenticatedCustomerProfile()).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockRefreshCustomerSession).not.toHaveBeenCalled();
+    expect(mockSetCustomerSession).not.toHaveBeenCalled();
+  });
+
+  it('getAuthenticatedCustomerProfile clears the session on a 401 from /me and returns null', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() + 10_000 });
+    fetchMock.mockResolvedValueOnce(new Response('{}', { status: 401 }));
+    mockClearCustomerSession.mockResolvedValueOnce(false); // render: cookies are read-only
+    await expect(getAuthenticatedCustomerProfile()).resolves.toBeNull();
+    expect(mockClearCustomerSession).toHaveBeenCalledTimes(1);
   });
 });
