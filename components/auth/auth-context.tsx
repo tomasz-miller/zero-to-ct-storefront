@@ -30,7 +30,7 @@ type AuthContextValue = {
   openLoginDialog: (view?: AuthView) => void;
   closeLoginDialog: () => void;
   setAuthView: (view: AuthView) => void;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -111,10 +111,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthView('login');
   }, []);
 
-  const signOut = useCallback(async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+  const signOut = useCallback(async (): Promise<boolean> => {
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!response.ok) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+
     setCustomer(null);
     router.refresh();
+    return true;
   }, [router]);
 
   const value = useMemo(

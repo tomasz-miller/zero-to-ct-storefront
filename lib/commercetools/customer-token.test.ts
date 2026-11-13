@@ -10,6 +10,8 @@ import {
   isCustomerSessionRejected,
   refreshCustomerSession,
   requestCustomerPasswordToken,
+  revokeCustomerAccessToken,
+  revokeCustomerRefreshToken,
 } from './customer-token';
 
 const fetchMock = vi.fn();
@@ -118,5 +120,30 @@ describe('refreshCustomerSession', () => {
       isCustomerSessionRejected(new CustomerAuthError('RefreshFailed', 'Session expired', 503)),
     ).toBe(false);
     expect(isCustomerSessionRejected(new TypeError('fetch failed'))).toBe(false);
+  });
+});
+
+describe('token revocation', () => {
+  afterEach(() => {
+    fetchMock.mockReset();
+  });
+
+  it('revokes a refresh token at {authUrl}/oauth/token/revoke with the type hint', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    await revokeCustomerRefreshToken('r');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://auth.example.com/oauth/token/revoke');
+    expect(init.headers.Authorization).toMatch(/^Basic /);
+    const body = new URLSearchParams(init.body);
+    expect(body.get('token')).toBe('r');
+    expect(body.get('token_type_hint')).toBe('refresh_token');
+  });
+
+  it('throws when revocation answers 5xx', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    await expect(revokeCustomerAccessToken('a')).rejects.toMatchObject({
+      code: 'RevokeFailed',
+      statusCode: 503,
+    });
   });
 });

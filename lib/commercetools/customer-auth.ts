@@ -23,14 +23,21 @@ import {
   isCustomerSessionRejected,
   refreshCustomerSession,
   requestCustomerPasswordToken,
+  revokeCustomerAccessToken,
+  revokeCustomerRefreshToken,
 } from './customer-token';
 import { commercetoolsEnv } from './env';
+import { clearMarketCartMap } from './market-cart-session';
 import {
   clearWishlistOnLogout,
   reconcileWishlistOnAuth,
 } from './shopping-lists';
 
-export { CustomerAuthError, refreshCustomerSession } from './customer-token';
+export {
+  CustomerAuthError,
+  refreshCustomerSession,
+  revokeCustomerRefreshToken,
+} from './customer-token';
 
 type CommercetoolsErrorBody = {
   statusCode?: number;
@@ -323,9 +330,27 @@ export async function registerCustomer(input: {
 }
 
 export async function logoutCustomer(): Promise<void> {
+  const session = await getCustomerSession();
+  if (session) {
+    // Revocation is best effort: the cookies are cleared even when the Authorization Server
+    // is unreachable, so the user is signed out of this browser either way.
+    const results = await Promise.allSettled([
+      revokeCustomerRefreshToken(session.refreshToken),
+      revokeCustomerAccessToken(session.accessToken),
+    ]);
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        const statusCode =
+          result.reason instanceof CustomerAuthError ? result.reason.statusCode : undefined;
+        console.error('[auth] token revocation failed', { statusCode });
+      }
+    }
+  }
+
   await clearCustomerSession();
-  // Customer cart belongs to the account — drop browser cart cookie so guest session starts fresh.
+  // Customer cart belongs to the account — drop browser cart cookies so guest session starts fresh.
   await clearCartSession();
+  await clearMarketCartMap();
   await clearWishlistOnLogout();
 }
 

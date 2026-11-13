@@ -154,3 +154,34 @@ export async function refreshCustomerSession(
     customerId: session.customerId,
   };
 }
+
+/**
+ * Revokes a token at the Authorization Server. The endpoint answers 200 for unknown or already
+ * revoked tokens too; a 5xx means the token may still be valid.
+ * https://docs.commercetools.com/api/authorization.md#revoke-tokens
+ */
+async function revokeCustomerToken(
+  token: string,
+  tokenTypeHint: 'refresh_token' | 'access_token',
+): Promise<void> {
+  const response = await fetch(`${commercetoolsEnv.authUrl}/oauth/token/revoke`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${getBasicAuthHeader()}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({ token, token_type_hint: tokenTypeHint }),
+  });
+
+  if (!response.ok) {
+    throw new CustomerAuthError('RevokeFailed', 'Token revocation failed', response.status);
+  }
+}
+
+export function revokeCustomerRefreshToken(refreshToken: string): Promise<void> {
+  return revokeCustomerToken(refreshToken, 'refresh_token');
+}
+
+export function revokeCustomerAccessToken(accessToken: string): Promise<void> {
+  return revokeCustomerToken(accessToken, 'access_token');
+}

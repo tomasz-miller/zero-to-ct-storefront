@@ -19,6 +19,10 @@ const {
   mockReconcileCartOnAuth,
   mockRefreshCustomerSession,
   mockGetOwnedGuestCartRef,
+  mockRevokeCustomerRefreshToken,
+  mockRevokeCustomerAccessToken,
+  mockClearMarketCartMap,
+  mockClearWishlistOnLogout,
 } = vi.hoisted(() => ({
   mockExecute: vi.fn(),
   mockLoginPost: vi.fn(() => ({ execute: mockExecute })),
@@ -35,11 +39,21 @@ const {
   mockReconcileCartOnAuth: vi.fn(),
   mockRefreshCustomerSession: vi.fn(),
   mockGetOwnedGuestCartRef: vi.fn(),
+  mockRevokeCustomerRefreshToken: vi.fn(),
+  mockRevokeCustomerAccessToken: vi.fn(),
+  mockClearMarketCartMap: vi.fn(),
+  mockClearWishlistOnLogout: vi.fn(),
 }));
 
 vi.mock('./customer-token', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./customer-token')>()),
   refreshCustomerSession: mockRefreshCustomerSession,
+  revokeCustomerRefreshToken: mockRevokeCustomerRefreshToken,
+  revokeCustomerAccessToken: mockRevokeCustomerAccessToken,
+}));
+
+vi.mock('./market-cart-session', () => ({
+  clearMarketCartMap: mockClearMarketCartMap,
 }));
 
 vi.mock('./cart', () => ({
@@ -75,7 +89,7 @@ vi.mock('./customer-session', () => ({
 
 vi.mock('./shopping-lists', () => ({
   reconcileWishlistOnAuth: vi.fn(),
-  clearWishlistOnLogout: vi.fn(),
+  clearWishlistOnLogout: mockClearWishlistOnLogout,
 }));
 
 vi.mock('./env', () => ({
@@ -100,7 +114,7 @@ import {
   requestPasswordReset,
   resetCustomerPassword,
 } from './customer-auth';
-import { clearWishlistOnLogout, reconcileWishlistOnAuth } from './shopping-lists';
+import { reconcileWishlistOnAuth } from './shopping-lists';
 
 describe('customer-auth', () => {
   afterEach(() => {
@@ -403,11 +417,45 @@ describe('customer-auth', () => {
     });
   });
 
-  it('clears customer, cart, and wishlist sessions on logout', async () => {
+  it('revokes both tokens, then clears customer, cart, market-cart and wishlist cookies', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiresAt: 1,
+      customerId: 'cust-1',
+    });
     await logoutCustomer();
-    expect(mockClearCustomerSession).toHaveBeenCalled();
-    expect(mockClearCartSession).toHaveBeenCalled();
-    expect(clearWishlistOnLogout).toHaveBeenCalled();
+    expect(mockRevokeCustomerRefreshToken).toHaveBeenCalledWith('r');
+    expect(mockRevokeCustomerAccessToken).toHaveBeenCalledWith('a');
+    for (const clear of [
+      mockClearCustomerSession,
+      mockClearCartSession,
+      mockClearMarketCartMap,
+      mockClearWishlistOnLogout,
+    ]) {
+      expect(clear).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('still clears cookies when revocation fails', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiresAt: 1,
+      customerId: 'cust-1',
+    });
+    mockRevokeCustomerRefreshToken.mockRejectedValueOnce(
+      new CustomerAuthError('RevokeFailed', 'Token revocation failed', 503),
+    );
+    await expect(logoutCustomer()).resolves.toBeUndefined();
+    expect(mockClearCustomerSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears cookies without revoking when there is no session', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce(null);
+    await logoutCustomer();
+    expect(mockRevokeCustomerRefreshToken).not.toHaveBeenCalled();
+    expect(mockClearCartSession).toHaveBeenCalledTimes(1);
   });
 
   it('returns password reset token value in dev flow helper', async () => {
