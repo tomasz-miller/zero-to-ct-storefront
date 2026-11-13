@@ -41,6 +41,7 @@ vi.mock('@commercetools/ts-client', () => ({
 
 describe('ctpClient', () => {
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.resetModules();
     vi.clearAllMocks();
     builderChain.withProjectKey.mockReturnValue(builderChain);
@@ -63,6 +64,28 @@ describe('ctpClient', () => {
     ];
     expect(generate()).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  // Production pin for the Track 1A deferred finding: no logger middleware means no response body or token is logged.
+  it('does not register the logger middleware outside development', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    await import('./client');
+    expect(builderChain.withLoggerMiddleware).not.toHaveBeenCalled();
+  });
+
+  it('registers a custom loggerFn in development', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    await import('./client');
+    expect(builderChain.withLoggerMiddleware).toHaveBeenCalledWith({
+      loggerFn: expect.any(Function),
+    });
+  });
+
+  it('excludes the request from error responses', async () => {
+    await import('./client');
+    expect(builderChain.withHttpMiddleware).toHaveBeenCalledWith(
+      expect.objectContaining({ includeRequestInErrorResponse: false }),
     );
   });
 });

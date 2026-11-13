@@ -7,6 +7,7 @@ import {
 } from '@commercetools/ts-client';
 
 import { commercetoolsEnv } from './env';
+import { ctSdkLoggerFn, shouldEnableSdkLogger } from './sdk-logger';
 
 const authMiddlewareOptions: AuthMiddlewareOptions = {
   host: commercetoolsEnv.authUrl,
@@ -22,13 +23,18 @@ const authMiddlewareOptions: AuthMiddlewareOptions = {
 const httpMiddlewareOptions: HttpMiddlewareOptions = {
   host: commercetoolsEnv.apiUrl,
   httpClient: fetch,
+  includeRequestInErrorResponse: false,
 };
 
-export const ctpClient = new ClientBuilder()
+const builder = new ClientBuilder()
   .withProjectKey(commercetoolsEnv.projectKey)
   .withClientCredentialsFlow(authMiddlewareOptions)
   .withHttpMiddleware(httpMiddlewareOptions)
   .withCorrelationIdMiddleware({ generate: () => crypto.randomUUID() })
-  .withConcurrentModificationMiddleware()
-  .withLoggerMiddleware()
-  .build();
+  .withConcurrentModificationMiddleware();
+
+if (shouldEnableSdkLogger()) {
+  builder.withLoggerMiddleware({ loggerFn: ctSdkLoggerFn });
+}
+
+export const ctpClient = builder.build();
