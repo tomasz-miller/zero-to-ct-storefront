@@ -12,6 +12,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
 export const config = {
   matcher: [
+    // Every API route runs the proxy (cross-origin guard, token refresh), whatever its last
+    // segment looks like: the static-asset exclusion below is only for pages and public files.
+    '/api/:path*',
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };
