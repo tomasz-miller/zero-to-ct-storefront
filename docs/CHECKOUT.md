@@ -213,6 +213,17 @@ When creating the Checkout application in MC:
 
 After changing connector credentials or redeploying, **remove and re-add** the Payment Integration if scope validation still fails.
 
+### Content Security Policy
+
+`next.config.ts` (`securityHeaderRules`) sets these headers on every route:
+
+- **Enforced** `Content-Security-Policy`: `frame-ancestors 'none'; object-src 'none'; base-uri 'self'`. Also `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` (`no-referrer` on `/reset-password`) and a `Permissions-Policy` that disables camera, microphone and geolocation (`payment` is left unrestricted for wallet buttons in the Checkout iframe).
+- **Report-only** `Content-Security-Policy-Report-Only`: the full policy (`default-src 'self'`, script/frame sources for the Checkout host `https://app.checkout.<NEXT_PUBLIC_CTP_REGION>.commercetools.com` and Stripe, `connect-src` for `*.commercetools.com` and `api.stripe.com`, `form-action 'self'`). `'unsafe-eval'` is added only in development. The Stripe hosts are unverified against a live checkout.
+
+Nothing is blocked by the report-only policy. No `report-to` endpoint is configured, so check the browser console during a full checkout (card, wallet and any redirect-based payment method) for violations.
+
+Promotion step: once a full checkout produces no violations, add the needed hosts, then move the directives from `Content-Security-Policy-Report-Only` into the enforced header. Keep `form-action` report-only until PSP redirect flows (return URL) are verified.
+
 ---
 
 ## Post-deploy checklist
