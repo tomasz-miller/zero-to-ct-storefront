@@ -2,7 +2,7 @@
 
 How to deploy **zero-to-ct-storefront** to production (Vercel recommended).
 
-**Production path:** the GitHub repo is linked to Vercel — pushes to `main` **auto-deploy**. Initial project import, env vars, and Stripe connector `ALLOWED_ORIGINS` remain a one-time human setup. CLI / plugin deploy is optional for first-time bootstrap or emergency redeploys.
+**Production path:** when a Vercel project is linked to the repository, pushes to `main` **auto-deploy**. Initial project import, env vars, and Stripe connector `ALLOWED_ORIGINS` remain a one-time human setup. CLI / plugin deploy is optional for first-time bootstrap or emergency redeploys.
 
 ---
 
@@ -83,28 +83,19 @@ Use these only when connecting a new Vercel project or forcing a one-off product
 
 ### Stripe connector CORS
 
-After the first production URL is live, ensure the Stripe connector `ALLOWED_ORIGINS` includes your production URL (e.g. `https://zero-to-ct-storefront.vercel.app`). See [CHECKOUT.md](./CHECKOUT.md).
+After the first production URL is live, ensure the Stripe connector `ALLOWED_ORIGINS` includes your production URL (e.g. `https://<your-app>.vercel.app`). See [CHECKOUT.md](./CHECKOUT.md).
 
 ---
 
-## GitHub Actions CI secrets
+## CI environment
 
-CI runs `pnpm build` with live CT credentials ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)). Add these **repository secrets** (Settings → Secrets and variables → Actions):
-
-| Secret | Value |
-|--------|-------|
-| `CTP_PROJECT_KEY` | Project key |
-| `CTP_CLIENT_ID` | Storefront BFF client ID |
-| `CTP_CLIENT_SECRET` | Storefront BFF client secret |
-| `CTP_SCOPES` | Full scope string from `.env.example` |
-
-`CTP_AUTH_URL`, `CTP_API_URL`, `CTP_SESSION_URL`, and `NEXT_PUBLIC_*` are set inline in the workflow.
+CI (`.github/workflows/ci.yml` and `bitbucket-pipelines.yml`) runs `pnpm build` with placeholder `CTP_*` values and needs no commercetools secrets. `lib/commercetools/env.ts` only checks that the variables are set, and every route renders per request, so the build never calls the commercetools API.
 
 ---
 
-## Production URL (current)
+## Previous deployment (retired)
 
-**https://zero-to-ct-storefront.vercel.app** — first deployed 2026-07-14 via Vercel CLI; thereafter **auto-deploy from `main`**.
+`https://zero-to-ct-storefront.vercel.app` ran from 2026-07-14 (first deployed via Vercel CLI, then auto-deploy from `main`) until the commercetools trial project expired. The URL no longer serves the storefront. A new deployment needs a new commercetools project and fresh environment variables.
 
 ---
 
@@ -112,7 +103,7 @@ CI runs `pnpm build` with live CT credentials ([`.github/workflows/ci.yml`](../.
 
 | Check | How |
 |-------|-----|
-| Health | `GET https://zero-to-ct-storefront.vercel.app/api/health` → `{ "ok": true }` |
+| Health | `GET https://<your-app>.vercel.app/api/health` → `{ "ok": true }` |
 | Products | Homepage loads Best Sellers grid |
 | Add to cart | Add item from homepage; cart badge updates |
 | Checkout embed | `/checkout` loads without `no_payment_integrations` error |
@@ -120,7 +111,7 @@ CI runs `pnpm build` with live CT credentials ([`.github/workflows/ci.yml`](../.
 | Auth | Register, sign in, view `/account` order history |
 | Wishlist | Save item from homepage, view `/wishlist`, move to cart |
 
-Run through [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) on the production URL before a sales call.
+Run through [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) on your deployment, or locally, before a sales call.
 
 ---
 

@@ -4,7 +4,7 @@ Forward-looking plan for **zero-to-ct-storefront** — a minimal B2C PoC on comm
 
 **Last updated:** 2026-09-22 (v0.1.0 light theme, PDP quantity stepper, checkout embed width, test counts)
 
-**Live demo:** https://zero-to-ct-storefront.vercel.app/ (Vercel auto-deploy)
+**Demo:** hosted demo retired (commercetools trial project expired); run locally.
 
 ---
 
@@ -37,7 +37,7 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 - **Next.js 16** App Router with **BFF** (`/app/api/*`) — commercetools credentials stay server-side
 - **TypeScript SDK v3** (`ClientBuilder`) in [`lib/commercetools/`](../lib/commercetools/)
 - **coss ui** + Tailwind v4, light theme by default (`next-themes`; dark still available)
-- **CI** (`.github/workflows/ci.yml`): `lint`, `typecheck`, `test:unit`, `build` (with GitHub secrets)
+- **CI** (`.github/workflows/ci.yml`): `lint`, `typecheck`, `test:unit`, `build` (placeholder `CTP_*` env, no secrets)
 - **387 unit tests** (Vitest) + **41 E2E tests** (Playwright: discovery + cart/checkout + account + wishlist + promotions + inventory + multi-market + API smoke, local with `CTP_*`)
 
 ### Product discovery
@@ -200,11 +200,11 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 
 | Feature | Status | CT API | Suggested files | Dependencies |
 |---------|--------|--------|-----------------|--------------|
-| Deploy (Vercel/Netlify) | done | — | — | https://zero-to-ct-storefront.vercel.app; see [DEPLOY.md](./DEPLOY.md) |
+| Deploy (Vercel/Netlify) | done, retired | — | — | Deployment retired with the expired trial project; see [DEPLOY.md](./DEPLOY.md) |
 | Sales demo script | done | — | [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) | — |
 | Time report | done | — | [TIME_REPORT.md](./TIME_REPORT.md) | `BUILD_LOG.md` entries |
 | E2E: add-to-cart + checkout | done | Carts, Checkout Sessions | `e2e/cart-checkout.spec.ts` | Local `CTP_*` credentials |
-| CI `pnpm build` job | done | — | `.github/workflows/ci.yml` | GitHub secrets for `CTP_*` |
+| CI `pnpm build` job | done | — | `.github/workflows/ci.yml` | Placeholder `CTP_*` env; no secrets |
 
 **Effort:** S | **Value:** High (demo readiness)
 

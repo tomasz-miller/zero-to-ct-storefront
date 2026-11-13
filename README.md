@@ -2,15 +2,15 @@
 
 A minimal B2C storefront on [commercetools](https://commercetools.com) Composable Commerce — built by a backend developer in ~2 weeks using AI agents and official CT tooling.
 
-## Live demo
+## Demo
 
-**https://zero-to-ct-storefront.vercel.app/**
+The hosted demo has been retired: the commercetools trial project behind it expired, so there is no public URL. To try the storefront, run it locally against your own commercetools project (see [Development](#development)).
 
-[![Homepage — Best Sellers grid with wishlist hearts, market switcher, and cart](./docs/homepage-best-sellers.png)](https://zero-to-ct-storefront.vercel.app/)
+![Homepage — Best Sellers grid with wishlist hearts, market switcher, and cart](./docs/homepage-best-sellers.png)
 
 ## Status
 
-✅ **PoC complete** (Phases 0–11) — live on Vercel with auto-deploy from `main`. No open storefront backlog.
+✅ **PoC complete** (Phases 0–11). It ran on Vercel with auto-deploy from `main` until the commercetools trial project expired; it now runs locally only.
 
 Aligned with the [commercetools B2C Retail demo flow](https://docs.commercetools.com/tutorials/implementation-guide/demo-flow-b2c-retail) for discovery, account, and checkout. Phase history: [docs/ROADMAP.md](./docs/ROADMAP.md). Sales script: [docs/DEMO_SCRIPT.md](./docs/DEMO_SCRIPT.md).
 
@@ -62,8 +62,8 @@ Aligned with the [commercetools B2C Retail demo flow](https://docs.commercetools
 | [docs/UI_COMPONENTS.md](./docs/UI_COMPONENTS.md) | coss ui primitives and conventions |
 | [docs/CURSOR_SETUP.md](./docs/CURSOR_SETUP.md) | `.cursor/` directory setup (rules, MCP) |
 | [docs/CHECKOUT.md](./docs/CHECKOUT.md) | Checkout + Stripe connector (MC, Connect, API client scopes) |
-| [docs/DEMO_SCRIPT.md](./docs/DEMO_SCRIPT.md) | Sales demo script (use live URL above) |
-| [docs/DEPLOY.md](./docs/DEPLOY.md) | Vercel deployment guide (auto-deploy from `main`) |
+| [docs/DEMO_SCRIPT.md](./docs/DEMO_SCRIPT.md) | Sales demo script (local run) |
+| [docs/DEPLOY.md](./docs/DEPLOY.md) | Vercel deployment guide |
 | [docs/ROADMAP.md](./docs/ROADMAP.md) | Phase history and capability inventory |
 | [docs/TIME_REPORT.md](./docs/TIME_REPORT.md) | Estimated hours and milestones |
 | [BUILD_LOG.md](./BUILD_LOG.md) | Chronological development log |
@@ -120,7 +120,7 @@ GitHub is the source of truth and public portfolio. Columbus keeps a private cop
 |--|--|--|
 | This repo | [tomasz-miller/zero-to-ct-storefront](https://github.com/tomasz-miller/zero-to-ct-storefront) | [istonecrosscommerce/zero-to-ct-storefront](https://bitbucket.org/istonecrosscommerce/zero-to-ct-storefront) |
 
-Bitbucket Pipelines must be **enabled** on the repository. Add secured Repository variables: `CTP_PROJECT_KEY`, `CTP_CLIENT_ID`, `CTP_CLIENT_SECRET`, `CTP_SCOPES` (same values as GitHub Actions secrets).
+Bitbucket Pipelines must be **enabled** on the repository. Neither CI needs commercetools secrets: the build runs with placeholder `CTP_*` values.
 
 ## License
 

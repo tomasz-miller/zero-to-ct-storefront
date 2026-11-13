@@ -300,7 +300,7 @@ Post-PoC `phase-3-demo` follow-ups (Bitbucket 1h + v0.1.0 1.3h) are **not** insi
 | BFF API route unit tests (auth/cart/customer/wishlist) | Done |
 | Sales demo script | Done — [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) |
 | Product roadmap | Done — [ROADMAP.md](./ROADMAP.md) |
-| Deploy to Vercel/Netlify | Done — https://zero-to-ct-storefront.vercel.app (auto-deploy from `main`; [DEPLOY.md](./DEPLOY.md)) |
+| Deploy to Vercel/Netlify | Done — https://zero-to-ct-storefront.vercel.app (auto-deploy from `main`; [DEPLOY.md](./DEPLOY.md)). Retired 2026-11: commercetools trial project expired |
 | PoC documentation closure (option A) | Done — deploy/docs drift cleared; Commerce MCP out of storefront scope |
 | Light theme default + wishlist contrast on product photos (v0.1.0) | Done |
 | PDP quantity stepper (single-variant PDP) | Done |

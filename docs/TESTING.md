@@ -38,7 +38,7 @@ Before finishing a task, run:
 pnpm lint && pnpm typecheck && pnpm test:unit
 ```
 
-**CI:** GitHub Actions runs `lint`, `typecheck`, `test:unit`, and `build` on pull requests and merges to `main` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)). The build job requires `CTP_*` GitHub secrets.
+**CI:** GitHub Actions runs `lint`, `typecheck`, `test:unit`, and `build` on pull requests and merges to `main` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)). The build job uses placeholder `CTP_*` values and needs no secrets.
 
 ---
 
