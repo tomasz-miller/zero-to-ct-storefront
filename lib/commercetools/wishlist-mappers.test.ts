@@ -1,7 +1,9 @@
 import type { ShoppingList } from '@commercetools/platform-sdk';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { mapWishlist } from './wishlist-mappers';
+
+vi.mock('@/lib/commercetools/env', () => import('@/test/mocks/commercetools-env'));
 
 describe('mapWishlist', () => {
   it('maps shopping list line items and sku collection', () => {

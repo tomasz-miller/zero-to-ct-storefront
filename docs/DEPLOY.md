@@ -41,6 +41,8 @@ Copy from [`.env.example`](../.env.example). Set these in the hosting provider (
 | `CTP_API_URL` | `https://api.europe-west1.gcp.commercetools.com` |
 | `CTP_SESSION_URL` | `https://session.europe-west1.gcp.commercetools.com` |
 | `CTP_SCOPES` | Space-separated scopes — see `.env.example` (includes `manage_shopping_lists` for wishlist) |
+| `SESSION_SECRET` | **Required at runtime.** Seals every `ct_*` cookie. Base64 of at least 32 random bytes; generate with `openssl rand -base64 32`. Missing or too short: sign-in and cart sessions fail with an error naming the variable. Changing it signs all users out. Optional for `next build`. |
+| `CTP_CUSTOMER_SCOPES` | Optional. Space-separated scopes requested for customer tokens; `{pk}` is replaced by `CTP_PROJECT_KEY`. Default `manage_my_profile:{pk} manage_my_orders:{pk}`. Every entry must exist on the API client. |
 
 ### Public (safe for browser / Checkout SDK)
 

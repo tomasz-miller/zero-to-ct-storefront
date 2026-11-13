@@ -15,6 +15,15 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-11-13 — Track 1A: session trust
+- **Time:** —
+- **Phase:** maintenance
+- **Milestone:** Every `ct_*` cookie is sealed (AES-256-GCM, key from `SESSION_SECRET`) and bound to its cookie name. Customer and Checkout tokens request explicit least-privilege scopes. Query predicates use input variables. The root proxy refreshes customer tokens and refuses cross-origin state-changing `/api/*` requests, and render paths no longer write cookies. Login and register use the commercetools sign-in merge with `anonymousId`, which is no longer exposed. Logout revokes the refresh and access tokens. Orders get an `orderNumber` and the confirmation page reads the sealed `ct_last_order` cookie. Unit tests 399 → 514 (85 → 101 files).
+- **Agent vs manual:** 100% agent, human review pending
+- **Notes:** `SESSION_SECRET` is required at runtime (optional for `next build`); existing plain-JSON cookies are invalid, so users are signed out and guest carts restart. Post-merge checks (token scopes after login and refresh, sign-in merge across markets, logout revocation, order numbers at checkout, e2e for `/order-confirmation`) need a commercetools project and are listed in the Track 1A plan.
+
+---
+
 ### 2026-11-13 — Track 0: dependency updates
 - **Time:** —
 - **Phase:** maintenance

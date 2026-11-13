@@ -6,6 +6,8 @@ import {
   getCartForCheckout,
 } from '@/lib/commercetools/cart';
 import { createCheckoutSession } from '@/lib/commercetools/checkout-session';
+import { setLastOrderSession } from '@/lib/commercetools/last-order-session';
+import { createOrderNumber } from '@/lib/commercetools/order-number';
 import { getStorefrontContext } from '@/lib/commercetools/storefront-context';
 
 export async function POST() {
@@ -14,10 +16,13 @@ export async function POST() {
       getCartForCheckout(),
       getStorefrontContext(),
     ]);
+    const orderNumber = createOrderNumber();
     const sessionId = await createCheckoutSession(
       cart.id,
       cart.country ?? marketCountry,
+      orderNumber,
     );
+    await setLastOrderSession({ orderNumber, cartId: cart.id });
 
     return NextResponse.json({ sessionId });
   } catch (error) {

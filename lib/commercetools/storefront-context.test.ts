@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { commercetoolsEnv } from '@/test/mocks/commercetools-env';
+
 const { getMarketPreference } = vi.hoisted(() => ({
   getMarketPreference: vi.fn(),
 }));
@@ -7,6 +9,8 @@ const { getMarketPreference } = vi.hoisted(() => ({
 vi.mock('./market-session', () => ({
   getMarketPreference,
 }));
+
+vi.mock('./env', () => import('@/test/mocks/commercetools-env'));
 
 import {
   CATALOG_LOCALE,
@@ -71,7 +75,7 @@ describe('resolveCurrencyForCountry', () => {
 
 describe('resolveCheckoutApplicationKey', () => {
   afterEach(() => {
-    vi.unstubAllEnvs();
+    commercetoolsEnv.checkoutApplicationKey = undefined;
   });
 
   it('maps DE to standard demo checkout app', () => {
@@ -95,8 +99,13 @@ describe('resolveCheckoutApplicationKey', () => {
     );
   });
 
+  it('uses the CTP_CHECKOUT_APPLICATION_KEY override from env', () => {
+    commercetoolsEnv.checkoutApplicationKey = 'custom-app';
+    expect(resolveCheckoutApplicationKey('DE')).toBe('custom-app');
+  });
+
   it('uses CTP_CHECKOUT_APPLICATION_KEY override for all countries', () => {
-    vi.stubEnv('CTP_CHECKOUT_APPLICATION_KEY', 'custom-checkout-app');
+    commercetoolsEnv.checkoutApplicationKey = 'custom-checkout-app';
 
     expect(resolveCheckoutApplicationKey('DE')).toBe('custom-checkout-app');
     expect(resolveCheckoutApplicationKey('GB')).toBe('custom-checkout-app');

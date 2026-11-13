@@ -85,7 +85,7 @@ describe('CheckoutEmbed', () => {
 
     await waitFor(() => {
       expect(mockSyncCartItemCount).toHaveBeenCalledWith(0);
-      expect(mockRouter.push).toHaveBeenCalledWith('/order-confirmation?orderId=order-1');
+      expect(mockRouter.push).toHaveBeenCalledWith('/order-confirmation');
     });
     expect(mockRefreshCart).not.toHaveBeenCalled();
   });

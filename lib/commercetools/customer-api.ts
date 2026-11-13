@@ -4,7 +4,7 @@ import type { Order } from '@commercetools/platform-sdk';
 
 import {
   getAuthenticatedCustomerProfile,
-  getValidCustomerAccessToken,
+  getCustomerAccessTokenForRender,
 } from './customer-auth';
 import {
   mapOrderDetail,
@@ -33,7 +33,7 @@ export async function getMyOrders(options?: {
   limit?: number;
   offset?: number;
 }): Promise<{ orders: StorefrontOrder[]; total: number }> {
-  const accessToken = await getValidCustomerAccessToken();
+  const accessToken = await getCustomerAccessTokenForRender();
   if (!accessToken) {
     return { orders: [], total: 0 };
   }
@@ -73,7 +73,7 @@ export async function getMyOrders(options?: {
 export async function getMyOrder(
   orderId: string,
 ): Promise<StorefrontOrderDetail | null> {
-  const accessToken = await getValidCustomerAccessToken();
+  const accessToken = await getCustomerAccessTokenForRender();
   if (!accessToken) {
     return null;
   }

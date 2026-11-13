@@ -5,12 +5,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { Order } from '@commercetools/platform-sdk';
 
-const { mockGetValidCustomerAccessToken } = vi.hoisted(() => ({
-  mockGetValidCustomerAccessToken: vi.fn(),
+const { mockGetCustomerAccessTokenForRender } = vi.hoisted(() => ({
+  mockGetCustomerAccessTokenForRender: vi.fn(),
 }));
 
 vi.mock('./customer-auth', () => ({
-  getValidCustomerAccessToken: mockGetValidCustomerAccessToken,
+  getCustomerAccessTokenForRender: mockGetCustomerAccessTokenForRender,
 }));
 
 vi.mock('./env', () => ({
@@ -63,17 +63,17 @@ function createOrder(overrides: Partial<Order> = {}): Order {
 describe('getMyOrder', () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    mockGetValidCustomerAccessToken.mockReset();
+    mockGetCustomerAccessTokenForRender.mockReset();
   });
 
   it('returns null when customer session is missing', async () => {
-    mockGetValidCustomerAccessToken.mockResolvedValue(null);
+    mockGetCustomerAccessTokenForRender.mockResolvedValue(null);
 
     await expect(getMyOrder('order-1')).resolves.toBeNull();
   });
 
   it('maps a customer order by id', async () => {
-    mockGetValidCustomerAccessToken.mockResolvedValue('customer-token');
+    mockGetCustomerAccessTokenForRender.mockResolvedValue('customer-token');
 
     vi.stubGlobal(
       'fetch',
@@ -106,7 +106,7 @@ describe('getMyOrder', () => {
   });
 
   it('throws CustomerOrderNotFoundError for 404 responses', async () => {
-    mockGetValidCustomerAccessToken.mockResolvedValue('customer-token');
+    mockGetCustomerAccessTokenForRender.mockResolvedValue('customer-token');
 
     vi.stubGlobal(
       'fetch',
@@ -123,7 +123,7 @@ describe('getMyOrder', () => {
   });
 
   it('throws for upstream errors', async () => {
-    mockGetValidCustomerAccessToken.mockResolvedValue('customer-token');
+    mockGetCustomerAccessTokenForRender.mockResolvedValue('customer-token');
 
     vi.stubGlobal(
       'fetch',
@@ -143,11 +143,11 @@ describe('getMyOrder', () => {
 describe('getMyOrders', () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    mockGetValidCustomerAccessToken.mockReset();
+    mockGetCustomerAccessTokenForRender.mockReset();
   });
 
   it('expands payment references for transaction-derived statuses', async () => {
-    mockGetValidCustomerAccessToken.mockResolvedValue('customer-token');
+    mockGetCustomerAccessTokenForRender.mockResolvedValue('customer-token');
 
     vi.stubGlobal(
       'fetch',

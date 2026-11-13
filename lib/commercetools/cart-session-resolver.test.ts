@@ -24,7 +24,6 @@ const {
   mockGetCartIdForCountry,
   mockRememberCartForCountry,
   mockForgetCartForCountry,
-  mockListMappedCartIds,
 } = vi.hoisted(() => {
   const marketCartMap: {
     anonymousId: string;
@@ -63,23 +62,13 @@ const {
       async (country: 'DE' | 'GB' | 'US') => marketCartMap.carts[country],
     ),
     mockRememberCartForCountry: vi.fn(
-      async (
-        country: 'DE' | 'GB' | 'US',
-        cartId: string,
-        anonymousId: string,
-      ) => {
-        marketCartMap.anonymousId = marketCartMap.anonymousId || anonymousId;
+      async (country: 'DE' | 'GB' | 'US', cartId: string) => {
         marketCartMap.carts[country] = cartId;
       },
     ),
     mockForgetCartForCountry: vi.fn(async (country: 'DE' | 'GB' | 'US') => {
       delete marketCartMap.carts[country];
     }),
-    mockListMappedCartIds: vi.fn(async () =>
-      Object.values(marketCartMap.carts).filter(
-        (cartId): cartId is string => typeof cartId === 'string',
-      ),
-    ),
   };
 });
 
@@ -111,7 +100,6 @@ vi.mock('./market-cart-session', () => ({
   getCartIdForCountry: mockGetCartIdForCountry,
   rememberCartForCountry: mockRememberCartForCountry,
   forgetCartForCountry: mockForgetCartForCountry,
-  listMappedCartIds: mockListMappedCartIds,
 }));
 
 vi.mock('./api-root', () => ({
@@ -130,6 +118,7 @@ import {
   findCustomerCart,
   findCustomerCartForMarket,
   getCartForCheckout,
+  getOwnedGuestCartRef,
   OutOfStockError,
   realignCartForStorefront,
   reconcileCartOnAuth,
@@ -350,160 +339,6 @@ describe('cart session resolver', () => {
     });
   });
 
-  it('merges anonymous cart line items into an existing customer cart', async () => {
-    mockGetCustomerSession.mockResolvedValue({ customerId: 'cust-1' });
-    mockGetCartSession.mockResolvedValue({
-      anonymousId: 'anon-1',
-      cartId: 'cart-guest',
-    });
-
-    const guestCart = createCartFixture({
-      id: 'cart-guest',
-      anonymousId: 'anon-1',
-      country: 'DE',
-      lineItems: [
-        {
-          ...createCartFixture().lineItems[0],
-          id: 'guest-line-1',
-          quantity: 2,
-          variant: {
-            ...createCartFixture().lineItems[0].variant,
-            sku: 'SKU-NEW',
-          },
-        },
-      ],
-      discountCodes: [],
-    });
-    const customerCart = emptyGuestCart({
-      id: 'cart-customer',
-      customerId: 'cust-1',
-      anonymousId: undefined,
-      lineItems: [
-        {
-          ...createCartFixture().lineItems[0],
-          id: 'cust-line-1',
-          quantity: 1,
-          variant: {
-            ...createCartFixture().lineItems[0].variant,
-            sku: 'SKU-EXISTING',
-          },
-        },
-      ],
-    });
-    const mergedCart = createCartFixture({
-      id: 'cart-customer',
-      customerId: 'cust-1',
-      country: 'DE',
-      anonymousId: undefined,
-    });
-    const cartWithItem = createCartFixture({
-      id: 'cart-customer',
-      customerId: 'cust-1',
-      country: 'DE',
-      anonymousId: undefined,
-    });
-
-    mockExecute
-      .mockResolvedValueOnce({ body: guestCart })
-      .mockResolvedValueOnce({ body: { results: [customerCart] } })
-      .mockResolvedValueOnce({ body: mergedCart })
-      .mockResolvedValueOnce({ body: guestCart })
-      .mockResolvedValueOnce({ body: mergedCart })
-      .mockResolvedValueOnce({ body: cartWithItem });
-
-    await addLineItem('SKU-1', 1);
-
-    expect(mockWithId).toHaveBeenCalledWith({ ID: 'cart-customer' });
-    expect(mockCartPost).toHaveBeenCalledWith({
-      body: {
-        version: customerCart.version,
-        actions: [{ action: 'addLineItem', sku: 'SKU-NEW', quantity: 2 }],
-      },
-    });
-    expect(mockSetCartSession).toHaveBeenCalledWith({
-      anonymousId: 'anon-1',
-      cartId: 'cart-customer',
-    });
-  });
-
-  it('merges duplicate SKUs by summing quantities', async () => {
-    mockGetCustomerSession.mockResolvedValue({ customerId: 'cust-1' });
-    mockGetCartSession.mockResolvedValue({
-      anonymousId: 'anon-1',
-      cartId: 'cart-guest',
-    });
-
-    const sharedSku = 'SKU-SHARED';
-    const guestCart = createCartFixture({
-      id: 'cart-guest',
-      anonymousId: 'anon-1',
-      country: 'DE',
-      lineItems: [
-        {
-          ...createCartFixture().lineItems[0],
-          id: 'guest-line-1',
-          quantity: 2,
-          variant: {
-            ...createCartFixture().lineItems[0].variant,
-            sku: sharedSku,
-          },
-        },
-      ],
-      discountCodes: [],
-    });
-    const customerCart = emptyGuestCart({
-      id: 'cart-customer',
-      customerId: 'cust-1',
-      anonymousId: undefined,
-      lineItems: [
-        {
-          ...createCartFixture().lineItems[0],
-          id: 'cust-line-1',
-          quantity: 3,
-          variant: {
-            ...createCartFixture().lineItems[0].variant,
-            sku: sharedSku,
-          },
-        },
-      ],
-    });
-    const mergedCart = createCartFixture({
-      id: 'cart-customer',
-      customerId: 'cust-1',
-      country: 'DE',
-      anonymousId: undefined,
-    });
-    const cartWithItem = createCartFixture({
-      id: 'cart-customer',
-      customerId: 'cust-1',
-      country: 'DE',
-      anonymousId: undefined,
-    });
-
-    mockExecute
-      .mockResolvedValueOnce({ body: guestCart })
-      .mockResolvedValueOnce({ body: { results: [customerCart] } })
-      .mockResolvedValueOnce({ body: mergedCart })
-      .mockResolvedValueOnce({ body: guestCart })
-      .mockResolvedValueOnce({ body: mergedCart })
-      .mockResolvedValueOnce({ body: cartWithItem });
-
-    await addLineItem('SKU-1', 1);
-
-    expect(mockCartPost).toHaveBeenCalledWith({
-      body: {
-        version: customerCart.version,
-        actions: [
-          {
-            action: 'changeLineItemQuantity',
-            lineItemId: 'cust-line-1',
-            quantity: 5,
-          },
-        ],
-      },
-    });
-  });
-
   it('resolves customerId on checkout for logged-in user with anonymous cart', async () => {
     mockGetCustomerSession.mockResolvedValue({ customerId: 'cust-1' });
     mockGetCartSession.mockResolvedValue({
@@ -540,31 +375,43 @@ describe('cart session resolver', () => {
     expect(result.cart.id).toBe('cart-guest');
   });
 
-  it('reconcileCartOnAuth assigns guest cart to customer', async () => {
-    mockGetCartSession.mockResolvedValue({
-      anonymousId: 'anon-stale',
-      cartId: 'cart-guest',
-    });
-
-    const guestCart = emptyGuestCart({ id: 'cart-guest', anonymousId: 'anon-old' });
-    const assignedCart = emptyGuestCart({
-      id: 'cart-guest',
-      customerId: 'cust-1',
-      anonymousId: undefined,
-    });
-
+  it('never assigns or merges a guest cart whose anonymousId differs from the session (signed in)', async () => {
+    mockGetCustomerSession.mockResolvedValue({ customerId: 'cust-1' });
+    mockGetCartSession.mockResolvedValue({ anonymousId: 'anon-attacker', cartId: 'cart-victim' });
+    const customerCart = emptyGuestCart({ id: 'cart-customer', customerId: 'cust-1', anonymousId: undefined });
     mockExecute
-      .mockResolvedValueOnce({ body: guestCart })
-      .mockResolvedValueOnce({ body: { results: [] } })
-      .mockResolvedValueOnce({ body: assignedCart })
-      .mockResolvedValueOnce({ body: assignedCart });
+      .mockResolvedValueOnce({ body: emptyGuestCart({ id: 'cart-victim', anonymousId: 'anon-victim' }) })
+      .mockResolvedValueOnce({ body: { results: [customerCart] } })
+      .mockResolvedValue({ body: customerCart });
+    await addLineItem('SKU-1', 1);
+    expect(mockWithId).not.toHaveBeenCalledWith({ ID: 'cart-victim' }, expect.anything());
+    expect(JSON.stringify(mockCartPost.mock.calls)).not.toContain('setCustomerId');
+    expect(mockSetCartSession).toHaveBeenCalledWith({ anonymousId: 'anon-attacker', cartId: 'cart-customer' });
+  });
 
+  it.each([
+    ['customer cart', { customerId: 'cust-9' }],
+    ['other anonymousId', { anonymousId: 'anon-other' }],
+    ['Ordered cart', { cartState: 'Ordered' as const }],
+  ])('getOwnedGuestCartRef returns null for a %s', async (_label, overrides) => {
+    mockGetCartSession.mockResolvedValueOnce({ anonymousId: 'anon-1', cartId: 'cart-guest' });
+    mockExecute.mockResolvedValueOnce({ body: emptyGuestCart({ anonymousId: 'anon-1', ...overrides }) });
+    await expect(getOwnedGuestCartRef()).resolves.toBeNull();
+  });
+
+  it('getOwnedGuestCartRef returns the ref for an active guest cart with the session anonymousId', async () => {
+    mockGetCartSession.mockResolvedValueOnce({ anonymousId: 'anon-1', cartId: 'cart-guest' });
+    mockExecute.mockResolvedValueOnce({ body: emptyGuestCart({ anonymousId: 'anon-1' }) });
+    await expect(getOwnedGuestCartRef()).resolves.toEqual({ cartId: 'cart-guest', anonymousId: 'anon-1' });
+  });
+
+  it('reconcileCartOnAuth restores the customer cart and never touches mapped guest carts', async () => {
+    marketCartMap.carts = { GB: 'cart-parked' };
+    mockExecute.mockResolvedValueOnce({ body: { results: [emptyGuestCart({ id: 'cart-customer', customerId: 'cust-1' })] } });
     await reconcileCartOnAuth('cust-1');
-
-    expect(mockSetCartSession).toHaveBeenCalledWith({
-      anonymousId: 'anon-new',
-      cartId: 'cart-guest',
-    });
+    expect(mockWithId).not.toHaveBeenCalledWith({ ID: 'cart-parked' });
+    expect(mockCartPost).not.toHaveBeenCalled();
+    expect(mockSetCartSession).toHaveBeenCalledWith(expect.objectContaining({ cartId: 'cart-customer' }));
   });
 
   it('findCustomerCart returns the newest active customer cart', async () => {
@@ -647,11 +494,7 @@ describe('cart session resolver', () => {
       anonymousId: 'anon-new',
       cartId: 'cart-customer',
     });
-    expect(mockRememberCartForCountry).toHaveBeenCalledWith(
-      'DE',
-      'cart-customer',
-      'anon-new',
-    );
+    expect(mockRememberCartForCountry).toHaveBeenCalledWith('DE', 'cart-customer');
   });
 
   it('parks a guest cart and creates a new cart for the target market', async () => {
@@ -700,11 +543,7 @@ describe('cart session resolver', () => {
       previousHadItems: true,
     });
 
-    expect(mockRememberCartForCountry).toHaveBeenCalledWith(
-      'DE',
-      'cart-old',
-      'anon-1',
-    );
+    expect(mockRememberCartForCountry).toHaveBeenCalledWith('DE', 'cart-old');
     expect(mockCartsPost).toHaveBeenCalledWith({
       body: expect.objectContaining({
         anonymousId: 'anon-1',

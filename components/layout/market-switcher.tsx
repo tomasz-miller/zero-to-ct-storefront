@@ -23,17 +23,8 @@ import {
   MenuRadioItem,
   MenuTrigger,
 } from '@/components/ui/menu';
-import type { StorefrontCountry } from '@/lib/commercetools/storefront-context';
+import { MARKETS, type StorefrontCountry } from '@/lib/markets';
 import { cn } from '@/lib/utils';
-
-const MARKET_OPTIONS: Record<
-  StorefrontCountry,
-  { label: string; shortLabel: string; currency: string }
-> = {
-  DE: { label: 'Germany', shortLabel: 'DE', currency: 'EUR' },
-  GB: { label: 'United Kingdom', shortLabel: 'GB', currency: 'GBP' },
-  US: { label: 'United States', shortLabel: 'US', currency: 'USD' },
-};
 
 const NOTICE_AUTO_DISMISS_MS = 8_000;
 
@@ -166,9 +157,9 @@ export function MarketSwitcher({
     void changeMarket(pendingCountry);
   }
 
-  const selectedMarket = MARKET_OPTIONS[selectedCountry];
+  const selectedMarket = MARKETS[selectedCountry];
   const pendingMarket = pendingCountry
-    ? MARKET_OPTIONS[pendingCountry]
+    ? MARKETS[pendingCountry]
     : null;
 
   return (
@@ -196,9 +187,9 @@ export function MarketSwitcher({
         />
         <MenuPopup align="end">
           <MenuRadioGroup value={selectedCountry}>
-            {(Object.entries(MARKET_OPTIONS) as [
+            {(Object.entries(MARKETS) as [
               StorefrontCountry,
-              (typeof MARKET_OPTIONS)[StorefrontCountry],
+              (typeof MARKETS)[StorefrontCountry],
             ][]).map(([marketCountry, market]) => (
               <MenuRadioItem
                 key={marketCountry}
@@ -224,7 +215,7 @@ export function MarketSwitcher({
           <AlertDialogHeader>
             <AlertDialogTitle>Switch store?</AlertDialogTitle>
             <AlertDialogDescription>
-              Your cart for {MARKET_OPTIONS[selectedCountry].label} will be
+              Your cart for {MARKETS[selectedCountry].label} will be
               saved. You can return to it later by switching back
               {pendingMarket ? ` from ${pendingMarket.label}` : ''}.
             </AlertDialogDescription>

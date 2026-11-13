@@ -1,94 +1,58 @@
 import 'server-only';
 
-import { cookies } from 'next/headers';
-
-import type { StorefrontCountry } from './storefront-context';
+import { createCookieSession } from '@/lib/session/cookie-session';
+import { isStorefrontCountry, type StorefrontCountry } from '@/lib/markets';
 
 export const MARKET_CARTS_COOKIE = 'ct_market_carts';
 
 export type MarketCartMap = {
-  anonymousId: string;
   carts: Partial<Record<StorefrontCountry, string>>;
 };
 
-function isStorefrontCountry(value: unknown): value is StorefrontCountry {
-  return value === 'DE' || value === 'GB' || value === 'US';
-}
-
-export function parseMarketCartMap(
-  value: string | undefined,
-): MarketCartMap | null {
-  if (!value) {
+export function parseMarketCartMap(value: unknown): MarketCartMap | null {
+  if (!value || typeof value !== 'object') {
     return null;
   }
 
-  try {
-    const parsed = JSON.parse(value) as Partial<MarketCartMap>;
-    if (typeof parsed.anonymousId !== 'string' || !parsed.carts) {
-      return null;
+  const rawCarts = (value as { carts?: unknown }).carts;
+  if (!rawCarts || typeof rawCarts !== 'object') {
+    return null;
+  }
+
+  const carts: MarketCartMap['carts'] = {};
+  for (const [country, cartId] of Object.entries(rawCarts)) {
+    if (isStorefrontCountry(country) && typeof cartId === 'string') {
+      carts[country] = cartId;
     }
-
-    const carts: MarketCartMap['carts'] = {};
-    for (const [country, cartId] of Object.entries(parsed.carts)) {
-      if (isStorefrontCountry(country) && typeof cartId === 'string') {
-        carts[country] = cartId;
-      }
-    }
-
-    return {
-      anonymousId: parsed.anonymousId,
-      carts,
-    };
-  } catch {
-    return null;
   }
+
+  return { carts };
 }
 
-export async function getMarketCartMap(): Promise<MarketCartMap | null> {
-  try {
-    const cookieStore = await cookies();
-    return parseMarketCartMap(cookieStore.get(MARKET_CARTS_COOKIE)?.value);
-  } catch {
-    return null;
-  }
+const marketCartsCookie = createCookieSession<MarketCartMap>({
+  name: MARKET_CARTS_COOKIE,
+  maxAge: 60 * 60 * 24 * 30,
+  parse: parseMarketCartMap,
+});
+
+export function getMarketCartMap(): Promise<MarketCartMap | null> {
+  return marketCartsCookie.read();
 }
 
-export async function setMarketCartMap(map: MarketCartMap): Promise<void> {
-  try {
-    const cookieStore = await cookies();
-    cookieStore.set(MARKET_CARTS_COOKIE, JSON.stringify(map), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 30,
-    });
-  } catch {
-    // Next.js only allows cookie writes in Route Handlers / Server Actions.
-    // Cart reads from RSC (e.g. /cart) must not fail when syncing the map.
-  }
+export function setMarketCartMap(map: MarketCartMap): Promise<boolean> {
+  return marketCartsCookie.write(map);
 }
 
 export async function rememberCartForCountry(
   country: StorefrontCountry,
   cartId: string,
-  anonymousId: string,
 ): Promise<void> {
   const existing = await getMarketCartMap();
-  if (
-    existing?.carts[country] === cartId &&
-    (existing.anonymousId === anonymousId || Boolean(existing.anonymousId))
-  ) {
+  if (existing?.carts[country] === cartId) {
     return;
   }
 
-  const carts = { ...(existing?.carts ?? {}) };
-  carts[country] = cartId;
-
-  await setMarketCartMap({
-    anonymousId: existing?.anonymousId ?? anonymousId,
-    carts,
-  });
+  await setMarketCartMap({ carts: { ...(existing?.carts ?? {}), [country]: cartId } });
 }
 
 export async function getCartIdForCountry(
@@ -109,19 +73,9 @@ export async function forgetCartForCountry(
   const carts = { ...existing.carts };
   delete carts[country];
 
-  await setMarketCartMap({
-    anonymousId: existing.anonymousId,
-    carts,
-  });
+  await setMarketCartMap({ carts });
 }
 
-export async function listMappedCartIds(): Promise<string[]> {
-  const map = await getMarketCartMap();
-  if (!map) {
-    return [];
-  }
-
-  return Object.values(map.carts).filter(
-    (cartId): cartId is string => typeof cartId === 'string',
-  );
+export function clearMarketCartMap(): Promise<boolean> {
+  return marketCartsCookie.clear();
 }

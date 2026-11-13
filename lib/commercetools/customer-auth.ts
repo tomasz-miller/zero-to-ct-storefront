@@ -3,11 +3,10 @@ import 'server-only';
 import type { Customer, CustomerSignInResult } from '@commercetools/platform-sdk';
 
 import { apiRoot } from './api-root';
-import { reconcileCartOnAuth } from './cart';
+import { getOwnedGuestCartRef, reconcileCartOnAuth } from './cart';
 import {
   clearCartSession,
   createAnonymousId,
-  getCartSession,
   rotateCartSessionAnonymousId,
   setCartSession,
 } from './cart-session';
@@ -18,28 +17,34 @@ import {
   type CustomerSession,
 } from './customer-session';
 import { mapCustomer, type StorefrontCustomer } from './customer-mappers';
-import { CustomerAuthError, requestCustomerPasswordToken, type CustomerTokenResponse } from './customer-token';
+import {
+  CUSTOMER_TOKEN_REFRESH_BUFFER_MS,
+  CustomerAuthError,
+  isCustomerSessionRejected,
+  refreshCustomerSession,
+  requestCustomerPasswordToken,
+  revokeCustomerAccessToken,
+  revokeCustomerRefreshToken,
+} from './customer-token';
 import { commercetoolsEnv } from './env';
+import { clearLastOrderSession } from './last-order-session';
+import { clearMarketCartMap } from './market-cart-session';
 import {
   clearWishlistOnLogout,
   reconcileWishlistOnAuth,
 } from './shopping-lists';
 
-export { CustomerAuthError } from './customer-token';
-
-const TOKEN_REFRESH_BUFFER_MS = 60_000;
+export {
+  CustomerAuthError,
+  refreshCustomerSession,
+  revokeCustomerRefreshToken,
+} from './customer-token';
 
 type CommercetoolsErrorBody = {
   statusCode?: number;
   errors?: Array<{ code?: string; message?: string }>;
   message?: string;
 };
-
-function getBasicAuthHeader(): string {
-  return Buffer.from(
-    `${commercetoolsEnv.clientId}:${commercetoolsEnv.clientSecret}`,
-  ).toString('base64');
-}
 
 function parseCommercetoolsError(raw: string): CommercetoolsErrorBody {
   try {
@@ -104,44 +109,6 @@ function mapCommercetoolsError(
   return new CustomerAuthError(code, message, status);
 }
 
-async function requestCustomerToken(
-  params: URLSearchParams,
-): Promise<CustomerTokenResponse & { refresh_token: string }> {
-  const response = await fetch(
-    `${commercetoolsEnv.authUrl}/oauth/${commercetoolsEnv.projectKey}/customers/token`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${getBasicAuthHeader()}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params,
-    },
-  );
-
-  const raw = await response.text();
-  if (!response.ok) {
-    throw mapCommercetoolsError(response.status, parseCommercetoolsError(raw));
-  }
-
-  let body: CustomerTokenResponse;
-  try {
-    body = JSON.parse(raw) as CustomerTokenResponse;
-  } catch {
-    throw new CustomerAuthError('ParseError', 'Failed to parse token response', 500);
-  }
-
-  if (!body.access_token || !body.refresh_token) {
-    throw new CustomerAuthError(
-      'TokenError',
-      'Customer token response missing tokens',
-      500,
-    );
-  }
-
-  return { ...body, refresh_token: body.refresh_token };
-}
-
 async function exchangePasswordForCustomerToken(
   email: string,
   password: string,
@@ -154,24 +121,6 @@ async function exchangePasswordForCustomerToken(
     accessToken: token.accessToken,
     refreshToken: token.refreshToken,
     expiresAt: token.expiresAt,
-    customerId,
-  };
-}
-
-async function refreshCustomerToken(refreshToken: string): Promise<CustomerSession> {
-  const token = await requestCustomerToken(
-    new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-    }),
-  );
-
-  const customerId = await resolveCustomerIdFromAccessToken(token.access_token);
-
-  return {
-    accessToken: token.access_token,
-    refreshToken: token.refresh_token,
-    expiresAt: Date.now() + token.expires_in * 1000,
     customerId,
   };
 }
@@ -195,23 +144,39 @@ async function resolveCustomerIdFromAccessToken(accessToken: string): Promise<st
   return customer.id;
 }
 
+/**
+ * Server Component path: cookies are read-only during render, so this never refreshes or writes.
+ * Token refresh happens in the root proxy (and in getValidCustomerAccessToken for Route Handlers).
+ */
+export async function getCustomerAccessTokenForRender(): Promise<string | null> {
+  const session = await getCustomerSession();
+  if (!session || session.expiresAt <= Date.now()) {
+    return null;
+  }
+  return session.accessToken;
+}
+
+/** Route Handler / Server Action path: cookies are writable, so refresh when near expiry. */
 export async function getValidCustomerAccessToken(): Promise<string | null> {
   const session = await getCustomerSession();
   if (!session) {
     return null;
   }
 
-  if (session.expiresAt > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
+  if (session.expiresAt > Date.now() + CUSTOMER_TOKEN_REFRESH_BUFFER_MS) {
     return session.accessToken;
   }
 
   try {
-    const refreshed = await refreshCustomerToken(session.refreshToken);
+    const refreshed = await refreshCustomerSession(session);
     await setCustomerSession(refreshed);
     return refreshed.accessToken;
-  } catch {
-    await clearCustomerSession();
-    return null;
+  } catch (error) {
+    if (isCustomerSessionRejected(error)) {
+      await clearCustomerSession();
+      return null;
+    }
+    return session.expiresAt > Date.now() ? session.accessToken : null;
   }
 }
 
@@ -230,7 +195,8 @@ async function syncCartAfterAuth(result: CustomerSignInResult): Promise<void> {
 }
 
 type CartMigrationRefs = {
-  anonymousCartId?: string;
+  anonymousCart?: { typeId: 'cart'; id: string };
+  anonymousId?: string;
 };
 
 async function loginWithCartMigration(
@@ -244,9 +210,10 @@ async function loginWithCartMigration(
       body: {
         email,
         password,
-        ...(cartRefs.anonymousCartId
+        ...(cartRefs.anonymousCart && cartRefs.anonymousId
           ? {
-              anonymousCartId: cartRefs.anonymousCartId,
+              anonymousCart: cartRefs.anonymousCart,
+              anonymousId: cartRefs.anonymousId,
               anonymousCartSignInMode: 'MergeWithExistingCustomerCart' as const,
             }
           : {}),
@@ -272,8 +239,11 @@ async function registerWithCartMigration(
         password: input.password,
         firstName: input.firstName,
         lastName: input.lastName,
-        ...(cartRefs.anonymousCartId
-          ? { anonymousCartId: cartRefs.anonymousCartId }
+        ...(cartRefs.anonymousCart && cartRefs.anonymousId
+          ? {
+              anonymousCart: cartRefs.anonymousCart,
+              anonymousId: cartRefs.anonymousId,
+            }
           : {}),
       },
     })
@@ -284,9 +254,12 @@ async function withStaleAnonymousCartRetry<T>(
   operation: (cartRefs: CartMigrationRefs) => Promise<T>,
   fallbackMessage: string,
 ): Promise<T> {
-  const cartSession = await getCartSession();
-  const cartRefs: CartMigrationRefs = cartSession?.cartId
-    ? { anonymousCartId: cartSession.cartId }
+  const ownedGuestCart = await getOwnedGuestCartRef();
+  const cartRefs: CartMigrationRefs = ownedGuestCart
+    ? {
+        anonymousCart: { typeId: 'cart', id: ownedGuestCart.cartId },
+        anonymousId: ownedGuestCart.anonymousId,
+      }
     : {};
 
   try {
@@ -296,7 +269,7 @@ async function withStaleAnonymousCartRetry<T>(
     if (
       clientError?.body &&
       isConsumedAnonymousIdError(clientError.body) &&
-      cartRefs.anonymousCartId
+      cartRefs.anonymousCart
     ) {
       await rotateCartSessionAnonymousId();
       try {
@@ -358,10 +331,30 @@ export async function registerCustomer(input: {
 }
 
 export async function logoutCustomer(): Promise<void> {
+  const session = await getCustomerSession();
+  if (session) {
+    // Revocation is best effort: the cookies are cleared even when the Authorization Server
+    // is unreachable, so the user is signed out of this browser either way.
+    const results = await Promise.allSettled([
+      revokeCustomerRefreshToken(session.refreshToken),
+      revokeCustomerAccessToken(session.accessToken),
+    ]);
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        const statusCode =
+          result.reason instanceof CustomerAuthError ? result.reason.statusCode : undefined;
+        console.error('[auth] token revocation failed', { statusCode });
+      }
+    }
+  }
+
   await clearCustomerSession();
-  // Customer cart belongs to the account — drop browser cart cookie so guest session starts fresh.
+  // Customer cart belongs to the account — drop browser cart cookies so guest session starts fresh.
   await clearCartSession();
+  await clearMarketCartMap();
   await clearWishlistOnLogout();
+  // The sealed last-order cookie names the order the confirmation page shows; drop it with the rest.
+  await clearLastOrderSession();
 }
 
 export async function requestPasswordReset(email: string): Promise<{
@@ -434,7 +427,7 @@ export async function resetCustomerPassword(
 }
 
 export async function getAuthenticatedCustomerProfile(): Promise<StorefrontCustomer | null> {
-  const accessToken = await getValidCustomerAccessToken();
+  const accessToken = await getCustomerAccessTokenForRender();
   if (!accessToken) {
     return null;
   }

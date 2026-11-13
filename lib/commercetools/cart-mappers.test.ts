@@ -1,9 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { mapCart } from './cart-mappers';
 import { createCartFixture } from '@/test/fixtures/cart';
 
+vi.mock('@/lib/commercetools/env', () => import('@/test/mocks/commercetools-env'));
+
 describe('mapCart', () => {
+  it('does not expose anonymousId or version', () => {
+    const dto = mapCart(createCartFixture(), 'en-GB');
+    expect(dto).not.toHaveProperty('anonymousId');
+    expect(dto).not.toHaveProperty('version');
+  });
+
   it('maps discount codes and savings from cart totals', () => {
     const cart = createCartFixture();
     const mapped = mapCart(cart, 'en-GB');

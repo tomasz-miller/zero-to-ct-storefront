@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   mockExecute,
@@ -17,6 +17,13 @@ const {
   mockClearCartSession,
   mockRestoreCustomerCartSession,
   mockReconcileCartOnAuth,
+  mockRefreshCustomerSession,
+  mockGetOwnedGuestCartRef,
+  mockRevokeCustomerRefreshToken,
+  mockRevokeCustomerAccessToken,
+  mockClearMarketCartMap,
+  mockClearWishlistOnLogout,
+  mockClearLastOrderSession,
 } = vi.hoisted(() => ({
   mockExecute: vi.fn(),
   mockLoginPost: vi.fn(() => ({ execute: mockExecute })),
@@ -31,9 +38,32 @@ const {
   mockClearCartSession: vi.fn(),
   mockRestoreCustomerCartSession: vi.fn(),
   mockReconcileCartOnAuth: vi.fn(),
+  mockRefreshCustomerSession: vi.fn(),
+  mockGetOwnedGuestCartRef: vi.fn(),
+  mockRevokeCustomerRefreshToken: vi.fn(),
+  mockRevokeCustomerAccessToken: vi.fn(),
+  mockClearMarketCartMap: vi.fn(),
+  mockClearWishlistOnLogout: vi.fn(),
+  mockClearLastOrderSession: vi.fn(),
+}));
+
+vi.mock('./customer-token', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./customer-token')>()),
+  refreshCustomerSession: mockRefreshCustomerSession,
+  revokeCustomerRefreshToken: mockRevokeCustomerRefreshToken,
+  revokeCustomerAccessToken: mockRevokeCustomerAccessToken,
+}));
+
+vi.mock('./market-cart-session', () => ({
+  clearMarketCartMap: mockClearMarketCartMap,
+}));
+
+vi.mock('./last-order-session', () => ({
+  clearLastOrderSession: mockClearLastOrderSession,
 }));
 
 vi.mock('./cart', () => ({
+  getOwnedGuestCartRef: mockGetOwnedGuestCartRef,
   reconcileCartOnAuth: mockReconcileCartOnAuth,
   restoreCustomerCartSession: mockRestoreCustomerCartSession,
 }));
@@ -65,7 +95,7 @@ vi.mock('./customer-session', () => ({
 
 vi.mock('./shopping-lists', () => ({
   reconcileWishlistOnAuth: vi.fn(),
-  clearWishlistOnLogout: vi.fn(),
+  clearWishlistOnLogout: mockClearWishlistOnLogout,
 }));
 
 vi.mock('./env', () => ({
@@ -81,13 +111,16 @@ vi.mock('./env', () => ({
 
 import {
   CustomerAuthError,
+  getAuthenticatedCustomerProfile,
+  getCustomerAccessTokenForRender,
+  getValidCustomerAccessToken,
   loginCustomer,
   registerCustomer,
   logoutCustomer,
   requestPasswordReset,
   resetCustomerPassword,
 } from './customer-auth';
-import { clearWishlistOnLogout, reconcileWishlistOnAuth } from './shopping-lists';
+import { reconcileWishlistOnAuth } from './shopping-lists';
 
 describe('customer-auth', () => {
   afterEach(() => {
@@ -102,9 +135,9 @@ describe('customer-auth', () => {
   });
 
   it('logs in, merges cart, and stores customer session tokens', async () => {
-    mockGetCartSession.mockResolvedValue({
-      anonymousId: 'anon-1',
+    mockGetOwnedGuestCartRef.mockResolvedValueOnce({
       cartId: 'cart-guest',
+      anonymousId: 'anon-1',
     });
 
     mockExecute.mockResolvedValueOnce({
@@ -159,7 +192,8 @@ describe('customer-auth', () => {
       body: {
         email: 'jane@example.com',
         password: 'password123',
-        anonymousCartId: 'cart-guest',
+        anonymousCart: { typeId: 'cart', id: 'cart-guest' },
+        anonymousId: 'anon-1',
         anonymousCartSignInMode: 'MergeWithExistingCustomerCart',
       },
     });
@@ -243,9 +277,9 @@ describe('customer-auth', () => {
   });
 
   it('retries registration without anonymous cart when anonymousId was already consumed', async () => {
-    mockGetCartSession.mockResolvedValue({
-      anonymousId: 'anon-consumed',
+    mockGetOwnedGuestCartRef.mockResolvedValueOnce({
       cartId: 'cart-guest',
+      anonymousId: 'anon-consumed',
     });
 
     mockExecute
@@ -308,7 +342,8 @@ describe('customer-auth', () => {
         password: 'password123',
         firstName: 'New',
         lastName: 'User',
-        anonymousCartId: 'cart-guest',
+        anonymousCart: { typeId: 'cart', id: 'cart-guest' },
+        anonymousId: 'anon-consumed',
       },
     });
     expect(mockCustomersPost).toHaveBeenNthCalledWith(2, {
@@ -319,13 +354,115 @@ describe('customer-auth', () => {
         lastName: 'User',
       },
     });
+    expect(JSON.stringify(mockCustomersPost.mock.calls[1])).not.toContain('anonymous');
   });
 
-  it('clears customer, cart, and wishlist sessions on logout', async () => {
+  describe('sign-in with cart refs', () => {
+    const credentials = { email: 'jane@example.com', password: 'Secret123!' };
+    const customer = {
+      id: 'cust-1',
+      email: 'jane@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      version: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      lastModifiedAt: '2026-01-01T00:00:00.000Z',
+      addresses: [],
+      isEmailVerified: false,
+      authenticationMode: 'Password',
+    };
+
+    function stubTokenAndMe() {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            text: async () =>
+              JSON.stringify({
+                access_token: 'access-token',
+                refresh_token: 'refresh-token',
+                expires_in: 3600,
+              }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            text: async () => JSON.stringify({ id: 'cust-1', email: 'jane@example.com' }),
+          }),
+      );
+    }
+
+    it('logs in with anonymousCart, anonymousId and MergeWithExistingCustomerCart', async () => {
+      mockGetOwnedGuestCartRef.mockResolvedValueOnce({ cartId: 'cart-guest', anonymousId: 'anon-1' });
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      stubTokenAndMe();
+      await loginCustomer(credentials.email, credentials.password);
+      expect(mockLoginPost).toHaveBeenCalledWith({ body: { ...credentials,
+        anonymousCart: { typeId: 'cart', id: 'cart-guest' }, anonymousId: 'anon-1',
+        anonymousCartSignInMode: 'MergeWithExistingCustomerCart' } });
+      expect(JSON.stringify(mockLoginPost.mock.calls)).not.toContain('anonymousCartId');
+    });
+
+    it('logs in without cart refs when the cookie cart is not an owned guest cart', async () => {
+      mockGetOwnedGuestCartRef.mockResolvedValueOnce(null);
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      stubTokenAndMe();
+      await loginCustomer(credentials.email, credentials.password);
+      expect(mockLoginPost).toHaveBeenCalledWith({ body: credentials });
+    });
+
+    it('registers with anonymousCart and anonymousId', async () => {
+      mockGetOwnedGuestCartRef.mockResolvedValueOnce({ cartId: 'cart-guest', anonymousId: 'anon-1' });
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      stubTokenAndMe();
+      await registerCustomer({ ...credentials, firstName: 'Jane', lastName: 'Doe' });
+      expect(mockCustomersPost).toHaveBeenCalledWith({ body: expect.objectContaining({
+        anonymousCart: { typeId: 'cart', id: 'cart-guest' }, anonymousId: 'anon-1' }) });
+      expect(JSON.stringify(mockCustomersPost.mock.calls[0])).not.toContain('anonymousCartSignInMode');
+    });
+  });
+
+  it('revokes both tokens, then clears customer, cart, market-cart, wishlist and last-order cookies', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiresAt: 1,
+      customerId: 'cust-1',
+    });
     await logoutCustomer();
-    expect(mockClearCustomerSession).toHaveBeenCalled();
-    expect(mockClearCartSession).toHaveBeenCalled();
-    expect(clearWishlistOnLogout).toHaveBeenCalled();
+    expect(mockRevokeCustomerRefreshToken).toHaveBeenCalledWith('r');
+    expect(mockRevokeCustomerAccessToken).toHaveBeenCalledWith('a');
+    for (const clear of [
+      mockClearCustomerSession,
+      mockClearCartSession,
+      mockClearMarketCartMap,
+      mockClearWishlistOnLogout,
+      mockClearLastOrderSession,
+    ]) {
+      expect(clear).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('still clears cookies when revocation fails', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiresAt: 1,
+      customerId: 'cust-1',
+    });
+    mockRevokeCustomerRefreshToken.mockRejectedValueOnce(
+      new CustomerAuthError('RevokeFailed', 'Token revocation failed', 503),
+    );
+    await expect(logoutCustomer()).resolves.toBeUndefined();
+    expect(mockClearCustomerSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears cookies without revoking when there is no session', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce(null);
+    await logoutCustomer();
+    expect(mockRevokeCustomerRefreshToken).not.toHaveBeenCalled();
+    expect(mockClearCartSession).toHaveBeenCalledTimes(1);
   });
 
   it('returns password reset token value in dev flow helper', async () => {
@@ -349,5 +486,87 @@ describe('customer-auth', () => {
         newPassword: 'newpassword1',
       },
     });
+  });
+});
+
+describe('customer access tokens', () => {
+  const session = { accessToken: 'a-old', refreshToken: 'r-old', customerId: 'cust-1' };
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    fetchMock.mockReset();
+    mockGetCustomerSession.mockReset();
+    mockRefreshCustomerSession.mockReset();
+    mockSetCustomerSession.mockReset();
+    mockClearCustomerSession.mockReset();
+  });
+
+  it('getCustomerAccessTokenForRender returns null for an expired session and never refreshes or writes', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() - 1 });
+    await expect(getCustomerAccessTokenForRender()).resolves.toBeNull();
+    expect(mockRefreshCustomerSession).not.toHaveBeenCalled();
+    expect(mockSetCustomerSession).not.toHaveBeenCalled();
+    expect(mockClearCustomerSession).not.toHaveBeenCalled();
+  });
+
+  it('getCustomerAccessTokenForRender returns the stored token while it is valid', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({
+      ...session,
+      accessToken: 'a-valid',
+      expiresAt: Date.now() + 10_000,
+    });
+    await expect(getCustomerAccessTokenForRender()).resolves.toBe('a-valid');
+  });
+
+  it('getValidCustomerAccessToken refreshes within 60 s of expiry and stores the new session', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() + 30_000 });
+    mockRefreshCustomerSession.mockResolvedValueOnce({
+      ...session,
+      accessToken: 'a-new',
+      expiresAt: Date.now() + 172_800_000,
+    });
+    await expect(getValidCustomerAccessToken()).resolves.toBe('a-new');
+    expect(mockSetCustomerSession).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: 'a-new', customerId: 'cust-1' }),
+    );
+  });
+
+  it('getValidCustomerAccessToken clears the session when refresh fails with 400', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() + 30_000 });
+    mockRefreshCustomerSession.mockRejectedValueOnce(
+      new CustomerAuthError('RefreshFailed', 'Session expired', 400),
+    );
+    await expect(getValidCustomerAccessToken()).resolves.toBeNull();
+    expect(mockClearCustomerSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('getValidCustomerAccessToken keeps a still-valid token when refresh fails with 503', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() + 30_000 });
+    mockRefreshCustomerSession.mockRejectedValueOnce(
+      new CustomerAuthError('RefreshFailed', 'Session expired', 503),
+    );
+    await expect(getValidCustomerAccessToken()).resolves.toBe('a-old');
+    expect(mockClearCustomerSession).not.toHaveBeenCalled();
+  });
+
+  it('getAuthenticatedCustomerProfile does not call /me, refresh or write when the token is expired', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() - 1 });
+    await expect(getAuthenticatedCustomerProfile()).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockRefreshCustomerSession).not.toHaveBeenCalled();
+    expect(mockSetCustomerSession).not.toHaveBeenCalled();
+  });
+
+  it('getAuthenticatedCustomerProfile clears the session on a 401 from /me and returns null', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() + 10_000 });
+    fetchMock.mockResolvedValueOnce(new Response('{}', { status: 401 }));
+    mockClearCustomerSession.mockResolvedValueOnce(false); // render: cookies are read-only
+    await expect(getAuthenticatedCustomerProfile()).resolves.toBeNull();
+    expect(mockClearCustomerSession).toHaveBeenCalledTimes(1);
   });
 });

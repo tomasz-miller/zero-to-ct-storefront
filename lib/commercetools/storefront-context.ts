@@ -1,8 +1,11 @@
 import 'server-only';
 
+import { isStorefrontCountry, MARKETS, type StorefrontCountry } from '@/lib/markets';
+
+import { commercetoolsEnv } from './env';
 import { getMarketPreference } from './market-session';
 
-export type StorefrontCountry = 'DE' | 'GB' | 'US';
+export type { StorefrontCountry } from '@/lib/markets';
 
 export type StorefrontContext = {
   locale: string;
@@ -17,12 +20,6 @@ export const DEFAULT_STOREFRONT_LOCALE = 'en-GB';
 export const DEFAULT_STOREFRONT_CURRENCY = 'EUR';
 export const DEFAULT_STOREFRONT_COUNTRY: StorefrontCountry = 'DE';
 
-const CURRENCY_BY_COUNTRY: Record<StorefrontCountry, string> = {
-  DE: 'EUR',
-  GB: 'GBP',
-  US: 'USD',
-};
-
 const CHECKOUT_APP_BY_COUNTRY: Record<StorefrontCountry, string> = {
   DE: 'demo-commercetools-checkout',
   GB: 'demo-commercetools-checkout-taxes',
@@ -30,15 +27,11 @@ const CHECKOUT_APP_BY_COUNTRY: Record<StorefrontCountry, string> = {
 };
 
 function parseStorefrontCountry(value: string | undefined): StorefrontCountry {
-  if (value === 'DE' || value === 'GB' || value === 'US') {
-    return value;
-  }
-
-  return DEFAULT_STOREFRONT_COUNTRY;
+  return isStorefrontCountry(value) ? value : DEFAULT_STOREFRONT_COUNTRY;
 }
 
 export function resolveCurrencyForCountry(country: StorefrontCountry): string {
-  return CURRENCY_BY_COUNTRY[country];
+  return MARKETS[country].currency;
 }
 
 /** Cart, checkout, and pricing — defaults to Germany / EUR / English UI. */
@@ -72,7 +65,7 @@ export async function getCatalogContext(): Promise<
 
 /** Maps cart country to MC Checkout Application key. */
 export function resolveCheckoutApplicationKey(country: string): string {
-  const override = process.env.CTP_CHECKOUT_APPLICATION_KEY;
+  const override = commercetoolsEnv.checkoutApplicationKey;
   if (override) {
     return override;
   }

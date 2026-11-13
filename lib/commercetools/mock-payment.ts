@@ -14,6 +14,8 @@ import {
   requireActiveCart,
 } from './cart';
 import { clearCartSession } from './cart-session';
+import { setLastOrderSession } from './last-order-session';
+import { createOrderNumber } from './order-number';
 import { pickLocalized } from './product-mappers';
 import { getStorefrontContext } from './storefront-context';
 import { isValidEmail } from '@/lib/auth-validation';
@@ -153,7 +155,7 @@ export async function applyMockShippingMethod(
 export async function placeMockPayment(
   input: PlaceMockPaymentInput,
   deps: PlaceMockPaymentDeps = {},
-): Promise<{ orderId: string }> {
+): Promise<{ orderId: string; orderNumber: string }> {
   assertMockPaymentsEnabled();
 
   const { locale } = await getStorefrontContext();
@@ -173,6 +175,7 @@ export async function placeMockPayment(
   await (deps.sleep ?? delay)(MOCK_PAYMENT_DELAY_MS);
   cart = await ensureMockPayment(cart);
 
+  const orderNumber = createOrderNumber();
   const order = await executeCommercetools(() =>
     apiRoot
       .orders()
@@ -180,15 +183,17 @@ export async function placeMockPayment(
         body: {
           cart: { typeId: 'cart', id: cart.id },
           version: cart.version,
+          orderNumber,
           paymentState: 'Paid',
         },
       })
       .execute(),
   );
 
+  await setLastOrderSession({ orderNumber, cartId: cart.id });
   await clearCartSession();
 
-  return { orderId: order.body.id };
+  return { orderId: order.body.id, orderNumber };
 }
 
 function assertMockPaymentsEnabled(): void {

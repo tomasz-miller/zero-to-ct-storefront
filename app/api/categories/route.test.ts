@@ -3,6 +3,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/lib/commercetools/env', () => import('@/test/mocks/commercetools-env'));
+
 const { listCategoryTree } = vi.hoisted(() => ({
   listCategoryTree: vi.fn(),
 }));

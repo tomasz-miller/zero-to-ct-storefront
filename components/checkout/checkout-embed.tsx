@@ -79,10 +79,6 @@ export function CheckoutEmbed({
           }
 
           checkoutCompletedRef.current = true;
-          const payload = message.payload as {
-            order?: { id?: string };
-          };
-          const orderId = payload.order?.id;
           void (async () => {
             try {
               const response = await fetch('/api/cart/complete', {
@@ -98,11 +94,7 @@ export function CheckoutEmbed({
               await refreshCart();
             }
 
-            router.push(
-              orderId
-                ? `/order-confirmation?orderId=${orderId}`
-                : '/order-confirmation',
-            );
+            router.push('/order-confirmation');
           })();
           return;
         }
