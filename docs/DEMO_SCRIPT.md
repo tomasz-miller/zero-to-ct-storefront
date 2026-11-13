@@ -23,7 +23,7 @@ Quick health check:
 curl -s http://localhost:3000/api/health | jq .
 ```
 
-Expect `"ok": true` and a valid `projectKey`.
+Expect `{"ok":true}`. This is a liveness probe and does not call commercetools. To check commercetools reachability, set `HEALTH_CHECK_TOKEN` (32+ random chars) and call `GET /api/health?check=commercetools` with the header `x-health-check-token: <token>`; it answers `{"ok":true,"commercetools":"reachable"}`.
 
 ---
 

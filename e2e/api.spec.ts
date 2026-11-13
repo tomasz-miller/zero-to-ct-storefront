@@ -14,8 +14,7 @@ test.describe('API smoke', () => {
     expect(response.ok()).toBeTruthy();
 
     const body = await response.json();
-    expect(body.ok).toBe(true);
-    expect(body.projectKey).toBeTruthy();
+    expect(body).toEqual({ ok: true });
   });
 
   test('GET /api/categories returns category tree', async ({ request }) => {

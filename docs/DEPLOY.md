@@ -135,7 +135,7 @@ CI (`.github/workflows/ci.yml` and `bitbucket-pipelines.yml`) runs `pnpm build` 
 
 | Check | How |
 |-------|-----|
-| Health | `GET https://<your-app>.vercel.app/api/health` → `{ "ok": true }` |
+| Health | `GET https://<your-app>.vercel.app/api/health` → `{ "ok": true }` (liveness only). Readiness: set `HEALTH_CHECK_TOKEN`, then `GET /api/health?check=commercetools` with header `x-health-check-token` → `{ "ok": true, "commercetools": "reachable" }` |
 | Products | Homepage loads Best Sellers grid |
 | Add to cart | Add item from homepage; cart badge updates |
 | Checkout embed | `/checkout` loads without `no_payment_integrations` error |

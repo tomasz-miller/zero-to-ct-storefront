@@ -1,6 +1,7 @@
 /**
  * @vitest-environment node
  */
+import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockExecute, mockApiRoot } = vi.hoisted(() => {
@@ -26,39 +27,63 @@ vi.mock('@/lib/commercetools/env', () => ({
 
 import { GET } from './route';
 
+const TOKEN = 'a'.repeat(32);
+const readiness = (token?: string) =>
+  new NextRequest(
+    'http://localhost/api/health?check=commercetools',
+    token ? { headers: { 'x-health-check-token': token } } : {},
+  );
+
 describe('GET /api/health', () => {
   beforeEach(() => {
     mockExecute.mockReset();
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 
-  it('returns ok when commercetools is reachable', async () => {
-    mockExecute.mockResolvedValue({
-      body: { total: 117, count: 1, results: [] },
-    });
-
-    const response = await GET();
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body).toEqual({
-      ok: true,
-      projectKey: 'demo-project',
-      productCountSample: 117,
-    });
+  it('answers liveness without calling commercetools', async () => {
+    const res = await GET(new NextRequest('http://localhost/api/health'));
+    expect(await res.json()).toEqual({ ok: true });
+    expect(mockExecute).not.toHaveBeenCalled();
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
   });
 
-  it('returns 500 when commercetools call fails', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockExecute.mockRejectedValue(new Error('auth failed'));
+  it('hides the readiness check when no token is configured', async () => {
+    vi.stubEnv('HEALTH_CHECK_TOKEN', '');
+    const res = await GET(readiness(TOKEN));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ ok: false });
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
 
-    const response = await GET();
-    const body = await response.json();
+  it('rejects a wrong token', async () => {
+    vi.stubEnv('HEALTH_CHECK_TOKEN', TOKEN);
+    const res = await GET(readiness('b'));
+    expect(res.status).toBe(401);
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
 
-    expect(response.status).toBe(500);
-    expect(body).toEqual({ ok: false, error: 'Failed to connect to commercetools' });
+  it('reports reachable with the right token and never the project key', async () => {
+    vi.stubEnv('HEALTH_CHECK_TOKEN', TOKEN);
+    mockExecute.mockResolvedValue({ body: { results: [], total: 42 } });
+    const res = await GET(readiness(TOKEN));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, commercetools: 'reachable' });
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('returns 503 when commercetools fails', async () => {
+    vi.stubEnv('HEALTH_CHECK_TOKEN', TOKEN);
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockExecute.mockRejectedValue(
+      Object.assign(new Error('secret detail'), { statusCode: 401 }),
+    );
+    const res = await GET(readiness(TOKEN));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ ok: false });
+    expect(JSON.stringify(log.mock.calls)).not.toContain('secret detail');
   });
 });
