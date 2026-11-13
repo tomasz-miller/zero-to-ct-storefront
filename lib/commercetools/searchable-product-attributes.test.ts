@@ -13,6 +13,7 @@ function createAttribute(
     isRequired: false,
     isSearchable: true,
     level: 'Variant',
+    savedToLineItem: true,
     label: { 'en-GB': overrides.name },
     ...overrides,
   };

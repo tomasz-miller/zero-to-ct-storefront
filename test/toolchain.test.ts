@@ -35,4 +35,9 @@ describe('toolchain', () => {
   it('Bitbucket activates the packageManager pnpm version', () => {
     expect(bitbucket).toContain(`corepack prepare ${pkg.packageManager} --activate`);
   });
+
+  it('keeps the shadcn CLI out of production dependencies', () => {
+    expect(pkg.dependencies.shadcn).toBeUndefined();
+    expect(pkg.devDependencies.shadcn).toMatch(/^\^4\./);
+  });
 });
