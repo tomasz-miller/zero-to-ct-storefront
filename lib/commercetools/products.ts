@@ -9,8 +9,9 @@ import {
   getCatalogContext,
 } from './storefront-context';
 import {
-  buildSlugWhere,
+  buildSlugQueryArgs,
   isNewArrivalProduct,
+  isValidProductSlug,
   mapAvailability,
   mapProjection,
   mapProjectionDetail,
@@ -87,7 +88,8 @@ async function fetchProjectionsForIds(
     .productProjections()
     .get({
       queryArgs: {
-        where: `id in (${ids.map((id) => `"${id}"`).join(',')})`,
+        where: 'id in :ids',
+        'var.ids': [...ids],
         limit: options.limit,
         staged: false,
         localeProjection: options.locale,
@@ -503,6 +505,10 @@ export async function getProductBySlug(
     currency?: string;
   },
 ): Promise<StorefrontProductDetail | null> {
+  if (!isValidProductSlug(slug)) {
+    return null;
+  }
+
   const { locale, currency, country } = await getCatalogContext();
   const resolvedLocale = options?.locale ?? locale;
   const resolvedCurrency = options?.currency ?? currency;
@@ -511,7 +517,7 @@ export async function getProductBySlug(
     .productProjections()
     .get({
       queryArgs: {
-        where: buildSlugWhere(slug, resolvedLocale),
+        ...buildSlugQueryArgs(slug, resolvedLocale),
         limit: 1,
         staged: false,
         localeProjection: resolvedLocale,

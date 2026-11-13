@@ -351,14 +351,16 @@ export async function findCustomerCart(customerId: string): Promise<Cart | null>
     .carts()
     .get({
       queryArgs: {
-        where: `customerId="${customerId}" and cartState="Active"`,
+        where: 'customerId = :customerId and cartState = "Active"',
+        'var.customerId': customerId,
         limit: 1,
         sort: 'lastModifiedAt desc',
       },
     })
     .execute();
 
-  return response.body.results[0] ?? null;
+  const cart = response.body.results[0];
+  return cart && cart.customerId === customerId ? cart : null;
 }
 
 export async function findCustomerCartForMarket(
@@ -370,19 +372,19 @@ export async function findCustomerCartForMarket(
     .carts()
     .get({
       queryArgs: {
-        where: [
-          `customerId="${customerId}"`,
-          'cartState="Active"',
-          `country="${country}"`,
-          `totalPrice(currencyCode="${currency}")`,
-        ].join(' and '),
+        where:
+          'customerId = :customerId and cartState = "Active" and country = :country and totalPrice(currencyCode = :currency)',
+        'var.customerId': customerId,
+        'var.country': country,
+        'var.currency': currency,
         limit: 1,
         sort: 'lastModifiedAt desc',
       },
     })
     .execute();
 
-  return response.body.results[0] ?? null;
+  const cart = response.body.results[0];
+  return cart && cart.customerId === customerId ? cart : null;
 }
 
 async function createCustomerCart(customerId: string): Promise<Cart> {

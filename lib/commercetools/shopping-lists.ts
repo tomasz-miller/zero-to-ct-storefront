@@ -100,7 +100,8 @@ async function findCustomerShoppingList(customerId: string): Promise<ShoppingLis
     .shoppingLists()
     .get({
       queryArgs: {
-        where: `customer(id="${customerId}")`,
+        where: 'customer(id = :customerId)',
+        'var.customerId': customerId,
         limit: 1,
         sort: 'lastModifiedAt desc',
       },
@@ -226,14 +227,14 @@ async function enrichWishlistFromProjections(
   }
 
   const productIds = [...new Set(needsEnrichment.map((item) => item.productId))];
-  const where = productIds.map((id) => `"${id}"`).join(',');
 
   try {
     const response = await apiRoot
       .productProjections()
       .get({
         queryArgs: {
-          where: `id in (${where})`,
+          where: 'id in :ids',
+          'var.ids': productIds,
           limit: productIds.length,
           staged: false,
           localeProjection: locale,

@@ -5,14 +5,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createCategory } from '@/test/fixtures/category';
 
-const { mockExecute, mockApiRoot } = vi.hoisted(() => {
+const { mockExecute, mockCategoriesGet, mockApiRoot } = vi.hoisted(() => {
   const mockExecute = vi.fn();
+  const mockCategoriesGet = vi.fn<
+    (args: { queryArgs: Record<string, unknown> }) => {
+      execute: typeof mockExecute;
+    }
+  >(() => ({
+    execute: mockExecute,
+  }));
   const mockApiRoot = {
-    categories: vi.fn(() => ({
-      get: vi.fn(() => ({ execute: mockExecute })),
-    })),
+    categories: vi.fn(() => ({ get: mockCategoriesGet })),
   };
-  return { mockExecute, mockApiRoot };
+  return { mockExecute, mockCategoriesGet, mockApiRoot };
 });
 
 vi.mock('./api-root', () => ({
@@ -153,6 +158,19 @@ describe('getCategoryBySlug', () => {
     expect(category).toBeNull();
   });
 
+  it('queries with a slug variable', async () => {
+    mockExecute.mockResolvedValueOnce({ body: { results: [] } });
+
+    await getCategoryBySlug('bedroom');
+
+    expect(mockCategoriesGet).toHaveBeenCalledWith({
+      queryArgs: expect.objectContaining({
+        where: 'slug(en-GB = :slug)',
+        'var.slug': 'bedroom',
+      }),
+    });
+  });
+
   it('returns mapped category when slug exists', async () => {
     mockExecute.mockResolvedValueOnce({
       body: {
@@ -184,6 +202,19 @@ describe('getCategoryBySlug', () => {
 describe('getCategoryByKey', () => {
   beforeEach(() => {
     mockExecute.mockReset();
+  });
+
+  it('queries with a key variable', async () => {
+    mockExecute.mockResolvedValueOnce({ body: { results: [] } });
+
+    await getCategoryByKey('living-room');
+
+    expect(mockCategoriesGet).toHaveBeenCalledWith({
+      queryArgs: expect.objectContaining({
+        where: 'key = :key',
+        'var.key': 'living-room',
+      }),
+    });
   });
 
   it('returns category by key', async () => {

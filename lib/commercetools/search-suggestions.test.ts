@@ -1,5 +1,42 @@
-import { describe, expect, it } from 'vitest';
+/**
+ * @vitest-environment node
+ */
+import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/lib/commercetools/env', () => import('@/test/mocks/commercetools-env'));
+
+const { mockSuggest, suggestExecute, mockProjectionsGet, projectionsExecute, searchExecute } =
+  vi.hoisted(() => {
+    const suggestExecute = vi.fn();
+    const projectionsExecute = vi.fn();
+    return {
+      suggestExecute,
+      projectionsExecute,
+      searchExecute: vi.fn(),
+      mockSuggest: vi.fn(() => ({ get: () => ({ execute: suggestExecute }) })),
+      mockProjectionsGet: vi.fn<
+        (args: { queryArgs: Record<string, unknown> }) => {
+          execute: typeof projectionsExecute;
+        }
+      >(() => ({
+        execute: projectionsExecute,
+      })),
+    };
+  });
+
+vi.mock('./api-root', () => ({
+  apiRoot: {
+    productProjections: () => ({
+      suggest: mockSuggest,
+      get: mockProjectionsGet,
+    }),
+    products: () => ({
+      search: () => ({ post: () => ({ execute: searchExecute }) }),
+    }),
+  },
+}));
+
+import { getSearchSuggestions } from './search-suggestions';
 import {
   buildProductNameSuggestionFallbackQuery,
   buildProductNameSuggestionQuery,
@@ -82,5 +119,24 @@ describe('search suggestions', () => {
         'en-GB',
       ),
     ).toEqual(['Double bed', 'Red Modern Painting']);
+  });
+});
+
+describe('getSearchSuggestions', () => {
+  it('loads suggestion names by id with an ids variable', async () => {
+    suggestExecute.mockResolvedValueOnce({ body: {} }); // no keyword suggestions
+    searchExecute.mockResolvedValueOnce({
+      body: { results: [{ id: 'p1' }, { id: 'p2' }] },
+    });
+    projectionsExecute.mockResolvedValueOnce({ body: { results: [] } });
+
+    await getSearchSuggestions('bed', 'en-GB');
+
+    expect(mockProjectionsGet).toHaveBeenCalledWith({
+      queryArgs: expect.objectContaining({
+        where: 'id in :ids',
+        'var.ids': ['p1', 'p2'],
+      }),
+    });
   });
 });

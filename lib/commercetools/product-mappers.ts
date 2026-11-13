@@ -254,9 +254,21 @@ export function mapProjectionDetail(
   };
 }
 
-export function buildSlugWhere(slug: string, locale: string): string {
+const PRODUCT_SLUG_PATTERN = /^[a-zA-Z0-9_-]{2,256}$/;
+
+export function isValidProductSlug(slug: string): boolean {
+  return PRODUCT_SLUG_PATTERN.test(slug);
+}
+
+export function buildSlugQueryArgs(
+  slug: string,
+  locale: string,
+): { where: string; 'var.slug': string } {
   const locales = Array.from(new Set([locale, 'en-GB', 'en-US', 'en']));
-  return locales.map((value) => `slug(${value}="${slug}")`).join(' or ');
+  return {
+    where: locales.map((value) => `slug(${value} = :slug)`).join(' or '),
+    'var.slug': slug,
+  };
 }
 
 export function isNewArrivalProduct(

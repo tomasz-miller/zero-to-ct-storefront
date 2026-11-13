@@ -61,7 +61,6 @@ import { CustomerProfileError } from './customer-profile-error';
 import {
   addCustomerAddress,
   changeCustomerPassword,
-  isCustomerEmailAvailable,
   removeCustomerAddress,
   updateCustomerProfile,
 } from './customer-profile';
@@ -117,25 +116,6 @@ describe('customer-profile', () => {
     vi.unstubAllGlobals();
   });
 
-  it('checks email availability excluding current customer', async () => {
-    mockCustomersGet.mockReturnValue({
-      execute: vi.fn().mockResolvedValue({
-        body: { results: [] },
-      }),
-    });
-
-    await expect(
-      isCustomerEmailAvailable('New@Example.com', 'cust-1'),
-    ).resolves.toBe(true);
-
-    expect(mockCustomersGet).toHaveBeenCalledWith({
-      queryArgs: {
-        where: 'lowercaseEmail="new@example.com" and id!="cust-1"',
-        limit: 1,
-      },
-    });
-  });
-
   it('updates profile with changed fields only', async () => {
     mockGetValidCustomerAccessToken.mockResolvedValue('token-1');
     mockMeResponse(createCustomer());
@@ -170,35 +150,24 @@ describe('customer-profile', () => {
     );
   });
 
-  it('rejects duplicate email before update', async () => {
+  it('changes email without querying customers by email', async () => {
     mockGetValidCustomerAccessToken.mockResolvedValue('token-1');
     mockMeResponse(createCustomer());
+    mockMeUpdateResponse(createCustomer({ email: 'new@example.com' }));
 
-    mockCustomersGet.mockReturnValue({
-      execute: vi.fn().mockResolvedValue({
-        body: { results: [{ id: 'other-customer' }] },
-      }),
+    await updateCustomerProfile({
+      firstName: 'Jane',
+      lastName: 'Doe',
+      email: 'new@example.com',
     });
 
-    await expect(
-      updateCustomerProfile({
-        firstName: 'Jane',
-        lastName: 'Doe',
-        email: 'taken@example.com',
-      }),
-    ).rejects.toMatchObject({
-      code: 'DuplicateField',
-      statusCode: 409,
-    });
+    expect(mockCustomersGet).not.toHaveBeenCalled();
+    expect(JSON.stringify(mockFetch.mock.calls)).toContain('changeEmail');
   });
 
   it('maps duplicate field from update response', async () => {
     mockGetValidCustomerAccessToken.mockResolvedValue('token-1');
     mockMeResponse(createCustomer());
-
-    mockCustomersGet.mockReturnValue({
-      execute: vi.fn().mockResolvedValue({ body: { results: [] } }),
-    });
 
     mockFetch.mockResolvedValueOnce({
       ok: false,

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildSlugWhere,
+  buildSlugQueryArgs,
   isNewArrivalProduct,
+  isValidProductSlug,
   mapAvailability,
   mapProjection,
   mapProjectionDetail,
@@ -314,11 +315,21 @@ describe('mapProjectionDetail', () => {
   });
 });
 
-describe('buildSlugWhere', () => {
-  it('builds multi-locale slug predicate', () => {
-    expect(buildSlugWhere('orion-double-bed', 'en-GB')).toBe(
-      'slug(en-GB="orion-double-bed") or slug(en-US="orion-double-bed") or slug(en="orion-double-bed")',
-    );
+describe('buildSlugQueryArgs', () => {
+  it('builds a multi-locale slug predicate with a slug variable', () => {
+    expect(buildSlugQueryArgs('orion-double-bed', 'en-GB')).toEqual({
+      where: 'slug(en-GB = :slug) or slug(en-US = :slug) or slug(en = :slug)',
+      'var.slug': 'orion-double-bed',
+    });
+  });
+});
+
+describe('isValidProductSlug', () => {
+  it('accepts the documented slug pattern and rejects everything else', () => {
+    expect(isValidProductSlug('orion-double-bed')).toBe(true);
+    expect(isValidProductSlug('a')).toBe(false);
+    expect(isValidProductSlug('bad"slug')).toBe(false);
+    expect(isValidProductSlug('x'.repeat(257))).toBe(false);
   });
 });
 

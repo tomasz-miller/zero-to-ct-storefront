@@ -296,7 +296,10 @@ describe('cart session resolver', () => {
     expect(mockCartsGet).toHaveBeenCalledWith({
       queryArgs: expect.objectContaining({
         where:
-          'customerId="cust-1" and cartState="Active" and country="DE" and totalPrice(currencyCode="EUR")',
+          'customerId = :customerId and cartState = "Active" and country = :country and totalPrice(currencyCode = :currency)',
+        'var.customerId': 'cust-1',
+        'var.country': 'DE',
+        'var.currency': 'EUR',
       }),
     });
     expect(mockCartsPost).toHaveBeenCalledWith({
@@ -596,9 +599,38 @@ describe('cart session resolver', () => {
 
     expect(mockCartsGet).toHaveBeenCalledWith({
       queryArgs: expect.objectContaining({
-        where: expect.stringContaining('country="GB"'),
+        where:
+          'customerId = :customerId and cartState = "Active" and country = :country and totalPrice(currencyCode = :currency)',
+        'var.customerId': 'cust-1',
+        'var.country': 'GB',
+        'var.currency': 'GBP',
       }),
     });
+  });
+
+  it('findCustomerCartForMarket passes an injected customerId only as a variable', async () => {
+    const injected = 'x" or customerEmail="a@b.c" or customerId="y';
+    mockExecute.mockResolvedValueOnce({ body: { results: [] } });
+
+    await findCustomerCartForMarket(injected, 'GB', 'GBP');
+
+    expect(mockCartsGet).toHaveBeenCalledWith({
+      queryArgs: expect.objectContaining({
+        where:
+          'customerId = :customerId and cartState = "Active" and country = :country and totalPrice(currencyCode = :currency)',
+        'var.customerId': injected,
+      }),
+    });
+  });
+
+  it('findCustomerCartForMarket ignores a result owned by another customer', async () => {
+    mockExecute.mockResolvedValueOnce({
+      body: { results: [createCartFixture({ customerId: 'cust-2' })] },
+    });
+
+    await expect(
+      findCustomerCartForMarket('cust-1', 'GB', 'GBP'),
+    ).resolves.toBeNull();
   });
 
   it('restoreCustomerCartSession sets cookie when customer cart exists', async () => {

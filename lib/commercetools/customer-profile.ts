@@ -4,7 +4,6 @@ import type { Address, Customer, CustomerUpdateAction } from '@commercetools/pla
 import { randomUUID } from 'node:crypto';
 
 import { clearCartSession } from './cart-session';
-import { apiRoot } from './api-root';
 import {
   CustomerAuthError,
   getValidCustomerAccessToken,
@@ -100,26 +99,6 @@ function emailsMatch(left: string, right: string): boolean {
   return normalizeEmail(left) === normalizeEmail(right);
 }
 
-export async function isCustomerEmailAvailable(
-  email: string,
-  excludeCustomerId: string,
-): Promise<boolean> {
-  const normalizedEmail = normalizeEmail(email);
-  const where = `lowercaseEmail="${normalizedEmail}" and id!="${excludeCustomerId}"`;
-
-  const response = await apiRoot
-    .customers()
-    .get({
-      queryArgs: {
-        where,
-        limit: 1,
-      },
-    })
-    .execute();
-
-  return response.body.results.length === 0;
-}
-
 function toAddressPayload(input: ValidatedAddressInput): Address {
   return {
     firstName: input.firstName,
@@ -208,15 +187,6 @@ export async function updateCustomerProfile(
   }
 
   if (email && !emailsMatch(email, customer.email)) {
-    const available = await isCustomerEmailAvailable(email, customer.id);
-    if (!available) {
-      throw new CustomerProfileError(
-        'DuplicateField',
-        'An account with this email already exists',
-        409,
-      );
-    }
-
     actions.push({ action: 'changeEmail', email });
   }
 

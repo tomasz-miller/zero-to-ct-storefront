@@ -76,7 +76,8 @@ async function getProductNameSuggestions(
     .productProjections()
     .get({
       queryArgs: {
-        where: `id in (${ids.map((id) => `"${id}"`).join(',')})`,
+        where: 'id in :ids',
+        'var.ids': ids,
         limit: MAX_SEARCH_SUGGESTIONS,
         staged: false,
         localeProjection: locale,

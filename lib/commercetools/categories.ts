@@ -21,10 +21,6 @@ export type StorefrontCategory = {
   children: StorefrontCategory[];
 };
 
-function escapePredicateString(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-
 export function isValidCategorySlug(slug: string): boolean {
   return CATEGORY_SLUG_PATTERN.test(slug);
 }
@@ -168,13 +164,13 @@ export async function getCategoryBySlug(
 
   const { locale } = await getCatalogContext();
   const resolvedLocale = options?.locale ?? locale;
-  const escapedSlug = escapePredicateString(slug);
 
   const response = await apiRoot
     .categories()
     .get({
       queryArgs: {
-        where: `slug(${resolvedLocale}="${escapedSlug}")`,
+        where: `slug(${resolvedLocale} = :slug)`,
+        'var.slug': slug,
         limit: 1,
       },
     })
@@ -206,13 +202,13 @@ export async function getCategoryByKey(
 
   const { locale } = await getCatalogContext();
   const resolvedLocale = options?.locale ?? locale;
-  const escapedKey = escapePredicateString(key);
 
   const response = await apiRoot
     .categories()
     .get({
       queryArgs: {
-        where: `key="${escapedKey}"`,
+        where: 'key = :key',
+        'var.key': key,
         limit: 1,
       },
     })

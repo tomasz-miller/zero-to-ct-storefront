@@ -5,9 +5,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createProductProjection } from '@/test/fixtures/product-projection';
 
-const { mockExecute, mockApiRoot, mockGetSearchableAttributeFacetConfigsForQuery } =
-  vi.hoisted(() => {
+const {
+  mockExecute,
+  mockProjectionsGet,
+  mockApiRoot,
+  mockGetSearchableAttributeFacetConfigsForQuery,
+} = vi.hoisted(() => {
   const mockExecute = vi.fn();
+  const mockProjectionsGet = vi.fn<
+    (args: { queryArgs: Record<string, unknown> }) => {
+      execute: typeof mockExecute;
+    }
+  >(() => ({
+    execute: mockExecute,
+  }));
   const mockGetSearchableAttributeFacetConfigsForQuery = vi.fn();
   const mockApiRoot = {
     products: vi.fn(() => ({
@@ -15,9 +26,7 @@ const { mockExecute, mockApiRoot, mockGetSearchableAttributeFacetConfigsForQuery
         post: vi.fn(() => ({ execute: mockExecute })),
       })),
     })),
-    productProjections: vi.fn(() => ({
-      get: vi.fn(() => ({ execute: mockExecute })),
-    })),
+    productProjections: vi.fn(() => ({ get: mockProjectionsGet })),
     productTypes: vi.fn(() => ({
       get: vi.fn(() => ({ execute: mockExecute })),
     })),
@@ -28,7 +37,12 @@ const { mockExecute, mockApiRoot, mockGetSearchableAttributeFacetConfigsForQuery
       get: vi.fn(() => ({ execute: mockExecute })),
     })),
   };
-  return { mockExecute, mockApiRoot, mockGetSearchableAttributeFacetConfigsForQuery };
+  return {
+    mockExecute,
+    mockProjectionsGet,
+    mockApiRoot,
+    mockGetSearchableAttributeFacetConfigsForQuery,
+  };
 });
 
 vi.mock('./searchable-product-attributes', async (importOriginal) => {
@@ -107,6 +121,23 @@ describe('listProducts', () => {
     expect(mockApiRoot.products).toHaveBeenCalled();
     expect(result.products).toHaveLength(1);
     expect(result.total).toBe(1);
+  });
+
+  it('loads projections by id with an ids variable', async () => {
+    mockExecute
+      .mockResolvedValueOnce({
+        body: { results: [{ id: 'p1' }, { id: 'p2' }], total: 2 },
+      }) // Product Search
+      .mockResolvedValueOnce({ body: { results: [] } }); // productProjections by id
+
+    await listProducts({ query: 'bed' });
+
+    expect(mockProjectionsGet).toHaveBeenCalledWith({
+      queryArgs: expect.objectContaining({
+        where: 'id in :ids',
+        'var.ids': ['p1', 'p2'],
+      }),
+    });
   });
 
   it('returns empty list when search finds no products', async () => {
@@ -301,6 +332,26 @@ describe('getProductBySlug', () => {
 
     const result = await getProductBySlug('missing-slug');
     expect(result).toBeNull();
+  });
+
+  it('returns null without calling commercetools for an invalid slug', async () => {
+    await expect(getProductBySlug('bad"slug')).resolves.toBeNull();
+
+    expect(mockExecute).not.toHaveBeenCalled();
+    expect(mockProjectionsGet).not.toHaveBeenCalled();
+  });
+
+  it('queries with a slug variable', async () => {
+    mockExecute.mockResolvedValueOnce({ body: { results: [] } });
+
+    await getProductBySlug('orion-double-bed');
+
+    expect(mockProjectionsGet).toHaveBeenCalledWith({
+      queryArgs: expect.objectContaining({
+        where: 'slug(en-GB = :slug) or slug(en-US = :slug) or slug(en = :slug)',
+        'var.slug': 'orion-double-bed',
+      }),
+    });
   });
 
   it('returns product detail when projection exists', async () => {
