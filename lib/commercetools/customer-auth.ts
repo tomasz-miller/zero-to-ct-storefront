@@ -3,11 +3,10 @@ import 'server-only';
 import type { Customer, CustomerSignInResult } from '@commercetools/platform-sdk';
 
 import { apiRoot } from './api-root';
-import { reconcileCartOnAuth } from './cart';
+import { getOwnedGuestCartRef, reconcileCartOnAuth } from './cart';
 import {
   clearCartSession,
   createAnonymousId,
-  getCartSession,
   rotateCartSessionAnonymousId,
   setCartSession,
 } from './cart-session';
@@ -188,7 +187,8 @@ async function syncCartAfterAuth(result: CustomerSignInResult): Promise<void> {
 }
 
 type CartMigrationRefs = {
-  anonymousCartId?: string;
+  anonymousCart?: { typeId: 'cart'; id: string };
+  anonymousId?: string;
 };
 
 async function loginWithCartMigration(
@@ -202,9 +202,10 @@ async function loginWithCartMigration(
       body: {
         email,
         password,
-        ...(cartRefs.anonymousCartId
+        ...(cartRefs.anonymousCart && cartRefs.anonymousId
           ? {
-              anonymousCartId: cartRefs.anonymousCartId,
+              anonymousCart: cartRefs.anonymousCart,
+              anonymousId: cartRefs.anonymousId,
               anonymousCartSignInMode: 'MergeWithExistingCustomerCart' as const,
             }
           : {}),
@@ -230,8 +231,11 @@ async function registerWithCartMigration(
         password: input.password,
         firstName: input.firstName,
         lastName: input.lastName,
-        ...(cartRefs.anonymousCartId
-          ? { anonymousCartId: cartRefs.anonymousCartId }
+        ...(cartRefs.anonymousCart && cartRefs.anonymousId
+          ? {
+              anonymousCart: cartRefs.anonymousCart,
+              anonymousId: cartRefs.anonymousId,
+            }
           : {}),
       },
     })
@@ -242,9 +246,12 @@ async function withStaleAnonymousCartRetry<T>(
   operation: (cartRefs: CartMigrationRefs) => Promise<T>,
   fallbackMessage: string,
 ): Promise<T> {
-  const cartSession = await getCartSession();
-  const cartRefs: CartMigrationRefs = cartSession?.cartId
-    ? { anonymousCartId: cartSession.cartId }
+  const ownedGuestCart = await getOwnedGuestCartRef();
+  const cartRefs: CartMigrationRefs = ownedGuestCart
+    ? {
+        anonymousCart: { typeId: 'cart', id: ownedGuestCart.cartId },
+        anonymousId: ownedGuestCart.anonymousId,
+      }
     : {};
 
   try {
@@ -254,7 +261,7 @@ async function withStaleAnonymousCartRetry<T>(
     if (
       clientError?.body &&
       isConsumedAnonymousIdError(clientError.body) &&
-      cartRefs.anonymousCartId
+      cartRefs.anonymousCart
     ) {
       await rotateCartSessionAnonymousId();
       try {

@@ -76,17 +76,6 @@ export async function forgetCartForCountry(
   await setMarketCartMap({ carts });
 }
 
-export async function listMappedCartIds(): Promise<string[]> {
-  const map = await getMarketCartMap();
-  if (!map) {
-    return [];
-  }
-
-  return Object.values(map.carts).filter(
-    (cartId): cartId is string => typeof cartId === 'string',
-  );
-}
-
 export function clearMarketCartMap(): Promise<boolean> {
   return marketCartsCookie.clear();
 }

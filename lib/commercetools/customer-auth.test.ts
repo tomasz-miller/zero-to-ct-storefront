@@ -18,6 +18,7 @@ const {
   mockRestoreCustomerCartSession,
   mockReconcileCartOnAuth,
   mockRefreshCustomerSession,
+  mockGetOwnedGuestCartRef,
 } = vi.hoisted(() => ({
   mockExecute: vi.fn(),
   mockLoginPost: vi.fn(() => ({ execute: mockExecute })),
@@ -33,6 +34,7 @@ const {
   mockRestoreCustomerCartSession: vi.fn(),
   mockReconcileCartOnAuth: vi.fn(),
   mockRefreshCustomerSession: vi.fn(),
+  mockGetOwnedGuestCartRef: vi.fn(),
 }));
 
 vi.mock('./customer-token', async (importOriginal) => ({
@@ -41,6 +43,7 @@ vi.mock('./customer-token', async (importOriginal) => ({
 }));
 
 vi.mock('./cart', () => ({
+  getOwnedGuestCartRef: mockGetOwnedGuestCartRef,
   reconcileCartOnAuth: mockReconcileCartOnAuth,
   restoreCustomerCartSession: mockRestoreCustomerCartSession,
 }));
@@ -112,9 +115,9 @@ describe('customer-auth', () => {
   });
 
   it('logs in, merges cart, and stores customer session tokens', async () => {
-    mockGetCartSession.mockResolvedValue({
-      anonymousId: 'anon-1',
+    mockGetOwnedGuestCartRef.mockResolvedValueOnce({
       cartId: 'cart-guest',
+      anonymousId: 'anon-1',
     });
 
     mockExecute.mockResolvedValueOnce({
@@ -169,7 +172,8 @@ describe('customer-auth', () => {
       body: {
         email: 'jane@example.com',
         password: 'password123',
-        anonymousCartId: 'cart-guest',
+        anonymousCart: { typeId: 'cart', id: 'cart-guest' },
+        anonymousId: 'anon-1',
         anonymousCartSignInMode: 'MergeWithExistingCustomerCart',
       },
     });
@@ -253,9 +257,9 @@ describe('customer-auth', () => {
   });
 
   it('retries registration without anonymous cart when anonymousId was already consumed', async () => {
-    mockGetCartSession.mockResolvedValue({
-      anonymousId: 'anon-consumed',
+    mockGetOwnedGuestCartRef.mockResolvedValueOnce({
       cartId: 'cart-guest',
+      anonymousId: 'anon-consumed',
     });
 
     mockExecute
@@ -318,7 +322,8 @@ describe('customer-auth', () => {
         password: 'password123',
         firstName: 'New',
         lastName: 'User',
-        anonymousCartId: 'cart-guest',
+        anonymousCart: { typeId: 'cart', id: 'cart-guest' },
+        anonymousId: 'anon-consumed',
       },
     });
     expect(mockCustomersPost).toHaveBeenNthCalledWith(2, {
@@ -328,6 +333,73 @@ describe('customer-auth', () => {
         firstName: 'New',
         lastName: 'User',
       },
+    });
+    expect(JSON.stringify(mockCustomersPost.mock.calls[1])).not.toContain('anonymous');
+  });
+
+  describe('sign-in with cart refs', () => {
+    const credentials = { email: 'jane@example.com', password: 'Secret123!' };
+    const customer = {
+      id: 'cust-1',
+      email: 'jane@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      version: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      lastModifiedAt: '2026-01-01T00:00:00.000Z',
+      addresses: [],
+      isEmailVerified: false,
+      authenticationMode: 'Password',
+    };
+
+    function stubTokenAndMe() {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            text: async () =>
+              JSON.stringify({
+                access_token: 'access-token',
+                refresh_token: 'refresh-token',
+                expires_in: 3600,
+              }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            text: async () => JSON.stringify({ id: 'cust-1', email: 'jane@example.com' }),
+          }),
+      );
+    }
+
+    it('logs in with anonymousCart, anonymousId and MergeWithExistingCustomerCart', async () => {
+      mockGetOwnedGuestCartRef.mockResolvedValueOnce({ cartId: 'cart-guest', anonymousId: 'anon-1' });
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      stubTokenAndMe();
+      await loginCustomer(credentials.email, credentials.password);
+      expect(mockLoginPost).toHaveBeenCalledWith({ body: { ...credentials,
+        anonymousCart: { typeId: 'cart', id: 'cart-guest' }, anonymousId: 'anon-1',
+        anonymousCartSignInMode: 'MergeWithExistingCustomerCart' } });
+      expect(JSON.stringify(mockLoginPost.mock.calls)).not.toContain('anonymousCartId');
+    });
+
+    it('logs in without cart refs when the cookie cart is not an owned guest cart', async () => {
+      mockGetOwnedGuestCartRef.mockResolvedValueOnce(null);
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      stubTokenAndMe();
+      await loginCustomer(credentials.email, credentials.password);
+      expect(mockLoginPost).toHaveBeenCalledWith({ body: credentials });
+    });
+
+    it('registers with anonymousCart and anonymousId', async () => {
+      mockGetOwnedGuestCartRef.mockResolvedValueOnce({ cartId: 'cart-guest', anonymousId: 'anon-1' });
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      stubTokenAndMe();
+      await registerCustomer({ ...credentials, firstName: 'Jane', lastName: 'Doe' });
+      expect(mockCustomersPost).toHaveBeenCalledWith({ body: expect.objectContaining({
+        anonymousCart: { typeId: 'cart', id: 'cart-guest' }, anonymousId: 'anon-1' }) });
+      expect(JSON.stringify(mockCustomersPost.mock.calls[0])).not.toContain('anonymousCartSignInMode');
     });
   });
 

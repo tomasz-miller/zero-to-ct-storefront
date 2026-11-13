@@ -30,8 +30,6 @@ export type StorefrontCartLineItem = {
 
 export type StorefrontCart = {
   id: string;
-  version: number;
-  anonymousId?: string;
   country?: string;
   currency: string;
   lineItems: StorefrontCartLineItem[];
@@ -117,8 +115,6 @@ export function mapCart(
 
   return {
     id: cart.id,
-    version: cart.version,
-    anonymousId: cart.anonymousId,
     country: cart.country,
     currency,
     lineItems,

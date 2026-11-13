@@ -22,7 +22,6 @@ import { getCustomerSession } from './customer-session';
 import {
   forgetCartForCountry,
   getCartIdForCountry,
-  listMappedCartIds,
   rememberCartForCountry,
 } from './market-cart-session';
 import {
@@ -389,25 +388,6 @@ async function createCustomerCart(customerId: string): Promise<Cart> {
   return response.body;
 }
 
-async function claimParkedGuestCartsForCustomer(
-  customerId: string,
-): Promise<void> {
-  const mappedCartIds = await listMappedCartIds();
-
-  for (const cartId of mappedCartIds) {
-    const cart = await fetchCartById(cartId);
-    if (!cart || cart.customerId || cart.cartState !== 'Active') {
-      continue;
-    }
-
-    try {
-      await assignCartToCustomer(cart, customerId);
-    } catch {
-      // Best-effort: keep the session usable even if a parked cart cannot be claimed.
-    }
-  }
-}
-
 async function assignCartToCustomer(cart: Cart, customerId: string): Promise<Cart> {
   const response = await apiRoot
     .carts()
@@ -421,107 +401,6 @@ async function assignCartToCustomer(cart: Cart, customerId: string): Promise<Car
     .execute();
 
   return response.body;
-}
-
-async function mergeAnonymousCartIntoCustomerCart(
-  guestCart: Cart,
-  customerCart: Cart,
-): Promise<Cart> {
-  if (guestCart.lineItems.length === 0) {
-    return customerCart;
-  }
-
-  const customerSkus = new Map(
-    customerCart.lineItems
-      .filter((item) => item.variant?.sku)
-      .map((item) => [
-        item.variant!.sku!,
-        { lineItemId: item.id, quantity: item.quantity },
-      ]),
-  );
-
-  const actions: CartUpdateAction[] = [];
-
-  for (const item of guestCart.lineItems) {
-    const sku = item.variant?.sku;
-    if (!sku) {
-      continue;
-    }
-
-    const existing = customerSkus.get(sku);
-    if (existing) {
-      actions.push({
-        action: 'changeLineItemQuantity',
-        lineItemId: existing.lineItemId,
-        quantity: existing.quantity + item.quantity,
-      });
-      existing.quantity += item.quantity;
-    } else {
-      actions.push({
-        action: 'addLineItem',
-        sku,
-        quantity: item.quantity,
-      });
-    }
-  }
-
-  if (actions.length === 0) {
-    return customerCart;
-  }
-
-  const response = await apiRoot
-    .carts()
-    .withId({ ID: customerCart.id })
-    .post({
-      body: {
-        version: customerCart.version,
-        actions,
-      },
-    })
-    .execute();
-
-  const mergedCart = response.body;
-
-  if (guestCart.id !== customerCart.id && guestCart.lineItems.length > 0) {
-    await apiRoot
-      .carts()
-      .withId({ ID: guestCart.id })
-      .post({
-        body: {
-          version: guestCart.version,
-          actions: guestCart.lineItems.map((item) => ({
-            action: 'removeLineItem' as const,
-            lineItemId: item.id,
-          })),
-        },
-      })
-      .execute()
-      .catch(() => undefined);
-  }
-
-  return mergedCart;
-}
-
-async function resolveAnonymousCartForCustomer(
-  customerId: string,
-  anonymousCart: Cart,
-): Promise<Cart> {
-  if (anonymousCart.customerId === customerId) {
-    return anonymousCart;
-  }
-
-  const cartCountry = isStorefrontCountry(anonymousCart.country) ? anonymousCart.country : null;
-  const cartCurrency = anonymousCart.totalPrice.currencyCode;
-
-  const existingCustomerCart = cartCountry
-    ? await findCustomerCartForMarket(customerId, cartCountry, cartCurrency)
-    : await findCustomerCart(customerId);
-
-  if (!existingCustomerCart || existingCustomerCart.id === anonymousCart.id) {
-    return assignCartToCustomer(anonymousCart, customerId);
-  }
-
-  return mergeAnonymousCartIntoCustomerCart(anonymousCart, existingCustomerCart);
 }
 
 async function persistCartSession(anonymousId: string, cart: Cart): Promise<CartSession> {
@@ -556,42 +435,36 @@ export async function restoreCustomerCartSession(customerId: string): Promise<vo
   await rememberCartForCountry(cartCountry, customerCart.id);
 }
 
-/** Assign or merge a guest cart to the customer after sign-in/sign-up. */
-export async function reconcileCartOnAuth(customerId: string): Promise<void> {
-  const existing = await getCartSession();
-  if (existing) {
-    const cart = await fetchCartById(existing.cartId);
-    if (cart && !cart.customerId) {
-      const resolved = await resolveAnonymousCartForCustomer(customerId, cart);
-      const anonymousId = createAnonymousId();
-      await setCartSession({
-        anonymousId,
-        cartId: resolved.id,
-      });
-      const cartCountry = isStorefrontCountry(resolved.country) ? resolved.country : null;
-      if (cartCountry) {
-        await rememberCartForCountry(cartCountry, resolved.id);
-      }
-      await claimParkedGuestCartsForCustomer(customerId);
-      return;
-    }
-    if (cart?.customerId === customerId) {
-      const anonymousId = createAnonymousId();
-      await setCartSession({
-        anonymousId,
-        cartId: cart.id,
-      });
-      const cartCountry = isStorefrontCountry(cart.country) ? cart.country : null;
-      if (cartCountry) {
-        await rememberCartForCountry(cartCountry, cart.id);
-      }
-      await claimParkedGuestCartsForCustomer(customerId);
-      return;
-    }
+/**
+ * The cookie cart, only when it is an active guest cart bound to the session's anonymousId.
+ * Sent to commercetools on sign-in/sign-up, where anonymousId becomes a credential for every
+ * resource of that guest.
+ */
+export async function getOwnedGuestCartRef(): Promise<{
+  cartId: string;
+  anonymousId: string;
+} | null> {
+  const session = await getCartSession();
+  if (!session) {
+    return null;
   }
 
+  const cart = await fetchCartById(session.cartId);
+  if (
+    !cart ||
+    cart.customerId ||
+    cart.cartState !== 'Active' ||
+    cart.anonymousId !== session.anonymousId
+  ) {
+    return null;
+  }
+
+  return { cartId: cart.id, anonymousId: session.anonymousId };
+}
+
+/** Restore the customer's own cart after sign-in/sign-up; guest carts are merged by commercetools. */
+export async function reconcileCartOnAuth(customerId: string): Promise<void> {
   await restoreCustomerCartSession(customerId);
-  await claimParkedGuestCartsForCustomer(customerId);
 }
 
 async function ensureCartSession(): Promise<CartSession> {
@@ -602,25 +475,12 @@ async function ensureCartSession(): Promise<CartSession> {
     if (existing) {
       const cart = await loadOwnedCart(existing);
       if (cart) {
-        if (!cart.customerId) {
-          const resolved = await resolveAnonymousCartForCustomer(
-            customerSession.customerId,
-            cart,
-          );
-          return persistCartSession(existing.anonymousId, resolved);
+        if (cart.customerId) {
+          return { anonymousId: existing.anonymousId, cartId: cart.id };
         }
 
-        return { anonymousId: existing.anonymousId, cartId: cart.id };
-      }
-
-      // Cookie may reference a guest cart whose anonymousId was consumed during auth.
-      const cartById = await fetchCartById(existing.cartId);
-      if (cartById && !cartById.customerId) {
-        const resolved = await resolveAnonymousCartForCustomer(
-          customerSession.customerId,
-          cartById,
-        );
-        return persistCartSession(createAnonymousId(), resolved);
+        const assigned = await assignCartToCustomer(cart, customerSession.customerId);
+        return persistCartSession(existing.anonymousId, assigned);
       }
     }
 
