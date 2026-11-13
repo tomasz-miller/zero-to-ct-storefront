@@ -244,6 +244,7 @@ Promotion step: once a full checkout produces no violations, add the needed host
 | CORS on express-config | `ALLOWED_ORIGINS` empty or typo (`localhost:3000` without `http://`) |
 | `[ctc] no_payment_integrations` | All Payment Integrations are **Inactive** — toggle Status to Active in MC (Checkout → Applications → Payment integrations), or activate via Payment Integrations API |
 | `[ctc] error_loading_all_payment_integrations` | Active integration exists but Stripe connector failed to load — check CT Connect deployment logs, `ALLOWED_ORIGINS`, and connector API client scopes |
+| Shopper sees "Payment is temporarily unavailable. Please try again later." | The Checkout SDK reported `no_payment_integrations`, `error_loading_all_payment_integrations` or another payment-integration code. The shopper copy is deliberately generic; the code and correlation ID are in the browser console as `[checkout]` (`{ code, correlationId }`). Use the two `[ctc]` rows above to resolve it, and quote the correlation ID to commercetools support |
 
 ### Verify active payment integrations (API)
 

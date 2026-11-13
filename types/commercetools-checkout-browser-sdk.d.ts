@@ -1,11 +1,13 @@
 declare module '@commercetools/checkout-browser-sdk' {
   export type CheckoutSdkMessage = {
     code?: string;
+    correlationId?: string;
     payload?: unknown;
   };
 
   export type CheckoutSdkError = {
     code?: string;
+    correlationId?: string;
   };
 
   export type CheckoutStyles = {

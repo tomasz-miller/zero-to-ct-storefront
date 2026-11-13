@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -49,6 +49,17 @@ function checkoutCompletedCallback(): (message: {
   };
 
   return options.onInfo;
+}
+
+function checkoutErrorCallback(): (message: {
+  code?: string;
+  correlationId?: string;
+}) => void {
+  const options = mockCheckoutFlow.mock.calls[0]?.[0] as {
+    onError: (message: { code?: string; correlationId?: string }) => void;
+  };
+
+  return options.onError;
 }
 
 describe('CheckoutEmbed', () => {
@@ -232,5 +243,38 @@ describe('CheckoutEmbed', () => {
 
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledOnce());
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows shopper copy for a payment integration error and logs only code and correlation id', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ sessionId: 'session-1' }),
+      }),
+    );
+
+    render(<CheckoutEmbed projectKey="project" region="eu" locale="en-GB" />);
+
+    await waitFor(() => expect(mockCheckoutFlow).toHaveBeenCalledOnce());
+
+    act(() =>
+      checkoutErrorCallback()({
+        code: 'no_payment_integrations',
+        correlationId: 'c',
+      }),
+    );
+
+    expect(
+      await screen.findByText(
+        'Payment is temporarily unavailable. Please try again later.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/no_payment_integrations|Merchant Center/)).toBeNull();
+    expect(consoleError).toHaveBeenCalledWith('[checkout]', {
+      code: 'no_payment_integrations',
+      correlationId: 'c',
+    });
   });
 });

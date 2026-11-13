@@ -6,18 +6,22 @@ import { checkoutFlow, close } from '@commercetools/checkout-browser-sdk';
 
 import { useCart } from '@/components/cart/cart-context';
 import { Button } from '@/components/ui/button';
-import { resolveCheckoutErrorMessage } from '@/lib/checkout-error-messages';
+import {
+  logCheckoutSdkMessage,
+  resolveCheckoutErrorMessage,
+} from '@/lib/checkout-error-messages';
 import { resolveCheckoutSdkStyles } from '@/lib/checkout-sdk-styles';
 
 function handleCheckoutSdkMessage(
-  code: string | undefined,
+  message: { code?: string; correlationId?: string },
   setError: (message: string) => void,
 ): void {
   if (
-    code === 'no_payment_integrations' ||
-    code === 'error_loading_all_payment_integrations'
+    message.code === 'no_payment_integrations' ||
+    message.code === 'error_loading_all_payment_integrations'
   ) {
-    setError(resolveCheckoutErrorMessage(code));
+    logCheckoutSdkMessage(message);
+    setError(resolveCheckoutErrorMessage(message.code));
   }
 }
 
@@ -99,12 +103,13 @@ export function CheckoutEmbed({
           return;
         }
 
-        handleCheckoutSdkMessage(message.code, setError);
+        handleCheckoutSdkMessage(message, setError);
       },
       onWarn: (message) => {
-        handleCheckoutSdkMessage(message.code, setError);
+        handleCheckoutSdkMessage(message, setError);
       },
       onError: (checkoutError) => {
+        logCheckoutSdkMessage(checkoutError);
         setError(resolveCheckoutErrorMessage(checkoutError.code));
       },
     });
