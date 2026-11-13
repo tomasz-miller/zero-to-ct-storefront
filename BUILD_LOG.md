@@ -15,6 +15,15 @@ Chronological log of development time and milestones. Used for sales demos and `
 
 ---
 
+### 2026-11-13 — Track 1B: BFF hardening
+- **Time:** —
+- **Phase:** security
+- **Milestone:** The commercetools SDK logger no longer runs in production and never logs bodies. Request bodies are validated with zod through `parseJsonBody`, and one `toErrorResponse` maps every route error to a fixed public message. Commercetools error parsing lives in `ct-errors.ts`; `CustomerAuthError` and `CustomerProfileError` are replaced by `CustomerError` and `CtFetchError`. Sign-in, sign-up and password-reset routes are rate limited. Security headers are set, with the Content-Security-Policy in report-only mode. Image hosts come from an env-driven pattern list. Mock payments are guarded by a project-key check and create an idempotent Payment key. Checkout shows shopper-facing copy while staff get the codes in logs. `/api/health` is a cheap liveness probe with a token-gated commercetools readiness check.
+- **Agent vs manual:** 100% agent, human review pending
+- **Notes:** Unit tests 101 files / 529 tests → 115 files / 687 tests. The plan predicted 685; the extra 2 come from the review-fix commit `864a5ec` (image pattern literal-path check), which added 2 tests to Task 3 (Task 3 is +10 instead of +8; every other task matches its planned count). Track 1A deferred items are closed (SDK logger logging full responses, raw error text in the checkout-session 500), so `main` may be deployed again once this is merged. New env vars: `AUTH_DEV_EXPOSE_RESET_TOKEN` (dev only; reset tokens are not minted without a delivery path), `IMAGE_REMOTE_PATTERNS`, `CTP_MOCK_PAYMENTS_PROJECT_KEY`, `HEALTH_CHECK_TOKEN`. Status changes: `CartNotFound` now returns 404 on checkout routes, non-JSON bodies get 415, bodies over 64 KiB get 413. Post-merge items pending a commercetools project: purge old runtime logs, set `IMAGE_REMOTE_PATTERNS` from a real product image URL, promote the CSP from report-only after a full Checkout and PSP redirect run, confirm Checkout SDK error codes and password-reset error mapping, check mock-payment idempotency, rate limits and the health readiness token, run `pnpm test:e2e`, and confirm a revoked refresh token signs the customer out.
+
+---
+
 ### 2026-11-13 — Track 1A: session trust
 - **Time:** —
 - **Phase:** maintenance
