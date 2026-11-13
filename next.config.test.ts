@@ -23,6 +23,8 @@ describe('parseImageRemotePatterns', () => {
     'https://**.amazonaws.com/x/**',
     'https://a.example.com/**',
     'https://a.example.com/',
+    'https://a.example.com/**/x',
+    'https://a.example.com/**/images/**',
     'not a url',
   ])('rejects unsafe pattern %s', (raw) => {
     expect(() => parseImageRemotePatterns(raw)).toThrow(/IMAGE_REMOTE_PATTERNS/);

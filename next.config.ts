@@ -35,11 +35,12 @@ export function parseImageRemotePatterns(raw: string | undefined): URL[] {
     if (url.hostname.includes('*')) {
       throw invalid('hostname must not contain wildcards', entry);
     }
-    const literalSegments = url.pathname
-      .split('/')
-      .filter((segment) => segment !== '' && !segment.includes('*'));
-    if (literalSegments.length === 0) {
-      throw invalid('pathname needs at least one non-wildcard segment', entry);
+    const firstSegment = url.pathname.split('/')[1] ?? '';
+    if (firstSegment === '' || firstSegment.includes('*')) {
+      throw invalid(
+        'pathname must start with a non-wildcard segment before any wildcard',
+        entry,
+      );
     }
     return url;
   });
