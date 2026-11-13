@@ -87,18 +87,9 @@ After the first production URL is live, ensure the Stripe connector `ALLOWED_ORI
 
 ---
 
-## GitHub Actions CI secrets
+## CI environment
 
-CI runs `pnpm build` with live CT credentials ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)). Add these **repository secrets** (Settings → Secrets and variables → Actions):
-
-| Secret | Value |
-|--------|-------|
-| `CTP_PROJECT_KEY` | Project key |
-| `CTP_CLIENT_ID` | Storefront BFF client ID |
-| `CTP_CLIENT_SECRET` | Storefront BFF client secret |
-| `CTP_SCOPES` | Full scope string from `.env.example` |
-
-`CTP_AUTH_URL`, `CTP_API_URL`, `CTP_SESSION_URL`, and `NEXT_PUBLIC_*` are set inline in the workflow.
+CI (`.github/workflows/ci.yml` and `bitbucket-pipelines.yml`) runs `pnpm build` with placeholder `CTP_*` values and needs no commercetools secrets. `lib/commercetools/env.ts` only checks that the variables are set, and every route renders per request, so the build never calls the commercetools API.
 
 ---
 

@@ -120,7 +120,7 @@ GitHub is the source of truth and public portfolio. Columbus keeps a private cop
 |--|--|--|
 | This repo | [tomasz-miller/zero-to-ct-storefront](https://github.com/tomasz-miller/zero-to-ct-storefront) | [istonecrosscommerce/zero-to-ct-storefront](https://bitbucket.org/istonecrosscommerce/zero-to-ct-storefront) |
 
-Bitbucket Pipelines must be **enabled** on the repository. Add secured Repository variables: `CTP_PROJECT_KEY`, `CTP_CLIENT_ID`, `CTP_CLIENT_SECRET`, `CTP_SCOPES` (same values as GitHub Actions secrets).
+Bitbucket Pipelines must be **enabled** on the repository. Neither CI needs commercetools secrets: the build runs with placeholder `CTP_*` values.
 
 ## License
 

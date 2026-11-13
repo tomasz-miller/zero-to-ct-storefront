@@ -15,9 +15,12 @@ pipelines:
             - pnpm lint
             - pnpm typecheck
             - pnpm test:unit
+            # Placeholders only: every route renders per request, so the build never calls commercetools.
+            - export CTP_PROJECT_KEY=build-check CTP_CLIENT_ID=build-check CTP_CLIENT_SECRET=build-check
+            - export CTP_SCOPES=view_products:build-check
             - export CTP_AUTH_URL=https://auth.europe-west1.gcp.commercetools.com
             - export CTP_API_URL=https://api.europe-west1.gcp.commercetools.com
             - export CTP_SESSION_URL=https://session.europe-west1.gcp.commercetools.com
-            - export NEXT_PUBLIC_CTP_PROJECT_KEY="$CTP_PROJECT_KEY"
+            - export NEXT_PUBLIC_CTP_PROJECT_KEY=build-check
             - export NEXT_PUBLIC_CTP_REGION=europe-west1.gcp
             - pnpm build
