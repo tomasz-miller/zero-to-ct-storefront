@@ -3,21 +3,13 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { CustomerError } from '@/lib/commercetools/domain-errors';
+
 const { mockGetAuthenticatedCustomerProfile } = vi.hoisted(() => ({
   mockGetAuthenticatedCustomerProfile: vi.fn(),
 }));
 
 vi.mock('@/lib/commercetools/customer-auth', () => ({
-  CustomerAuthError: class CustomerAuthError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
   getAuthenticatedCustomerProfile: mockGetAuthenticatedCustomerProfile,
 }));
 
@@ -43,9 +35,8 @@ describe('GET /api/auth/session', () => {
   });
 
   it('returns 401 when not authenticated', async () => {
-    const { CustomerAuthError } = await import('@/lib/commercetools/customer-auth');
     mockGetAuthenticatedCustomerProfile.mockRejectedValue(
-      new CustomerAuthError('Unauthorized', 'Not signed in', 401),
+      new CustomerError('Unauthorized', 'Sign in required', 401),
     );
 
     const response = await GET();

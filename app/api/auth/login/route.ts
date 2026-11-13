@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { validateEmail, validatePassword } from '@/lib/auth-validation';
-import { authErrorResponse } from '@/lib/commercetools/auth-route-utils';
 import { loginCustomer } from '@/lib/commercetools/customer-auth';
+import { parseJsonBody } from '@/lib/http/parse-json-body';
+import { LoginBodySchema } from '@/lib/http/request-schemas';
+import { toErrorResponse } from '@/lib/http/route-errors';
 
 export async function POST(request: NextRequest) {
-  let body: { email?: string; password?: string };
+  const parsed = await parseJsonBody(request, LoginBodySchema);
+  if (!parsed.ok) return parsed.response;
 
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
-
-  const email = body.email?.trim() ?? '';
-  const password = body.password ?? '';
+  const { email, password } = parsed.data;
 
   const emailError = validateEmail(email);
   if (emailError) {
@@ -30,6 +26,6 @@ export async function POST(request: NextRequest) {
     const customer = await loginCustomer(email, password);
     return NextResponse.json({ customer });
   } catch (error) {
-    return authErrorResponse(error);
+    return toErrorResponse(error, 'api/auth/login');
   }
 }

@@ -1,29 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { validateEmail } from '@/lib/auth-validation';
-import { authErrorResponse } from '@/lib/commercetools/auth-route-utils';
-import {
-  CustomerAuthError,
-  requestPasswordReset,
-} from '@/lib/commercetools/customer-auth';
+import { requestPasswordReset } from '@/lib/commercetools/customer-auth';
 import {
   isPasswordResetDeliveryConfigured,
   isPasswordResetDevLinkEnabled,
 } from '@/lib/commercetools/password-reset-delivery';
+import { parseJsonBody } from '@/lib/http/parse-json-body';
+import { ForgotPasswordBodySchema } from '@/lib/http/request-schemas';
+import { toErrorResponse } from '@/lib/http/route-errors';
 
 const GENERIC_MESSAGE =
   'If an account exists for this email, you will receive password reset instructions shortly.';
 
 export async function POST(request: NextRequest) {
-  let body: { email?: string };
+  const parsed = await parseJsonBody(request, ForgotPasswordBodySchema);
+  if (!parsed.ok) return parsed.response;
 
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
-
-  const email = body.email?.trim() ?? '';
+  const { email } = parsed.data;
   const emailError = validateEmail(email);
   if (emailError) {
     return NextResponse.json({ error: emailError }, { status: 400 });
@@ -35,6 +29,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // An unknown email resolves to `{}` (see requestPasswordReset): same answer as a known one.
     const result = await requestPasswordReset(email);
     const response: { message: string; devResetUrl?: string } = {
       message: GENERIC_MESSAGE,
@@ -46,11 +41,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    if (error instanceof CustomerAuthError) {
-      // Do not reveal whether the email exists.
-      return NextResponse.json({ message: GENERIC_MESSAGE });
-    }
-
-    return authErrorResponse(error);
+    return toErrorResponse(error, 'api/auth/forgot-password');
   }
 }

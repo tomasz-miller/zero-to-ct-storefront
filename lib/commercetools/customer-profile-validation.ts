@@ -1,4 +1,11 @@
+import type * as z from 'zod';
+
 import { validateEmail, validatePassword } from '@/lib/auth-validation';
+import type {
+  AddressBodySchema,
+  PasswordChangeBodySchema,
+  ProfileUpdateBodySchema,
+} from '@/lib/http/request-schemas';
 
 const ISO_COUNTRY_PATTERN = /^[A-Z]{2}$/;
 const MAX_NAME_LENGTH = 100;
@@ -6,29 +13,9 @@ const MAX_STREET_LENGTH = 200;
 const MAX_CITY_LENGTH = 100;
 const MAX_POSTAL_CODE_LENGTH = 20;
 
-export type ProfileUpdateInput = {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-};
-
-export type AddressInput = {
-  firstName?: string;
-  lastName?: string;
-  streetName?: string;
-  streetNumber?: string;
-  postalCode?: string;
-  city?: string;
-  country?: string;
-  isDefaultShipping?: boolean;
-  isDefaultBilling?: boolean;
-};
-
-export type PasswordChangeInput = {
-  currentPassword?: string;
-  newPassword?: string;
-  confirmPassword?: string;
-};
+export type ProfileUpdateInput = z.infer<typeof ProfileUpdateBodySchema>;
+export type AddressInput = z.infer<typeof AddressBodySchema>;
+export type PasswordChangeInput = z.infer<typeof PasswordChangeBodySchema>;
 
 function trimOptional(value: string | undefined): string | undefined {
   const trimmed = value?.trim();

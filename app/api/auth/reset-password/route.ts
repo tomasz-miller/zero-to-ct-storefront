@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { validatePassword } from '@/lib/auth-validation';
-import { authErrorResponse } from '@/lib/commercetools/auth-route-utils';
 import { resetCustomerPassword } from '@/lib/commercetools/customer-auth';
+import { parseJsonBody } from '@/lib/http/parse-json-body';
+import { ResetPasswordBodySchema } from '@/lib/http/request-schemas';
+import { toErrorResponse } from '@/lib/http/route-errors';
 
 export async function POST(request: NextRequest) {
-  let body: { token?: string; newPassword?: string };
+  const parsed = await parseJsonBody(request, ResetPasswordBodySchema);
+  if (!parsed.ok) return parsed.response;
 
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
-
-  const token = body.token?.trim() ?? '';
-  const newPassword = body.newPassword ?? '';
+  const { token, newPassword } = parsed.data;
 
   if (!token) {
     return NextResponse.json({ error: 'Reset token is required' }, { status: 400 });
@@ -31,6 +27,6 @@ export async function POST(request: NextRequest) {
       message: 'Password updated. You can sign in with your new password.',
     });
   } catch (error) {
-    return authErrorResponse(error);
+    return toErrorResponse(error, 'api/auth/reset-password');
   }
 }

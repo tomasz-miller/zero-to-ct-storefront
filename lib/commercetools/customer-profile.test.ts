@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Customer } from '@commercetools/platform-sdk';
 
+import { PublicError } from '@/lib/http/public-error';
+
 const {
   mockGetValidCustomerAccessToken,
   mockCustomersGet,
@@ -20,17 +22,6 @@ const {
 }));
 
 vi.mock('./customer-auth', () => ({
-  CustomerAuthError: class CustomerAuthError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.name = 'CustomerAuthError';
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
   getValidCustomerAccessToken: mockGetValidCustomerAccessToken,
 }));
 
@@ -57,7 +48,8 @@ vi.mock('./env', () => ({
   },
 }));
 
-import { CustomerProfileError } from './customer-profile-error';
+import { CtFetchError } from './ct-errors';
+import { CustomerError } from './domain-errors';
 import {
   addCustomerAddress,
   changeCustomerPassword,
@@ -169,15 +161,15 @@ describe('customer-profile', () => {
     mockGetValidCustomerAccessToken.mockResolvedValue('token-1');
     mockMeResponse(createCustomer());
 
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 409,
-      text: async () =>
+    mockFetch.mockResolvedValueOnce(
+      new Response(
         JSON.stringify({
           statusCode: 409,
           errors: [{ code: 'DuplicateField', message: 'Duplicate' }],
         }),
-    });
+        { status: 409 },
+      ),
+    );
 
     await expect(
       updateCustomerProfile({
@@ -185,7 +177,7 @@ describe('customer-profile', () => {
         lastName: 'Doe',
         email: 'taken@example.com',
       }),
-    ).rejects.toBeInstanceOf(CustomerProfileError);
+    ).rejects.toBeInstanceOf(CustomerError);
   });
 
   it('adds address with default flags', async () => {
@@ -285,22 +277,52 @@ describe('customer-profile', () => {
     mockGetValidCustomerAccessToken.mockResolvedValue('token-1');
     mockMeResponse(createCustomer());
 
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 400,
-      text: async () =>
+    mockFetch.mockResolvedValueOnce(
+      new Response(
         JSON.stringify({
           statusCode: 400,
           errors: [{ code: 'InvalidCurrentPassword', message: 'Wrong password' }],
         }),
-    });
+        { status: 400 },
+      ),
+    );
 
     await expect(
       changeCustomerPassword('wrong', 'NewPass123!'),
     ).rejects.toMatchObject({
       code: 'InvalidCurrentPassword',
       message: 'Current password is incorrect',
-      statusCode: 400,
+      status: 400,
     });
+  });
+
+  it('maps a raw 409 ConcurrentModification to a CustomerError', async () => {
+    mockGetValidCustomerAccessToken.mockResolvedValue('token-1');
+    mockMeResponse(createCustomer());
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        '{"errors":[{"code":"ConcurrentModification","message":"internal detail"}]}',
+        { status: 409 },
+      ),
+    );
+    const err = await updateCustomerProfile({ firstName: 'Janet' }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(CustomerError);
+    expect(err).toMatchObject({
+      status: 409,
+      code: 'ConcurrentModification',
+      message: 'Your profile was updated elsewhere. Refresh the page and try again.',
+    });
+  });
+
+  it('rethrows other raw failures as CtFetchError', async () => {
+    mockGetValidCustomerAccessToken.mockResolvedValue('token-1');
+    mockMeResponse(createCustomer());
+    mockFetch.mockResolvedValueOnce(
+      new Response('{"errors":[{"code":"SomethingElse"}]}', { status: 400 }),
+    );
+    const err = await updateCustomerProfile({ firstName: 'Janet' }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(CtFetchError);
+    expect(err).not.toBeInstanceOf(PublicError);
+    expect(err).toMatchObject({ statusCode: 400 });
   });
 });

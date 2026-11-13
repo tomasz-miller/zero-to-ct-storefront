@@ -2,38 +2,12 @@
  * @vitest-environment node
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
+
+import { CustomerError } from '@/lib/commercetools/domain-errors';
+import { jsonRequest } from '@/test/helpers/json-request';
 
 const { mockChangeCustomerPassword } = vi.hoisted(() => ({
   mockChangeCustomerPassword: vi.fn(),
-}));
-
-vi.mock('@/lib/commercetools/customer-auth', () => ({
-  CustomerAuthError: class CustomerAuthError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.name = 'CustomerAuthError';
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
-}));
-
-vi.mock('@/lib/commercetools/customer-profile-error', () => ({
-  CustomerProfileError: class CustomerProfileError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.name = 'CustomerProfileError';
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
 }));
 
 vi.mock('@/lib/commercetools/customer-profile', () => ({
@@ -42,12 +16,8 @@ vi.mock('@/lib/commercetools/customer-profile', () => ({
 
 import { POST } from './route';
 
-function createRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/customer/password', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-}
+const PASSWORD_URL = 'http://localhost/api/customer/password';
+const createRequest = (body: unknown) => jsonRequest(PASSWORD_URL, body);
 
 describe('POST /api/customer/password', () => {
   afterEach(() => {
@@ -68,11 +38,8 @@ describe('POST /api/customer/password', () => {
   });
 
   it('returns 400 for invalid current password', async () => {
-    const { CustomerProfileError } = await import(
-      '@/lib/commercetools/customer-profile-error'
-    );
     mockChangeCustomerPassword.mockRejectedValue(
-      new CustomerProfileError(
+      new CustomerError(
         'InvalidCurrentPassword',
         'Current password is incorrect',
         400,

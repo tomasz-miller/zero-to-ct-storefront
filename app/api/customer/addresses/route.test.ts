@@ -2,36 +2,11 @@
  * @vitest-environment node
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
+
+import { jsonRequest } from '@/test/helpers/json-request';
 
 const { mockAddCustomerAddress } = vi.hoisted(() => ({
   mockAddCustomerAddress: vi.fn(),
-}));
-
-vi.mock('@/lib/commercetools/customer-auth', () => ({
-  CustomerAuthError: class CustomerAuthError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
-}));
-
-vi.mock('@/lib/commercetools/customer-profile-error', () => ({
-  CustomerProfileError: class CustomerProfileError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
 }));
 
 vi.mock('@/lib/commercetools/customer-profile', () => ({
@@ -40,12 +15,8 @@ vi.mock('@/lib/commercetools/customer-profile', () => ({
 
 import { POST } from './route';
 
-function createRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/customer/addresses', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-}
+const ADDRESSES_URL = 'http://localhost/api/customer/addresses';
+const createRequest = (body: unknown) => jsonRequest(ADDRESSES_URL, body);
 
 const validAddress = {
   firstName: 'Jane',
@@ -68,6 +39,11 @@ describe('POST /api/customer/addresses', () => {
     );
 
     expect(response.status).toBe(400);
+  });
+
+  it.each([[{ isDefaultShipping: 'yes' }], [{ streetName: 7 }]])('returns 400 for %j', async (body) => {
+    expect((await POST(jsonRequest('http://localhost/api/customer/addresses', body))).status).toBe(400);
+    expect(mockAddCustomerAddress).not.toHaveBeenCalled();
   });
 
   it('returns customer on success', async () => {

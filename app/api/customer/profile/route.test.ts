@@ -2,38 +2,12 @@
  * @vitest-environment node
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
+
+import { CustomerError } from '@/lib/commercetools/domain-errors';
+import { jsonRequest } from '@/test/helpers/json-request';
 
 const { mockUpdateCustomerProfile } = vi.hoisted(() => ({
   mockUpdateCustomerProfile: vi.fn(),
-}));
-
-vi.mock('@/lib/commercetools/customer-auth', () => ({
-  CustomerAuthError: class CustomerAuthError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.name = 'CustomerAuthError';
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
-}));
-
-vi.mock('@/lib/commercetools/customer-profile-error', () => ({
-  CustomerProfileError: class CustomerProfileError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.name = 'CustomerProfileError';
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
 }));
 
 vi.mock('@/lib/commercetools/customer-profile', () => ({
@@ -42,12 +16,9 @@ vi.mock('@/lib/commercetools/customer-profile', () => ({
 
 import { PATCH } from './route';
 
-function createRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/customer/profile', {
-    method: 'PATCH',
-    body: JSON.stringify(body),
-  });
-}
+const PROFILE_URL = 'http://localhost/api/customer/profile';
+const createRequest = (body: unknown) =>
+  jsonRequest(PROFILE_URL, body, { method: 'PATCH' });
 
 describe('PATCH /api/customer/profile', () => {
   afterEach(() => {
@@ -68,11 +39,8 @@ describe('PATCH /api/customer/profile', () => {
   });
 
   it('returns 409 for duplicate email', async () => {
-    const { CustomerProfileError } = await import(
-      '@/lib/commercetools/customer-profile-error'
-    );
     mockUpdateCustomerProfile.mockRejectedValue(
-      new CustomerProfileError(
+      new CustomerError(
         'DuplicateField',
         'An account with this email already exists',
         409,

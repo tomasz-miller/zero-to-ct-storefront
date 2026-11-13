@@ -1,6 +1,8 @@
 import 'server-only';
 
+import { parseCtError, toCtFetchError } from './ct-errors';
 import type { CustomerSession } from './customer-session';
+import { CustomerError } from './domain-errors';
 import { commercetoolsEnv } from './env';
 
 export type CustomerTokenResponse = {
@@ -10,24 +12,7 @@ export type CustomerTokenResponse = {
   scope?: string;
 };
 
-export class CustomerAuthError extends Error {
-  readonly code: string;
-  readonly statusCode: number;
-
-  constructor(code: string, message: string, statusCode: number) {
-    super(message);
-    this.name = 'CustomerAuthError';
-    this.code = code;
-    this.statusCode = statusCode;
-  }
-}
-
 export const CUSTOMER_TOKEN_REFRESH_BUFFER_MS = 60_000;
-
-type TokenErrorBody = {
-  error?: string;
-  errors?: Array<{ code?: string }>;
-};
 
 function getBasicAuthHeader(): string {
   return Buffer.from(
@@ -35,13 +20,8 @@ function getBasicAuthHeader(): string {
   ).toString('base64');
 }
 
-function parseTokenErrorBody(raw: string): TokenErrorBody {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return typeof parsed === 'object' && parsed !== null ? (parsed as TokenErrorBody) : {};
-  } catch {
-    return {};
-  }
+function tokenError(): CustomerError {
+  return new CustomerError('TokenError', 'Sign-in failed', 500);
 }
 
 /**
@@ -72,25 +52,24 @@ export async function requestCustomerPasswordToken(
 
   const raw = await response.text();
   if (!response.ok) {
-    const body = parseTokenErrorBody(raw);
-    const code = body.errors?.[0]?.code ?? body.error ?? 'TokenError';
-    if (code === 'invalid_scope') {
+    const error = toCtFetchError(response, raw);
+    if (parseCtError(error).code === 'invalid_scope') {
       console.error(
         '[customer-token] invalid_scope: every CTP_CUSTOMER_SCOPES entry must exist on the API client',
       );
     }
-    throw new CustomerAuthError(code, 'Authentication failed', response.status);
+    throw error;
   }
 
   let body: CustomerTokenResponse;
   try {
     body = JSON.parse(raw) as CustomerTokenResponse;
   } catch {
-    throw new CustomerAuthError('ParseError', 'Failed to parse token response', 500);
+    throw tokenError();
   }
 
   if (!body.access_token || !body.refresh_token) {
-    throw new CustomerAuthError('TokenError', 'Customer token response missing tokens', 500);
+    throw tokenError();
   }
 
   return {
@@ -105,10 +84,8 @@ export async function requestCustomerPasswordToken(
  * are transient: callers keep the cookie and retry later.
  */
 export function isCustomerSessionRejected(error: unknown): boolean {
-  return (
-    error instanceof CustomerAuthError &&
-    (error.statusCode === 400 || error.statusCode === 401)
-  );
+  const { statusCode } = parseCtError(error);
+  return statusCode === 400 || statusCode === 401;
 }
 
 /**
@@ -133,18 +110,18 @@ export async function refreshCustomerSession(
 
   const raw = await response.text();
   if (!response.ok) {
-    throw new CustomerAuthError('RefreshFailed', 'Session expired', response.status);
+    throw toCtFetchError(response, raw);
   }
 
   let body: CustomerTokenResponse;
   try {
     body = JSON.parse(raw) as CustomerTokenResponse;
   } catch {
-    throw new CustomerAuthError('ParseError', 'Failed to parse token response', 500);
+    throw tokenError();
   }
 
   if (!body.access_token) {
-    throw new CustomerAuthError('TokenError', 'Customer token response missing tokens', 500);
+    throw tokenError();
   }
 
   return {
@@ -174,7 +151,7 @@ async function revokeCustomerToken(
   });
 
   if (!response.ok) {
-    throw new CustomerAuthError('RevokeFailed', 'Token revocation failed', response.status);
+    throw toCtFetchError(response, await response.text());
   }
 }
 

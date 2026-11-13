@@ -19,13 +19,14 @@ import {
 import { mapCustomer, type StorefrontCustomer } from './customer-mappers';
 import {
   CUSTOMER_TOKEN_REFRESH_BUFFER_MS,
-  CustomerAuthError,
   isCustomerSessionRejected,
   refreshCustomerSession,
   requestCustomerPasswordToken,
   revokeCustomerAccessToken,
   revokeCustomerRefreshToken,
 } from './customer-token';
+import { getCtErrorObjects, isCtNotFound, parseCtError, toCtFetchError } from './ct-errors';
+import { mapCustomerCtError } from './customer-errors';
 import { commercetoolsEnv } from './env';
 import { clearLastOrderSession } from './last-order-session';
 import { clearMarketCartMap } from './market-cart-session';
@@ -34,79 +35,11 @@ import {
   reconcileWishlistOnAuth,
 } from './shopping-lists';
 
-export {
-  CustomerAuthError,
-  refreshCustomerSession,
-  revokeCustomerRefreshToken,
-} from './customer-token';
+export { refreshCustomerSession, revokeCustomerRefreshToken } from './customer-token';
 
-type CommercetoolsErrorBody = {
-  statusCode?: number;
-  errors?: Array<{ code?: string; message?: string }>;
-  message?: string;
-};
-
-function parseCommercetoolsError(raw: string): CommercetoolsErrorBody {
-  try {
-    return JSON.parse(raw) as CommercetoolsErrorBody;
-  } catch {
-    return { message: raw };
-  }
-}
-
-function isConsumedAnonymousIdError(body: CommercetoolsErrorBody): boolean {
-  const message = body.errors?.[0]?.message ?? body.message ?? '';
+function isConsumedAnonymousIdError(error: unknown): boolean {
+  const message = getCtErrorObjects(error)[0]?.message ?? parseCtError(error).message ?? '';
   return message.includes('already used for sign-in or sign-up');
-}
-
-function extractClientError(error: unknown): {
-  statusCode: number;
-  body?: CommercetoolsErrorBody;
-} | null {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'body' in error &&
-    typeof (error as { statusCode?: number }).statusCode === 'number'
-  ) {
-    const clientError = error as {
-      statusCode: number;
-      body?: CommercetoolsErrorBody;
-    };
-    return clientError;
-  }
-  return null;
-}
-
-function throwMappedClientError(error: unknown, fallbackMessage: string): never {
-  const clientError = extractClientError(error);
-  if (clientError) {
-    throw mapCommercetoolsError(
-      clientError.statusCode,
-      clientError.body ?? { message: fallbackMessage },
-    );
-  }
-  throw error;
-}
-
-function mapCommercetoolsError(
-  status: number,
-  body: CommercetoolsErrorBody,
-): CustomerAuthError {
-  const code = body.errors?.[0]?.code ?? 'UnknownError';
-  const message = body.errors?.[0]?.message ?? body.message ?? 'Request failed';
-
-  if (code === 'InvalidCredentials') {
-    return new CustomerAuthError(code, 'Invalid email or password', 401);
-  }
-  if (code === 'DuplicateField') {
-    return new CustomerAuthError(code, 'An account with this email already exists', 409);
-  }
-  if (code === 'InvalidToken' || code === 'ExpiredToken') {
-    return new CustomerAuthError(code, 'Password reset link is invalid or expired', 400);
-  }
-
-  return new CustomerAuthError(code, message, status);
 }
 
 async function exchangePasswordForCustomerToken(
@@ -137,7 +70,8 @@ async function resolveCustomerIdFromAccessToken(accessToken: string): Promise<st
 
   const raw = await response.text();
   if (!response.ok) {
-    throw mapCommercetoolsError(response.status, parseCommercetoolsError(raw));
+    const ctError = toCtFetchError(response, raw);
+    throw mapCustomerCtError(ctError) ?? ctError;
   }
 
   const customer = JSON.parse(raw) as Customer;
@@ -252,7 +186,6 @@ async function registerWithCartMigration(
 
 async function withStaleAnonymousCartRetry<T>(
   operation: (cartRefs: CartMigrationRefs) => Promise<T>,
-  fallbackMessage: string,
 ): Promise<T> {
   const ownedGuestCart = await getOwnedGuestCartRef();
   const cartRefs: CartMigrationRefs = ownedGuestCart
@@ -265,21 +198,16 @@ async function withStaleAnonymousCartRetry<T>(
   try {
     return await operation(cartRefs);
   } catch (error) {
-    const clientError = extractClientError(error);
-    if (
-      clientError?.body &&
-      isConsumedAnonymousIdError(clientError.body) &&
-      cartRefs.anonymousCart
-    ) {
+    if (isConsumedAnonymousIdError(error) && cartRefs.anonymousCart) {
       await rotateCartSessionAnonymousId();
       try {
         return await operation({});
       } catch (retryError) {
-        throwMappedClientError(retryError, fallbackMessage);
+        throw mapCustomerCtError(retryError) ?? retryError;
       }
     }
 
-    throwMappedClientError(error, fallbackMessage);
+    throw mapCustomerCtError(error) ?? error;
   }
 }
 
@@ -287,9 +215,8 @@ export async function loginCustomer(
   email: string,
   password: string,
 ): Promise<StorefrontCustomer> {
-  const response = await withStaleAnonymousCartRetry(
-    (cartRefs) => loginWithCartMigration(email, password, cartRefs),
-    'Login failed',
+  const response = await withStaleAnonymousCartRetry((cartRefs) =>
+    loginWithCartMigration(email, password, cartRefs),
   );
 
   await syncCartAfterAuth(response.body);
@@ -307,9 +234,8 @@ export async function registerCustomer(input: {
   firstName: string;
   lastName: string;
 }): Promise<StorefrontCustomer> {
-  const response = await withStaleAnonymousCartRetry(
-    (cartRefs) => registerWithCartMigration(input, cartRefs),
-    'Registration failed',
+  const response = await withStaleAnonymousCartRetry((cartRefs) =>
+    registerWithCartMigration(input, cartRefs),
   );
 
   const customer = response.body.customer;
@@ -341,9 +267,9 @@ export async function logoutCustomer(): Promise<void> {
     ]);
     for (const result of results) {
       if (result.status === 'rejected') {
-        const statusCode =
-          result.reason instanceof CustomerAuthError ? result.reason.statusCode : undefined;
-        console.error('[auth] token revocation failed', { statusCode });
+        console.error('[auth] token revocation failed', {
+          statusCode: parseCtError(result.reason).statusCode,
+        });
       }
     }
   }
@@ -360,71 +286,46 @@ export async function logoutCustomer(): Promise<void> {
 export async function requestPasswordReset(email: string): Promise<{
   tokenValue?: string;
 }> {
-  const response = await apiRoot
-    .customers()
-    .passwordToken()
-    .post({
-      body: {
-        email,
-        ttlMinutes: 60,
-        invalidateOlderTokens: true,
-      },
-    })
-    .execute()
-    .catch((error: unknown) => {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'body' in error &&
-        typeof (error as { statusCode?: number }).statusCode === 'number'
-      ) {
-        const clientError = error as {
-          statusCode: number;
-          body?: CommercetoolsErrorBody;
-        };
-        throw mapCommercetoolsError(
-          clientError.statusCode,
-          clientError.body ?? { message: 'Password reset request failed' },
-        );
-      }
-      throw error;
-    });
-
-  return { tokenValue: response.body.value };
+  try {
+    const response = await apiRoot
+      .customers()
+      .passwordToken()
+      .post({
+        body: {
+          email,
+          ttlMinutes: 60,
+          invalidateOlderTokens: true,
+        },
+      })
+      .execute();
+    return { tokenValue: response.body.value };
+  } catch (error) {
+    // Unknown email: answer like a known one so the route cannot be used to enumerate accounts.
+    if (isCtNotFound(error)) {
+      return {};
+    }
+    throw mapCustomerCtError(error) ?? error;
+  }
 }
 
 export async function resetCustomerPassword(
   token: string,
   newPassword: string,
 ): Promise<void> {
-  await apiRoot
-    .customers()
-    .passwordReset()
-    .post({
-      body: {
-        tokenValue: token,
-        newPassword,
-      },
-    })
-    .execute()
-    .catch((error: unknown) => {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'body' in error &&
-        typeof (error as { statusCode?: number }).statusCode === 'number'
-      ) {
-        const clientError = error as {
-          statusCode: number;
-          body?: CommercetoolsErrorBody;
-        };
-        throw mapCommercetoolsError(
-          clientError.statusCode,
-          clientError.body ?? { message: 'Password reset failed' },
-        );
-      }
-      throw error;
-    });
+  try {
+    await apiRoot
+      .customers()
+      .passwordReset()
+      .post({
+        body: {
+          tokenValue: token,
+          newPassword,
+        },
+      })
+      .execute();
+  } catch (error) {
+    throw mapCustomerCtError(error, 'password-reset') ?? error;
+  }
 }
 
 export async function getAuthenticatedCustomerProfile(): Promise<StorefrontCustomer | null> {
@@ -448,7 +349,8 @@ export async function getAuthenticatedCustomerProfile(): Promise<StorefrontCusto
       await clearCustomerSession();
       return null;
     }
-    throw mapCommercetoolsError(response.status, parseCommercetoolsError(raw));
+    const ctError = toCtFetchError(response, raw);
+    throw mapCustomerCtError(ctError) ?? ctError;
   }
 
   return mapCustomer(JSON.parse(raw) as Customer);

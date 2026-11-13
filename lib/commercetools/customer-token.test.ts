@@ -5,8 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./env', () => import('@/test/mocks/commercetools-env'));
 
+import { CtFetchError, parseCtError } from './ct-errors';
 import {
-  CustomerAuthError,
   isCustomerSessionRejected,
   refreshCustomerSession,
   requestCustomerPasswordToken,
@@ -45,30 +45,22 @@ describe('requestCustomerPasswordToken', () => {
     );
   });
 
-  it('maps invalid_scope to a CustomerAuthError and logs a configuration hint without the password', async () => {
-    fetchMock.mockResolvedValueOnce(
-      reply(400, { statusCode: 400, error: 'invalid_scope' }),
-    );
-    const error = await requestCustomerPasswordToken('jane@example.com', 'pw').catch(
-      (e) => e,
-    );
-    expect(error).toBeInstanceOf(CustomerAuthError);
-    expect(error).toMatchObject({
-      code: 'invalid_scope',
-      statusCode: 400,
-      message: 'Authentication failed',
-    });
-    expect(consoleError).toHaveBeenCalledWith(
-      expect.stringContaining('CTP_CUSTOMER_SCOPES'),
-    );
+  it('throws a CtFetchError carrying invalid_scope and logs the configuration hint without the password', async () => {
+    fetchMock.mockResolvedValueOnce(reply(400, { statusCode: 400, error: 'invalid_scope' }));
+    const err = await requestCustomerPasswordToken('jane@example.com', 'pw').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(CtFetchError);
+    expect(parseCtError(err)).toMatchObject({ statusCode: 400, code: 'invalid_scope' });
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('CTP_CUSTOMER_SCOPES'));
     expect(JSON.stringify(consoleError.mock.calls)).not.toContain('pw');
   });
 
-  it('rejects a password-grant response without refresh_token', async () => {
+  it('rejects a password-grant response without refresh_token as TokenError 500', async () => {
     fetchMock.mockResolvedValueOnce(reply(200, { access_token: 'a', expires_in: 3600 }));
-    await expect(
-      requestCustomerPasswordToken('jane@example.com', 'pw'),
-    ).rejects.toMatchObject({ code: 'TokenError' });
+    await expect(requestCustomerPasswordToken('jane@example.com', 'pw')).rejects.toMatchObject({
+      status: 500,
+      code: 'TokenError',
+      message: 'Sign-in failed',
+    });
   });
 });
 
@@ -107,18 +99,17 @@ describe('refreshCustomerSession', () => {
     });
   });
 
-  it('throws a rejected-session CustomerAuthError on invalid_grant', async () => {
+  it('throws a rejected-session CtFetchError on invalid_grant', async () => {
     fetchMock.mockResolvedValueOnce(reply(400, { error: 'invalid_grant' }));
-    const error = await refreshCustomerSession(session).catch((e) => e);
-    expect(error).toBeInstanceOf(CustomerAuthError);
-    expect(error).toMatchObject({ code: 'RefreshFailed', statusCode: 400 });
+    const error = await refreshCustomerSession(session).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(CtFetchError);
+    expect(parseCtError(error)).toMatchObject({ statusCode: 400, code: 'invalid_grant' });
     expect(isCustomerSessionRejected(error)).toBe(true);
   });
 
-  it('does not treat a 503 or a network error as a rejected session', () => {
-    expect(
-      isCustomerSessionRejected(new CustomerAuthError('RefreshFailed', 'Session expired', 503)),
-    ).toBe(false);
+  it('isCustomerSessionRejected accepts only 400/401 token-endpoint failures', () => {
+    expect(isCustomerSessionRejected(new CtFetchError(401, null, null))).toBe(true);
+    expect(isCustomerSessionRejected(new CtFetchError(503, null, null))).toBe(false);
     expect(isCustomerSessionRejected(new TypeError('fetch failed'))).toBe(false);
   });
 });
@@ -139,11 +130,10 @@ describe('token revocation', () => {
     expect(body.get('token_type_hint')).toBe('refresh_token');
   });
 
-  it('throws when revocation answers 5xx', async () => {
+  it('throws a CtFetchError when revocation answers 5xx', async () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
-    await expect(revokeCustomerAccessToken('a')).rejects.toMatchObject({
-      code: 'RevokeFailed',
-      statusCode: 503,
-    });
+    const error = await revokeCustomerAccessToken('a').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(CtFetchError);
+    expect(error).toMatchObject({ statusCode: 503 });
   });
 });

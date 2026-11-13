@@ -12,7 +12,7 @@ vi.mock('@/lib/commercetools/customer-token', async (importOriginal) => ({
   refreshCustomerSession: mockRefresh,
 }));
 
-import { CustomerAuthError } from '@/lib/commercetools/customer-token';
+import { CtFetchError } from '@/lib/commercetools/ct-errors';
 import {
   CUSTOMER_SESSION_COOKIE,
   customerSessionCookie,
@@ -68,11 +68,18 @@ describe('withRefreshedCustomerSession', () => {
   });
 
   it('deletes the cookie when refresh fails with 401', async () => {
-    mockRefresh.mockRejectedValueOnce(new CustomerAuthError('RefreshFailed', 'Session expired', 401));
+    mockRefresh.mockRejectedValueOnce(new CtFetchError(401, null, null));
     const request = requestWith(near);
     const result = await withRefreshedCustomerSession(request, NextResponse.next());
     expect(result.cookies.get(CUSTOMER_SESSION_COOKIE)?.value).toBe('');
     expect(request.cookies.has(CUSTOMER_SESSION_COOKIE)).toBe(false);
+  });
+
+  it('keeps the cookie when refresh fails with 503', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockRefresh.mockRejectedValueOnce(new CtFetchError(503, null, null));
+    const response = NextResponse.next();
+    await expect(withRefreshedCustomerSession(requestWith(near), response)).resolves.toBe(response);
   });
 
   it('keeps the response unchanged when refresh fails with a network error', async () => {

@@ -4,38 +4,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
+import { CustomerError } from '@/lib/commercetools/domain-errors';
+import { jsonRequest } from '@/test/helpers/json-request';
+
 const { mockUpdateCustomerAddress, mockRemoveCustomerAddress } = vi.hoisted(
   () => ({
     mockUpdateCustomerAddress: vi.fn(),
     mockRemoveCustomerAddress: vi.fn(),
   }),
 );
-
-vi.mock('@/lib/commercetools/customer-auth', () => ({
-  CustomerAuthError: class CustomerAuthError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
-}));
-
-vi.mock('@/lib/commercetools/customer-profile-error', () => ({
-  CustomerProfileError: class CustomerProfileError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
-}));
 
 vi.mock('@/lib/commercetools/customer-profile', () => ({
   updateCustomerAddress: mockUpdateCustomerAddress,
@@ -44,12 +21,8 @@ vi.mock('@/lib/commercetools/customer-profile', () => ({
 
 import { DELETE, PATCH } from './route';
 
-function createPatchRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/customer/addresses/addr-1', {
-    method: 'PATCH',
-    body: JSON.stringify(body),
-  });
-}
+const createPatchRequest = (body: unknown) =>
+  jsonRequest('http://localhost/api/customer/addresses/addr-1', body, { method: 'PATCH' });
 
 const context = { params: Promise.resolve({ addressId: 'addr-1' }) };
 
@@ -119,11 +92,8 @@ describe('DELETE /api/customer/addresses/[addressId]', () => {
   });
 
   it('returns profile error status', async () => {
-    const { CustomerProfileError } = await import(
-      '@/lib/commercetools/customer-profile-error'
-    );
     mockRemoveCustomerAddress.mockRejectedValue(
-      new CustomerProfileError('Unauthorized', 'Not signed in', 401),
+      new CustomerError('Unauthorized', 'Sign in required', 401),
     );
 
     const response = await DELETE(

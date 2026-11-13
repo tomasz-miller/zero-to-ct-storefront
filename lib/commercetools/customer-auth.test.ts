@@ -3,6 +3,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ctErr } from '@/test/helpers/ct-error';
+
 const {
   mockExecute,
   mockLoginPost,
@@ -109,8 +111,8 @@ vi.mock('./env', () => ({
   },
 }));
 
+import { CtFetchError } from './ct-errors';
 import {
-  CustomerAuthError,
   getAuthenticatedCustomerProfile,
   getCustomerAccessTokenForRender,
   getValidCustomerAccessToken,
@@ -120,6 +122,7 @@ import {
   requestPasswordReset,
   resetCustomerPassword,
 } from './customer-auth';
+import { CustomerError } from './domain-errors';
 import { reconcileWishlistOnAuth } from './shopping-lists';
 
 describe('customer-auth', () => {
@@ -258,7 +261,7 @@ describe('customer-auth', () => {
     expect(mockSetCartSession).not.toHaveBeenCalled();
   });
 
-  it('maps invalid credentials to CustomerAuthError', async () => {
+  it('maps invalid credentials to CustomerError', async () => {
     mockGetCartSession.mockResolvedValue(null);
     mockExecute.mockRejectedValueOnce({
       statusCode: 401,
@@ -267,13 +270,13 @@ describe('customer-auth', () => {
       },
     });
 
-    await expect(loginCustomer('jane@example.com', 'wrong')).rejects.toEqual(
-      expect.objectContaining<Partial<CustomerAuthError>>({
-        code: 'InvalidCredentials',
-        statusCode: 401,
-        message: 'Invalid email or password',
-      }),
-    );
+    const error = await loginCustomer('jane@example.com', 'wrong').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(CustomerError);
+    expect(error).toMatchObject({
+      code: 'InvalidCredentials',
+      status: 401,
+      message: 'Invalid email or password',
+    });
   });
 
   it('retries registration without anonymous cart when anonymousId was already consumed', async () => {
@@ -444,18 +447,20 @@ describe('customer-auth', () => {
     }
   });
 
-  it('still clears cookies when revocation fails', async () => {
+  it('still clears cookies when revocation fails and logs the status only', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGetCustomerSession.mockResolvedValueOnce({
       accessToken: 'a',
       refreshToken: 'r',
       expiresAt: 1,
       customerId: 'cust-1',
     });
-    mockRevokeCustomerRefreshToken.mockRejectedValueOnce(
-      new CustomerAuthError('RevokeFailed', 'Token revocation failed', 503),
-    );
+    mockRevokeCustomerRefreshToken.mockRejectedValueOnce(new CtFetchError(503, null, null));
     await expect(logoutCustomer()).resolves.toBeUndefined();
     expect(mockClearCustomerSession).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith('[auth] token revocation failed', {
+      statusCode: 503,
+    });
   });
 
   it('clears cookies without revoking when there is no session', async () => {
@@ -498,6 +503,27 @@ describe('customer-auth', () => {
         newPassword: 'newpassword1',
       },
     });
+  });
+
+  it('maps an expired reset token to a 400 CustomerError', async () => {
+    mockExecute.mockRejectedValueOnce(ctErr('ExpiredCustomerPasswordToken'));
+    await expect(resetCustomerPassword('tok', 'password123')).rejects.toMatchObject({
+      status: 400,
+      code: 'ExpiredCustomerPasswordToken',
+      message: 'Password reset link is invalid or expired',
+    });
+  });
+
+  it('rethrows non-whitelisted SDK errors unchanged', async () => {
+    const original = ctErr('InsufficientScope', 'scope', 403);
+    mockGetCartSession.mockResolvedValue(null);
+    mockExecute.mockRejectedValueOnce(original);
+    await expect(loginCustomer('jane@example.com', 'password123')).rejects.toBe(original);
+  });
+
+  it('returns no token for an unknown email', async () => {
+    mockExecute.mockRejectedValueOnce(ctErr('ResourceNotFound', 'not found', 404));
+    await expect(requestPasswordReset('nobody@example.com')).resolves.toEqual({});
   });
 });
 
@@ -551,7 +577,7 @@ describe('customer access tokens', () => {
   it('getValidCustomerAccessToken clears the session when refresh fails with 400', async () => {
     mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() + 30_000 });
     mockRefreshCustomerSession.mockRejectedValueOnce(
-      new CustomerAuthError('RefreshFailed', 'Session expired', 400),
+      new CtFetchError(400, { error: 'invalid_grant' }, null),
     );
     await expect(getValidCustomerAccessToken()).resolves.toBeNull();
     expect(mockClearCustomerSession).toHaveBeenCalledTimes(1);
@@ -559,9 +585,7 @@ describe('customer access tokens', () => {
 
   it('getValidCustomerAccessToken keeps a still-valid token when refresh fails with 503', async () => {
     mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() + 30_000 });
-    mockRefreshCustomerSession.mockRejectedValueOnce(
-      new CustomerAuthError('RefreshFailed', 'Session expired', 503),
-    );
+    mockRefreshCustomerSession.mockRejectedValueOnce(new CtFetchError(503, null, null));
     await expect(getValidCustomerAccessToken()).resolves.toBe('a-old');
     expect(mockClearCustomerSession).not.toHaveBeenCalled();
   });

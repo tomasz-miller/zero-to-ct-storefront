@@ -2,34 +2,21 @@
  * @vitest-environment node
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
+
+import { CustomerError } from '@/lib/commercetools/domain-errors';
+import { jsonRequest } from '@/test/helpers/json-request';
 
 const { mockRegisterCustomer } = vi.hoisted(() => ({
   mockRegisterCustomer: vi.fn(),
 }));
 
 vi.mock('@/lib/commercetools/customer-auth', () => ({
-  CustomerAuthError: class CustomerAuthError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
   registerCustomer: mockRegisterCustomer,
 }));
 
 import { POST } from './route';
 
-function createRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/auth/register', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-}
+const REGISTER_URL = 'http://localhost/api/auth/register';
 
 describe('POST /api/auth/register', () => {
   afterEach(() => {
@@ -39,7 +26,7 @@ describe('POST /api/auth/register', () => {
 
   it('returns 400 when first name is missing', async () => {
     const response = await POST(
-      createRequest({
+      jsonRequest(REGISTER_URL, {
         email: 'jane@example.com',
         password: 'password123',
         lastName: 'Doe',
@@ -47,6 +34,20 @@ describe('POST /api/auth/register', () => {
     );
 
     expect(response.status).toBe(400);
+  });
+
+  it('returns 400 for a non-string first name', async () => {
+    expect(
+      (
+        await POST(
+          jsonRequest(REGISTER_URL, {
+            email: 'jane@example.com',
+            password: 'password123',
+            firstName: 1,
+          }),
+        )
+      ).status,
+    ).toBe(400);
   });
 
   it('returns customer on successful registration', async () => {
@@ -57,7 +58,7 @@ describe('POST /api/auth/register', () => {
     });
 
     const response = await POST(
-      createRequest({
+      jsonRequest(REGISTER_URL, {
         email: 'jane@example.com',
         password: 'password123',
         firstName: 'Jane',
@@ -70,14 +71,13 @@ describe('POST /api/auth/register', () => {
     expect(body.customer.email).toBe('jane@example.com');
   });
 
-  it('returns auth error status from CustomerAuthError', async () => {
-    const { CustomerAuthError } = await import('@/lib/commercetools/customer-auth');
+  it('returns the status of a CustomerError', async () => {
     mockRegisterCustomer.mockRejectedValue(
-      new CustomerAuthError('DuplicateField', 'Email already registered', 409),
+      new CustomerError('DuplicateField', 'Email already registered', 409),
     );
 
     const response = await POST(
-      createRequest({
+      jsonRequest(REGISTER_URL, {
         email: 'jane@example.com',
         password: 'password123',
         firstName: 'Jane',
@@ -86,5 +86,21 @@ describe('POST /api/auth/register', () => {
     );
 
     expect(response.status).toBe(409);
+  });
+
+  it('maps DuplicateField to 409 with fixed copy', async () => {
+    mockRegisterCustomer.mockRejectedValue(
+      new CustomerError('DuplicateField', 'An account with this email already exists', 409),
+    );
+    const res = await POST(
+      jsonRequest(REGISTER_URL, {
+        email: 'jane@example.com',
+        password: 'password123',
+        firstName: 'J',
+        lastName: 'D',
+      }),
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe('An account with this email already exists');
   });
 });

@@ -2,34 +2,21 @@
  * @vitest-environment node
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
+
+import { CustomerError } from '@/lib/commercetools/domain-errors';
+import { jsonRequest } from '@/test/helpers/json-request';
 
 const { mockResetCustomerPassword } = vi.hoisted(() => ({
   mockResetCustomerPassword: vi.fn(),
 }));
 
 vi.mock('@/lib/commercetools/customer-auth', () => ({
-  CustomerAuthError: class CustomerAuthError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
   resetCustomerPassword: mockResetCustomerPassword,
 }));
 
 import { POST } from './route';
 
-function createRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/auth/reset-password', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-}
+const RESET_URL = 'http://localhost/api/auth/reset-password';
 
 describe('POST /api/auth/reset-password', () => {
   afterEach(() => {
@@ -39,17 +26,23 @@ describe('POST /api/auth/reset-password', () => {
 
   it('returns 400 when token is missing', async () => {
     const response = await POST(
-      createRequest({ newPassword: 'password123' }),
+      jsonRequest(RESET_URL, { newPassword: 'password123' }),
     );
 
     expect(response.status).toBe(400);
+  });
+
+  it('returns 400 for a non-string token', async () => {
+    expect(
+      (await POST(jsonRequest(RESET_URL, { token: 5, newPassword: 'password123' }))).status,
+    ).toBe(400);
   });
 
   it('returns success message on password update', async () => {
     mockResetCustomerPassword.mockResolvedValue(undefined);
 
     const response = await POST(
-      createRequest({ token: 'reset-tok', newPassword: 'password123' }),
+      jsonRequest(RESET_URL, { token: 'reset-tok', newPassword: 'password123' }),
     );
 
     expect(response.status).toBe(200);
@@ -62,13 +55,16 @@ describe('POST /api/auth/reset-password', () => {
   });
 
   it('returns auth error for invalid token', async () => {
-    const { CustomerAuthError } = await import('@/lib/commercetools/customer-auth');
     mockResetCustomerPassword.mockRejectedValue(
-      new CustomerAuthError('InvalidToken', 'Token expired', 400),
+      new CustomerError(
+        'ExpiredCustomerPasswordToken',
+        'Password reset link is invalid or expired',
+        400,
+      ),
     );
 
     const response = await POST(
-      createRequest({ token: 'bad', newPassword: 'password123' }),
+      jsonRequest(RESET_URL, { token: 'bad', newPassword: 'password123' }),
     );
 
     expect(response.status).toBe(400);

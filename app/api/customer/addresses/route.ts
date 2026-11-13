@@ -1,29 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { customerErrorResponse } from '@/lib/commercetools/auth-route-utils';
 import { addCustomerAddress } from '@/lib/commercetools/customer-profile';
 import { validateAddressInput } from '@/lib/commercetools/customer-profile-validation';
+import { parseJsonBody } from '@/lib/http/parse-json-body';
+import { AddressBodySchema } from '@/lib/http/request-schemas';
+import { toErrorResponse } from '@/lib/http/route-errors';
 
 export async function POST(request: NextRequest) {
-  let body: {
-    firstName?: string;
-    lastName?: string;
-    streetName?: string;
-    streetNumber?: string;
-    postalCode?: string;
-    city?: string;
-    country?: string;
-    isDefaultShipping?: boolean;
-    isDefaultBilling?: boolean;
-  };
+  const parsed = await parseJsonBody(request, AddressBodySchema);
+  if (!parsed.ok) return parsed.response;
 
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
-
-  const validated = validateAddressInput(body, { requireAllFields: true });
+  const validated = validateAddressInput(parsed.data, { requireAllFields: true });
   if (typeof validated === 'string') {
     return NextResponse.json({ error: validated }, { status: 400 });
   }
@@ -32,6 +19,6 @@ export async function POST(request: NextRequest) {
     const customer = await addCustomerAddress(validated);
     return NextResponse.json({ customer });
   } catch (error) {
-    return customerErrorResponse(error);
+    return toErrorResponse(error, 'api/customer/addresses POST');
   }
 }

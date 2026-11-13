@@ -1,15 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import { ctErr } from '@/test/helpers/ct-error';
+
 import { toCtFetchError } from './ct-errors';
 import { mapCustomerCtError } from './customer-errors';
 import { CustomerError } from './domain-errors';
-
-function ctErr(code: string, message = 'internal detail', statusCode = 400) {
-  return Object.assign(new Error(message), {
-    statusCode,
-    body: { message, errors: [{ code, message }] },
-  });
-}
 
 describe('mapCustomerCtError', () => {
   it.each([

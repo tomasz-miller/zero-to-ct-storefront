@@ -4,71 +4,32 @@ import type { Address, Customer, CustomerUpdateAction } from '@commercetools/pla
 import { randomUUID } from 'node:crypto';
 
 import { clearCartSession } from './cart-session';
-import {
-  CustomerAuthError,
-  getValidCustomerAccessToken,
-} from './customer-auth';
+import { getValidCustomerAccessToken } from './customer-auth';
 import { clearCustomerSession } from './customer-session';
+import { toCtFetchError } from './ct-errors';
+import { mapCustomerCtError } from './customer-errors';
 import {
   mapCustomer,
   type StorefrontCustomer,
   type StorefrontCustomerAddress,
 } from './customer-mappers';
+import { CustomerError } from './domain-errors';
 import { commercetoolsEnv } from './env';
 import type {
   ProfileUpdateInput,
   ValidatedAddressInput,
 } from './customer-profile-validation';
-import { CustomerProfileError } from './customer-profile-error';
 
-export { CustomerProfileError };
-
-type CommercetoolsErrorBody = {
-  statusCode?: number;
-  errors?: Array<{ code?: string; message?: string; field?: string }>;
-  message?: string;
-};
-
-function parseCommercetoolsError(raw: string): CommercetoolsErrorBody {
-  try {
-    return JSON.parse(raw) as CommercetoolsErrorBody;
-  } catch {
-    return { message: raw };
-  }
-}
-
-function mapCommercetoolsError(
-  status: number,
-  body: CommercetoolsErrorBody,
-): CustomerProfileError {
-  const code = body.errors?.[0]?.code ?? 'UnknownError';
-  const message = body.errors?.[0]?.message ?? body.message ?? 'Request failed';
-
-  if (code === 'DuplicateField') {
-    return new CustomerProfileError(
-      code,
-      'An account with this email already exists',
-      409,
-    );
-  }
-  if (code === 'ConcurrentModification') {
-    return new CustomerProfileError(
-      code,
-      'Your profile was updated elsewhere. Refresh the page and try again.',
-      409,
-    );
-  }
-  if (code === 'InvalidCurrentPassword') {
-    return new CustomerProfileError(code, 'Current password is incorrect', 400);
-  }
-
-  return new CustomerProfileError(code, message, status);
+/** Shopper-safe `CustomerError` for whitelisted codes, the raw `CtFetchError` otherwise. */
+function toCustomerFailure(response: Response, raw: string): Error {
+  const ctError = toCtFetchError(response, raw);
+  return mapCustomerCtError(ctError) ?? ctError;
 }
 
 async function requireCustomerAccessToken(): Promise<string> {
   const accessToken = await getValidCustomerAccessToken();
   if (!accessToken) {
-    throw new CustomerProfileError('Unauthorized', 'Sign in required', 401);
+    throw new CustomerError('Unauthorized', 'Sign in required', 401);
   }
   return accessToken;
 }
@@ -85,7 +46,7 @@ async function fetchMyCustomer(accessToken: string): Promise<Customer> {
 
   const raw = await response.text();
   if (!response.ok) {
-    throw mapCommercetoolsError(response.status, parseCommercetoolsError(raw));
+    throw toCustomerFailure(response, raw);
   }
 
   return JSON.parse(raw) as Customer;
@@ -161,7 +122,7 @@ async function postMyCustomerUpdate(
 
   const raw = await response.text();
   if (!response.ok) {
-    throw mapCommercetoolsError(response.status, parseCommercetoolsError(raw));
+    throw toCustomerFailure(response, raw);
   }
 
   return mapCustomer(JSON.parse(raw) as Customer);
@@ -223,7 +184,7 @@ export async function updateCustomerAddress(
 
   const existing = customer.addresses.find((address) => address.id === addressId);
   if (!existing) {
-    throw new CustomerProfileError('NotFound', 'Address not found', 404);
+    throw new CustomerError('NotFound', 'Address not found', 404);
   }
 
   const actions: CustomerUpdateAction[] = [
@@ -249,7 +210,7 @@ export async function removeCustomerAddress(
 
   const exists = customer.addresses.some((address) => address.id === addressId);
   if (!exists) {
-    throw new CustomerProfileError('NotFound', 'Address not found', 404);
+    throw new CustomerError('NotFound', 'Address not found', 404);
   }
 
   return postMyCustomerUpdate(accessToken, customer.version, [
@@ -282,19 +243,11 @@ export async function changeCustomerPassword(
 
   const raw = await response.text();
   if (!response.ok) {
-    throw mapCommercetoolsError(response.status, parseCommercetoolsError(raw));
+    throw toCustomerFailure(response, raw);
   }
 
   await clearCustomerSession();
   await clearCartSession();
-}
-
-export function isCustomerProfileError(
-  error: unknown,
-): error is CustomerProfileError | CustomerAuthError {
-  return (
-    error instanceof CustomerProfileError || error instanceof CustomerAuthError
-  );
 }
 
 export type { StorefrontCustomer, StorefrontCustomerAddress };

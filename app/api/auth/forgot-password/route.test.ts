@@ -2,7 +2,8 @@
  * @vitest-environment node
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
+
+import { jsonRequest } from '@/test/helpers/json-request';
 
 const { mockRequestPasswordReset, mockDeliveryConfigured, mockDevLink } =
   vi.hoisted(() => ({
@@ -12,16 +13,6 @@ const { mockRequestPasswordReset, mockDeliveryConfigured, mockDevLink } =
   }));
 
 vi.mock('@/lib/commercetools/customer-auth', () => ({
-  CustomerAuthError: class CustomerAuthError extends Error {
-    readonly code: string;
-    readonly statusCode: number;
-
-    constructor(code: string, message: string, statusCode: number) {
-      super(message);
-      this.code = code;
-      this.statusCode = statusCode;
-    }
-  },
   requestPasswordReset: mockRequestPasswordReset,
 }));
 
@@ -32,12 +23,8 @@ vi.mock('@/lib/commercetools/password-reset-delivery', () => ({
 
 import { POST } from './route';
 
-function createRequest(body: unknown): NextRequest {
-  return new NextRequest('http://localhost/api/auth/forgot-password', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-}
+const FORGOT_URL = 'http://localhost/api/auth/forgot-password';
+const createRequest = (body: unknown) => jsonRequest(FORGOT_URL, body);
 
 describe('POST /api/auth/forgot-password', () => {
   // Existing tests keep reaching commercetools: delivery on, dev link off unless a test says otherwise.
@@ -67,17 +54,17 @@ describe('POST /api/auth/forgot-password', () => {
     expect(body.message).toMatch(/if an account exists/i);
   });
 
-  it('does not reveal missing accounts', async () => {
-    const { CustomerAuthError } = await import('@/lib/commercetools/customer-auth');
-    mockRequestPasswordReset.mockRejectedValue(
-      new CustomerAuthError('ResourceNotFound', 'Not found', 404),
+  it('answers an unknown email with the same generic message', async () => {
+    mockDeliveryConfigured.mockReturnValue(true);
+    mockDevLink.mockReturnValue(false);
+    mockRequestPasswordReset.mockResolvedValue({});
+    const res = await POST(
+      jsonRequest('http://localhost/api/auth/forgot-password', { email: 'nobody@example.com' }),
     );
-
-    const response = await POST(createRequest({ email: 'missing@example.com' }));
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.message).toMatch(/if an account exists/i);
+    expect(res.status).toBe(200);
+    expect((await res.json()).message).toBe(
+      'If an account exists for this email, you will receive password reset instructions shortly.',
+    );
   });
 
   it('does not mint a token when no delivery is configured', async () => {
