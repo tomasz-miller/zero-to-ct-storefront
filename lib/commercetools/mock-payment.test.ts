@@ -8,6 +8,7 @@ import type { Cart } from '@commercetools/platform-sdk';
 const {
   mockRequireActiveCart,
   mockClearCartSession,
+  mockSetLastOrderSession,
   mockGetStorefrontContext,
   cartGetExecute,
   cartPost,
@@ -35,6 +36,7 @@ const {
   return {
     mockRequireActiveCart: vi.fn(),
     mockClearCartSession: vi.fn(),
+    mockSetLastOrderSession: vi.fn(),
     mockGetStorefrontContext: vi.fn(),
     cartGetExecute: vi.fn(),
     cartPost,
@@ -87,6 +89,14 @@ vi.mock('./cart', () => ({
 
 vi.mock('./cart-session', () => ({
   clearCartSession: mockClearCartSession,
+}));
+
+vi.mock('./last-order-session', () => ({
+  setLastOrderSession: mockSetLastOrderSession,
+}));
+
+vi.mock('./order-number', () => ({
+  createOrderNumber: () => 'ZT-20261113-0000ABCD',
 }));
 
 vi.mock('./storefront-context', () => ({
@@ -321,7 +331,9 @@ describe('mock payments', () => {
     const result = await placeMockPayment({ shippingMethodId: 'ship-1' }, { sleep });
 
     expect(sleep).toHaveBeenCalledWith(MOCK_PAYMENT_DELAY_MS);
-    expect(result).toEqual({ orderId: 'order-1' });
+    expect(orderPost).toHaveBeenCalledWith({ body: expect.objectContaining({ orderNumber: 'ZT-20261113-0000ABCD' }) });
+    expect(mockSetLastOrderSession).toHaveBeenCalledWith({ orderNumber: 'ZT-20261113-0000ABCD', cartId: cart.id });
+    expect(result).toEqual({ orderId: 'order-1', orderNumber: 'ZT-20261113-0000ABCD' });
 
     const paymentDraft = paymentPost.mock.calls[0]?.[0] as {
       body: {

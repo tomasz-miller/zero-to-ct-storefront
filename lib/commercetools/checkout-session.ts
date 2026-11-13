@@ -11,6 +11,7 @@ type SessionResponse = {
 export async function createCheckoutSession(
   cartId: string,
   country: string,
+  futureOrderNumber: string,
 ): Promise<string> {
   const applicationKey = resolveCheckoutApplicationKey(country);
   const accessToken = await getClientCredentialsAccessToken();
@@ -31,6 +32,7 @@ export async function createCheckoutSession(
         },
         metadata: {
           applicationKey,
+          futureOrderNumber,
         },
       }),
     },

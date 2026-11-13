@@ -77,7 +77,7 @@ describe('MockCheckoutForm', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ orderId: 'order-1' }),
+        json: async () => ({ orderId: 'order-1', orderNumber: 'ZT-20261113-0000ABCD' }),
       });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -103,6 +103,6 @@ describe('MockCheckoutForm', () => {
       body: JSON.stringify({ shippingMethodId: 'ship-1' }),
     });
     expect(mockSyncCartItemCount).toHaveBeenCalledWith(0);
-    expect(mockPush).toHaveBeenCalledWith('/order-confirmation?orderId=order-1');
+    expect(mockPush).toHaveBeenCalledWith('/order-confirmation');
   });
 });

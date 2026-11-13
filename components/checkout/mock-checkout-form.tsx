@@ -186,9 +186,8 @@ export function MockCheckoutForm({ country, defaults }: MockCheckoutFormProps) {
         throw new Error(await readError(response, 'Failed to place order'));
       }
 
-      const body = (await response.json()) as { orderId: string };
       syncCartItemCount(0);
-      router.push(`/order-confirmation?orderId=${body.orderId}`);
+      router.push('/order-confirmation');
     } catch (err) {
       payLock.current = false;
       setIsPaying(false);

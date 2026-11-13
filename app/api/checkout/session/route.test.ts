@@ -7,10 +7,12 @@ const {
   mockGetCartForCheckout,
   mockCreateCheckoutSession,
   mockGetStorefrontContext,
+  mockSetLastOrderSession,
 } = vi.hoisted(() => ({
   mockGetCartForCheckout: vi.fn(),
   mockCreateCheckoutSession: vi.fn(),
   mockGetStorefrontContext: vi.fn(),
+  mockSetLastOrderSession: vi.fn(),
 }));
 
 vi.mock('@/lib/commercetools/cart', () => ({
@@ -28,6 +30,14 @@ vi.mock('@/lib/commercetools/checkout-session', () => ({
   createCheckoutSession: mockCreateCheckoutSession,
 }));
 
+vi.mock('@/lib/commercetools/last-order-session', () => ({
+  setLastOrderSession: mockSetLastOrderSession,
+}));
+
+vi.mock('@/lib/commercetools/order-number', () => ({
+  createOrderNumber: () => 'ZT-20261113-0000ABCD',
+}));
+
 vi.mock('@/lib/commercetools/storefront-context', () => ({
   getStorefrontContext: mockGetStorefrontContext,
 }));
@@ -39,6 +49,7 @@ describe('POST /api/checkout/session', () => {
     mockGetCartForCheckout.mockReset();
     mockCreateCheckoutSession.mockReset();
     mockGetStorefrontContext.mockReset();
+    mockSetLastOrderSession.mockReset();
     mockGetStorefrontContext.mockResolvedValue({
       country: 'DE',
       currency: 'EUR',
@@ -59,10 +70,22 @@ describe('POST /api/checkout/session', () => {
     const response = await POST();
 
     expect(response.status).toBe(200);
-    expect(mockCreateCheckoutSession).toHaveBeenCalledWith('cart-1', 'DE');
+    expect(mockCreateCheckoutSession).toHaveBeenCalledWith('cart-1', 'DE', 'ZT-20261113-0000ABCD');
 
     const body = await response.json();
     expect(body.sessionId).toBe('session-abc');
+  });
+
+  it('creates the Checkout session with a futureOrderNumber and remembers it for the cart', async () => {
+    mockGetCartForCheckout.mockResolvedValue({ cart: { id: 'cart-1', country: 'DE' } });
+    mockCreateCheckoutSession.mockResolvedValue('session-abc');
+    const response = await POST();
+    expect(response.status).toBe(200);
+    expect(mockCreateCheckoutSession).toHaveBeenCalledWith('cart-1', 'DE', 'ZT-20261113-0000ABCD');
+    expect(mockSetLastOrderSession).toHaveBeenCalledWith({
+      orderNumber: 'ZT-20261113-0000ABCD',
+      cartId: 'cart-1',
+    });
   });
 
   it('defaults country to the active market when cart has no country', async () => {
@@ -79,7 +102,7 @@ describe('POST /api/checkout/session', () => {
     const response = await POST();
 
     expect(response.status).toBe(200);
-    expect(mockCreateCheckoutSession).toHaveBeenCalledWith('cart-2', 'GB');
+    expect(mockCreateCheckoutSession).toHaveBeenCalledWith('cart-2', 'GB', 'ZT-20261113-0000ABCD');
   });
 
   it('returns 403 when cart access is denied', async () => {
