@@ -12,8 +12,10 @@ type FixedWindowLimiterOptions = {
   /**
    * Upper bound on tracked keys. Expired counters are evicted first; counters still inside
    * their window are never dropped. At the bound, new keys that cannot get their own counter
-   * share one overflow counter (same limit and window), so a flood of distinct keys cannot
-   * lock out every new client, and the traffic it lets through stays bounded.
+   * share one overflow counter with the rule's limit and window, so traffic beyond capacity
+   * stays bounded and new visitors get some attempts per window. A sustained flood of new
+   * keys can spend that budget and lock new visitors out on this instance until it subsides;
+   * the Vercel WAF rule is the defence for that case.
    */
   maxKeys?: number;
 };
