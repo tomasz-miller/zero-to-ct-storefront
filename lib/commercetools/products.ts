@@ -532,55 +532,60 @@ export async function getProductBySlug(
   return mapProjectionDetail(projection, resolvedLocale, resolvedCurrency, country);
 }
 
+// Query-predicate input variables keep the request URL under the ~15 KB limit at 100 SKUs per query.
+const AVAILABILITY_SKU_CHUNK_SIZE = 100;
+
+export async function getProductAvailabilityBySkus(
+  skus: readonly string[],
+): Promise<Map<string, StorefrontAvailability>> {
+  const requested = [...new Set(skus)];
+  const availabilityBySku = new Map<string, StorefrontAvailability>();
+  if (requested.length === 0) {
+    return availabilityBySku;
+  }
+
+  const { locale, currency, country } = await getCatalogContext();
+
+  const chunks: string[][] = [];
+  for (let start = 0; start < requested.length; start += AVAILABILITY_SKU_CHUNK_SIZE) {
+    chunks.push(requested.slice(start, start + AVAILABILITY_SKU_CHUNK_SIZE));
+  }
+
+  const responses = await Promise.all(
+    chunks.map((chunk) =>
+      apiRoot
+        .productProjections()
+        .get({
+          queryArgs: {
+            where: 'masterVariant(sku in :skus) or variants(sku in :skus)',
+            'var.skus': chunk,
+            limit: chunk.length,
+            staged: false,
+            localeProjection: locale,
+            priceCurrency: currency,
+            priceCountry: country,
+          },
+        })
+        .execute(),
+    ),
+  );
+
+  const wanted = new Set(requested);
+  for (const response of responses) {
+    for (const projection of response.body.results) {
+      for (const variant of [projection.masterVariant, ...projection.variants]) {
+        if (variant.sku && wanted.has(variant.sku)) {
+          availabilityBySku.set(variant.sku, mapAvailability(variant));
+        }
+      }
+    }
+  }
+
+  return availabilityBySku;
+}
+
 export async function getProductAvailabilityBySku(
   sku: string,
 ): Promise<StorefrontAvailability | null> {
-  const { locale, currency, country } = await getCatalogContext();
-
-  const searchResponse = await apiRoot
-    .products()
-    .search()
-    .post({
-      body: {
-        query: {
-          exact: {
-            field: 'variants.sku',
-            fieldType: 'keyword',
-            value: sku,
-          },
-        },
-        limit: 1,
-      },
-    })
-    .execute();
-
-  const productId = searchResponse.body.results[0]?.id;
-  if (!productId) {
-    return null;
-  }
-
-  const response = await apiRoot
-    .productProjections()
-    .withId({ ID: productId })
-    .get({
-      queryArgs: {
-        staged: false,
-        localeProjection: locale,
-        priceCurrency: currency,
-        priceCountry: country,
-      },
-    })
-    .execute();
-
-  const allVariants = [
-    response.body.masterVariant,
-    ...response.body.variants,
-  ];
-  const variant = allVariants.find((entry) => entry.sku === sku);
-
-  if (!variant) {
-    return null;
-  }
-
-  return mapAvailability(variant);
+  return (await getProductAvailabilityBySkus([sku])).get(sku) ?? null;
 }

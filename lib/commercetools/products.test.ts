@@ -68,6 +68,7 @@ vi.mock('./api-root', () => ({
 
 import {
   clearBestsellerOrderCache,
+  getProductAvailabilityBySkus,
   getProductBySlug,
   listBestSellingProducts,
   listNewArrivalProducts,
@@ -598,5 +599,70 @@ describe('listBestSellingProducts', () => {
     expect(mockProjectionsGet).toHaveBeenLastCalledWith({
       queryArgs: expect.objectContaining({ limit: 2 }),
     });
+  });
+});
+
+describe('getProductAvailabilityBySkus', () => {
+  beforeEach(() => {
+    mockExecute.mockReset();
+    mockExecute.mockResolvedValue({ body: { results: [] } });
+  });
+
+  it('getProductAvailabilityBySkus queries projections once with sku input variables', async () => {
+    await getProductAvailabilityBySkus(['SKU-1', 'SKU-2']);
+
+    expect(mockProjectionsGet).toHaveBeenCalledTimes(1);
+    expect(mockProjectionsGet).toHaveBeenCalledWith({
+      queryArgs: expect.objectContaining({
+        where: 'masterVariant(sku in :skus) or variants(sku in :skus)',
+        'var.skus': ['SKU-1', 'SKU-2'],
+        staged: false,
+        limit: 2,
+      }),
+    });
+    expect(mockApiRoot.products).not.toHaveBeenCalled();
+  });
+
+  it('getProductAvailabilityBySkus de-duplicates SKUs', async () => {
+    await getProductAvailabilityBySkus(['A', 'A']);
+
+    expect(mockProjectionsGet).toHaveBeenCalledWith({
+      queryArgs: expect.objectContaining({ 'var.skus': ['A'], limit: 1 }),
+    });
+  });
+
+  it('getProductAvailabilityBySkus splits more than 100 SKUs into parallel queries', async () => {
+    const skus = Array.from({ length: 150 }, (_, i) => `SKU-${i}`);
+
+    await getProductAvailabilityBySkus(skus);
+
+    expect(mockProjectionsGet).toHaveBeenCalledTimes(2);
+    expect(
+      mockProjectionsGet.mock.calls.map(
+        ([args]) => (args.queryArgs['var.skus'] as string[]).length,
+      ),
+    ).toEqual([100, 50]);
+  });
+
+  it('getProductAvailabilityBySkus maps each matching variant by sku', async () => {
+    // 40 is above LOW_STOCK_THRESHOLD (5, product-mappers.ts), so the status is in_stock, not low_stock
+    mockExecute.mockResolvedValueOnce({
+      body: {
+        results: [
+          createProductProjection({
+            masterVariant: {
+              id: 1,
+              sku: 'SKU-1',
+              availability: { isOnStock: true, availableQuantity: 40 },
+            },
+          }),
+        ],
+      },
+    });
+
+    const result = await getProductAvailabilityBySkus(['SKU-1', 'SKU-X']);
+
+    expect(result.get('SKU-1')).toMatchObject({ status: 'in_stock' });
+    expect(result.has('SKU-X')).toBe(false);
   });
 });

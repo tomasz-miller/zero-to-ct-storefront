@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createCartFixture } from '@/test/fixtures/cart';
 
+vi.mock('@/lib/commercetools/env', () => import('@/test/mocks/commercetools-env'));
+
 const {
   mockExecute,
   mockCartGet,
@@ -18,7 +20,7 @@ const {
   mockGetCustomerSession,
   mockClearCartSession,
   mockCreateAnonymousId,
-  mockGetProductAvailabilityBySku,
+  mockGetProductAvailabilityBySkus,
   mockGetStorefrontContext,
   marketCartMap,
   mockGetCartIdForCountry,
@@ -48,10 +50,18 @@ const {
     mockGetCustomerSession: vi.fn(),
     mockClearCartSession: vi.fn(),
     mockCreateAnonymousId: vi.fn(() => 'anon-new'),
-    mockGetProductAvailabilityBySku: vi.fn(async () => ({
-      isOnStock: true,
-      status: 'in_stock' as 'in_stock' | 'low_stock' | 'out_of_stock',
-    })),
+    mockGetProductAvailabilityBySkus: vi.fn(
+      async (skus: readonly string[]) =>
+        new Map(
+          skus.map((sku) => [
+            sku,
+            {
+              isOnStock: true,
+              status: 'in_stock' as 'in_stock' | 'low_stock' | 'out_of_stock',
+            },
+          ]),
+        ),
+    ),
     mockGetStorefrontContext: vi.fn(async () => ({
       currency: 'EUR',
       country: 'DE',
@@ -82,7 +92,7 @@ vi.mock('./storefront-context', () => ({
 }));
 
 vi.mock('./products', () => ({
-  getProductAvailabilityBySku: mockGetProductAvailabilityBySku,
+  getProductAvailabilityBySkus: mockGetProductAvailabilityBySkus,
 }));
 
 vi.mock('./cart-session', () => ({
@@ -157,10 +167,10 @@ describe('cart session resolver', () => {
     mockExecute.mockReset();
     marketCartMap.anonymousId = '';
     marketCartMap.carts = {};
-    mockGetProductAvailabilityBySku.mockResolvedValue({
-      isOnStock: true,
-      status: 'in_stock',
-    });
+    mockGetProductAvailabilityBySkus.mockImplementation(
+      async (skus) =>
+        new Map(skus.map((sku) => [sku, { isOnStock: true, status: 'in_stock' as const }])),
+    );
     mockGetStorefrontContext.mockResolvedValue({
       currency: 'EUR',
       country: 'DE',
@@ -216,13 +226,75 @@ describe('cart session resolver', () => {
   });
 
   it('throws OutOfStockError before cart mutation when sku is unavailable', async () => {
-    mockGetProductAvailabilityBySku.mockResolvedValueOnce({
-      isOnStock: false,
-      status: 'out_of_stock',
-    });
+    mockGetProductAvailabilityBySkus.mockResolvedValueOnce(
+      new Map([['SKU-OOS', { isOnStock: false, status: 'out_of_stock' as const }]]),
+    );
 
     await expect(addLineItem('SKU-OOS', 1)).rejects.toThrow(OutOfStockError);
     expect(mockCartsPost).not.toHaveBeenCalled();
+  });
+
+  it('addLineItem reads the cart once before the update', async () => {
+    mockGetCustomerSession.mockResolvedValue(null);
+    mockGetCartSession.mockResolvedValue({ anonymousId: 'anon-1', cartId: 'cart-1' });
+    mockExecute.mockResolvedValue({
+      body: createCartFixture({ id: 'cart-1', anonymousId: 'anon-1', country: 'DE' }),
+    });
+
+    await addLineItem('SKU-1', 1);
+
+    expect(mockCartGet).toHaveBeenCalledTimes(1);
+    expect(mockCartPost).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates guest carts with the configured inventory mode', async () => {
+    mockGetCustomerSession.mockResolvedValue(null);
+    mockGetCartSession.mockResolvedValue(null);
+    mockExecute.mockResolvedValue({ body: emptyGuestCart() });
+
+    await addLineItem('SKU-1', 1);
+
+    expect(mockCartsPost).toHaveBeenCalledWith({
+      body: expect.objectContaining({
+        anonymousId: expect.any(String),
+        inventoryMode: 'ReserveOnOrder',
+      }),
+    });
+  });
+
+  it('creates customer carts with the configured inventory mode', async () => {
+    mockGetCustomerSession.mockResolvedValue({ customerId: 'cust-1' });
+    mockGetCartSession.mockResolvedValue(null);
+    mockExecute
+      .mockResolvedValueOnce({ body: { results: [] } }) // findCustomerCartForMarket query: no active customer cart
+      .mockResolvedValue({
+        body: emptyGuestCart({ id: 'cart-customer', customerId: 'cust-1', anonymousId: undefined }),
+      }); // create, then update
+
+    await addLineItem('SKU-1', 1);
+
+    expect(mockCartsPost).toHaveBeenCalledWith({
+      body: expect.objectContaining({ customerId: 'cust-1', inventoryMode: 'ReserveOnOrder' }),
+    });
+  });
+
+  it('addLineItems checks availability with one batched call', async () => {
+    mockGetCustomerSession.mockResolvedValue(null);
+    mockGetCartSession.mockResolvedValue({ anonymousId: 'anon-1', cartId: 'cart-1' });
+    mockExecute.mockResolvedValue({
+      body: createCartFixture({ id: 'cart-1', anonymousId: 'anon-1', country: 'DE' }),
+    });
+
+    await addLineItems(
+      [
+        { sku: 'SKU-1', quantity: 1 },
+        { sku: 'SKU-2', quantity: 1 },
+      ],
+      { checkAvailability: true },
+    );
+
+    expect(mockGetProductAvailabilityBySkus).toHaveBeenCalledTimes(1);
+    expect(mockGetProductAvailabilityBySkus).toHaveBeenCalledWith(['SKU-1', 'SKU-2']);
   });
 
   it('addLineItems batch-adds with a single cart update', async () => {
@@ -280,7 +352,7 @@ describe('cart session resolver', () => {
       checkAvailability: false,
     });
 
-    expect(mockGetProductAvailabilityBySku).not.toHaveBeenCalled();
+    expect(mockGetProductAvailabilityBySkus).not.toHaveBeenCalled();
   });
 
   it('creates a guest cart when no customer session exists', async () => {
@@ -393,6 +465,48 @@ describe('cart session resolver', () => {
         actions: [{ action: 'setCustomerId', customerId: 'cust-1' }],
       },
     });
+  });
+
+  it('keeps the existing customer cart and drops the owned guest cookie cart (signed in)', async () => {
+    mockGetCustomerSession.mockResolvedValue({ customerId: 'cust-1' });
+    mockGetCartSession.mockResolvedValue({ anonymousId: 'anon-1', cartId: 'cart-guest' });
+    const guestCart = emptyGuestCart({ id: 'cart-guest', anonymousId: 'anon-1' });
+    const customerCart = emptyGuestCart({
+      id: 'cart-customer',
+      customerId: 'cust-1',
+      anonymousId: undefined,
+    });
+    mockExecute
+      .mockResolvedValueOnce({ body: guestCart }) // loadOwnedCart: GET of the cookie cart (DE/EUR, no alignment call)
+      .mockResolvedValueOnce({ body: { results: [customerCart] } }) // findCustomerCartForMarket('cust-1', 'DE', 'EUR')
+      .mockResolvedValue({ body: customerCart }); // addLineItem update
+
+    await addLineItem('SKU-1', 1);
+
+    expect(mockCartsGet).toHaveBeenCalledWith({
+      queryArgs: expect.objectContaining({
+        'var.customerId': 'cust-1',
+        'var.country': 'DE',
+        'var.currency': 'EUR',
+      }),
+    });
+    expect(JSON.stringify(mockCartPost.mock.calls)).not.toContain('setCustomerId');
+    expect(mockCartPost).toHaveBeenCalledTimes(1);
+    expect(mockCartPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          version: customerCart.version,
+          actions: [expect.objectContaining({ action: 'addLineItem', sku: 'SKU-1' })],
+        }),
+      }),
+    );
+    expect(mockWithId).toHaveBeenLastCalledWith({ ID: 'cart-customer' });
+    expect(mockCartsPost).not.toHaveBeenCalled();
+    expect(mockSetCartSession).toHaveBeenLastCalledWith({
+      anonymousId: 'anon-1',
+      cartId: 'cart-customer',
+    });
+    expect(mockRememberCartForCountry).toHaveBeenLastCalledWith('DE', 'cart-customer');
   });
 
   it('resolves customerId on checkout for logged-in user with anonymous cart', async () => {

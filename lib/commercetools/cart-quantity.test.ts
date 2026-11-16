@@ -17,8 +17,13 @@ vi.mock('./storefront-context', () => ({
   getCatalogContext: async () => ({ currency: 'EUR', country: 'DE', locale: 'en-GB' }),
 }));
 
+vi.mock('./env', () => import('@/test/mocks/commercetools-env'));
+
 vi.mock('./products', () => ({
-  getProductAvailabilityBySku: vi.fn(async () => ({ isOnStock: true, status: 'in_stock' })),
+  getProductAvailabilityBySkus: vi.fn(
+    async (skus: readonly string[]) =>
+      new Map(skus.map((sku) => [sku, { isOnStock: true, status: 'in_stock' as const }])),
+  ),
 }));
 
 vi.mock('./cart-session', () => ({

@@ -1,3 +1,5 @@
+import type { CartInventoryMode } from '@/lib/commercetools/cart-inventory-mode';
+
 export const commercetoolsEnv = {
   projectKey: 'demo-project',
   clientId: 'client-id',
@@ -9,4 +11,5 @@ export const commercetoolsEnv = {
   sessionSecret: Buffer.alloc(32, 7).toString('base64') as string | undefined,
   customerScopes: 'manage_my_profile:demo-project manage_my_orders:demo-project',
   checkoutApplicationKey: undefined as string | undefined,
+  cartInventoryMode: 'ReserveOnOrder' as CartInventoryMode,
 };

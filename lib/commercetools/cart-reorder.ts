@@ -2,11 +2,11 @@ import 'server-only';
 
 import { MAX_LINE_ITEM_QUANTITY } from '@/lib/cart-limits';
 
-import { addLineItems, getGuestCart } from './cart';
+import { addLineItems, resolveCartForAdd } from './cart';
 import type { StorefrontCart } from './cart-mappers';
 import { getMyOrder } from './customer-api';
 import { NothingToReorderError, ReorderUnauthorizedError } from './domain-errors';
-import { getProductAvailabilityBySku } from './products';
+import { getProductAvailabilityBySkus } from './products';
 
 export { NothingToReorderError, ReorderUnauthorizedError };
 
@@ -27,11 +27,18 @@ export async function reorderOrder(orderId: string): Promise<ReorderResult> {
   const addable: Array<{ sku: string; quantity: number }> = [];
 
   // Quantity per SKU the cart will hold once the lines planned so far are added.
-  const cart = await getGuestCart();
+  const cart = await resolveCartForAdd();
   const planned = new Map<string, number>();
-  for (const line of cart?.lineItems ?? []) {
+  for (const line of cart.lineItems) {
     if (line.sku) planned.set(line.sku, (planned.get(line.sku) ?? 0) + line.quantity);
   }
+
+  const orderSkus = [
+    ...new Set(
+      order.lineItems.map((item) => item.sku?.trim()).filter((sku): sku is string => !!sku),
+    ),
+  ];
+  const availabilityBySku = await getProductAvailabilityBySkus(orderSkus);
 
   for (const item of order.lineItems) {
     const sku = item.sku?.trim();
@@ -47,7 +54,7 @@ export async function reorderOrder(orderId: string): Promise<ReorderResult> {
       continue;
     }
 
-    const availability = await getProductAvailabilityBySku(sku);
+    const availability = availabilityBySku.get(sku);
     if (!availability || availability.status === 'out_of_stock') {
       skipped += 1;
       continue;
