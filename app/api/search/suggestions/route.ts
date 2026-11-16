@@ -6,10 +6,15 @@ import {
 } from '@/lib/commercetools/search-suggestions';
 import { CATALOG_LOCALE } from '@/lib/commercetools/storefront-context';
 
+const SUPPORTED_SUGGESTION_LOCALES = [CATALOG_LOCALE] as const;
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const query = searchParams.get('q')?.trim() ?? '';
-  const locale = searchParams.get('locale') ?? CATALOG_LOCALE;
+  const requestedLocale = searchParams.get('locale');
+  const locale =
+    SUPPORTED_SUGGESTION_LOCALES.find((supported) => supported === requestedLocale) ??
+    CATALOG_LOCALE;
 
   if (query.length < MIN_SEARCH_SUGGESTION_LENGTH) {
     return NextResponse.json({ suggestions: [] });

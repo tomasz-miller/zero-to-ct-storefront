@@ -3,34 +3,6 @@ import { pickLocalized } from './product-mappers';
 export const MIN_SEARCH_SUGGESTION_LENGTH = 2;
 export const MAX_SEARCH_SUGGESTIONS = 8;
 
-export function mapSearchSuggestionResponse(
-  body: Record<string, unknown>,
-  locale: string,
-): string[] {
-  const localeKey = `searchKeywords.${locale}`;
-  const suggestions = body[localeKey];
-
-  if (!Array.isArray(suggestions)) {
-    return [];
-  }
-
-  return suggestions
-    .map((entry) => {
-      if (
-        typeof entry === 'object' &&
-        entry !== null &&
-        'text' in entry &&
-        typeof entry.text === 'string'
-      ) {
-        return entry.text;
-      }
-
-      return null;
-    })
-    .filter((text): text is string => text !== null)
-    .slice(0, MAX_SEARCH_SUGGESTIONS);
-}
-
 export function escapeWildcardValue(value: string): string {
   return value.replace(/[\\?*]/g, '\\$&');
 }
