@@ -187,7 +187,13 @@ async function registerWithCartMigration(
 async function withStaleAnonymousCartRetry<T>(
   operation: (cartRefs: CartMigrationRefs) => Promise<T>,
 ): Promise<T> {
-  const ownedGuestCart = await getOwnedGuestCartRef();
+  const ownedGuestCart = await getOwnedGuestCartRef().catch((error: unknown) => {
+    // A failed guest-cart lookup must not block sign-in: sign in without the CT cart merge.
+    console.warn('[auth] guest cart lookup failed; signing in without the cart merge', {
+      statusCode: parseCtError(error).statusCode,
+    });
+    return null;
+  });
   const cartRefs: CartMigrationRefs = ownedGuestCart
     ? {
         anonymousCart: { typeId: 'cart', id: ownedGuestCart.cartId },

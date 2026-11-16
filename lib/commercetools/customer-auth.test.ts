@@ -41,7 +41,9 @@ const {
   mockRestoreCustomerCartSession: vi.fn(),
   mockReconcileCartOnAuth: vi.fn(),
   mockRefreshCustomerSession: vi.fn(),
-  mockGetOwnedGuestCartRef: vi.fn(),
+  mockGetOwnedGuestCartRef: vi.fn(
+    async (): Promise<{ cartId: string; anonymousId: string } | null> => null,
+  ),
   mockRevokeCustomerRefreshToken: vi.fn(),
   mockRevokeCustomerAccessToken: vi.fn(),
   mockClearMarketCartMap: vi.fn(),
@@ -413,6 +415,20 @@ describe('customer-auth', () => {
       stubTokenAndMe();
       await loginCustomer(credentials.email, credentials.password);
       expect(mockLoginPost).toHaveBeenCalledWith({ body: credentials });
+    });
+
+    // Owner decision 2026-11-13: a failed guest-cart lookup signs in without the merge instead of failing.
+    it('signs in without the cart merge and logs a warning when the guest-cart lookup fails with 503', async () => {
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockGetOwnedGuestCartRef.mockRejectedValueOnce(ctErr('ServiceUnavailable', 'ct', 503));
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      stubTokenAndMe();
+      await expect(loginCustomer(credentials.email, credentials.password)).resolves.toMatchObject({ id: 'cust-1' });
+      expect(mockLoginPost).toHaveBeenCalledTimes(1);
+      expect(mockLoginPost).toHaveBeenCalledWith({ body: credentials });
+      expect(JSON.stringify(mockLoginPost.mock.calls)).not.toMatch(/anonymousCart|anonymousId/);
+      expect(consoleWarn).toHaveBeenCalledWith('[auth] guest cart lookup failed; signing in without the cart merge', { statusCode: 503 });
+      expect(mockSetCustomerSession).toHaveBeenCalledTimes(1);
     });
 
     it('registers with anonymousCart and anonymousId', async () => {

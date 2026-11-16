@@ -4,6 +4,7 @@ import type { ShoppingList } from '@commercetools/platform-sdk';
 
 import { apiRoot } from './api-root';
 import { addLineItem } from './cart';
+import { isCtNotFound } from './ct-errors';
 import { getCustomerSession } from './customer-session';
 import {
   WishlistAccessError,
@@ -40,8 +41,11 @@ async function fetchShoppingListById(shoppingListId: string): Promise<ShoppingLi
       .get({ queryArgs: { expand: [...SHOPPING_LIST_EXPAND] } })
       .execute();
     return response.body;
-  } catch {
-    return null;
+  } catch (error) {
+    if (isCtNotFound(error)) {
+      return null;
+    }
+    throw error;
   }
 }
 

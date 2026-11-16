@@ -15,6 +15,7 @@ import {
   setCartSession,
   type CartSession,
 } from './cart-session';
+import { isCtNotFound } from './ct-errors';
 import { getCustomerSession } from './customer-session';
 import {
   CartAccessError,
@@ -65,8 +66,11 @@ async function fetchCartById(cartId: string): Promise<Cart | null> {
       })
       .execute();
     return response.body;
-  } catch {
-    return null;
+  } catch (error) {
+    if (isCtNotFound(error)) {
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -240,12 +244,8 @@ export async function getGuestCart(): Promise<StorefrontCart | null> {
     return null;
   }
 
-  try {
-    const { cart } = await loadResolvedCartIfSessionExists();
-    return mapCart(cart, (await getStorefrontContext()).locale);
-  } catch {
-    return null;
-  }
+  const cart = await loadOwnedCart(existing);
+  return cart ? mapCart(cart, (await getStorefrontContext()).locale) : null;
 }
 
 export async function realignCartForStorefront(): Promise<{

@@ -157,6 +157,22 @@ describe('canAccessShoppingList', () => {
   });
 });
 
+describe('wishlist lookup errors', () => {
+  it('getWishlist rethrows a 503 and keeps the wishlist cookie', async () => {
+    mockGetWishlistSession.mockResolvedValue({ anonymousId: 'anon-1', shoppingListId: 'list-1' });
+    withIdExecute.mockRejectedValueOnce(ctError(503));
+    await expect(getWishlist()).rejects.toMatchObject({ statusCode: 503 });
+    expect(mockClearWishlistSession).not.toHaveBeenCalled();
+  });
+
+  it('getWishlist returns null and clears the cookie on 404', async () => {
+    mockGetWishlistSession.mockResolvedValue({ anonymousId: 'anon-1', shoppingListId: 'list-1' });
+    withIdExecute.mockRejectedValueOnce(ctError(404, 'ResourceNotFound'));
+    await expect(getWishlist()).resolves.toBeNull();
+    expect(mockClearWishlistSession).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('customer wishlist lookup', () => {
   it('passes the customer id only as a variable', async () => {
     const injected = 'x") or anonymousId = ("y';

@@ -1,12 +1,9 @@
 import 'server-only';
 
-import {
-  ClientBuilder,
-  type AuthMiddlewareOptions,
-  type HttpMiddlewareOptions,
-} from '@commercetools/ts-client';
+import { ClientBuilder, type AuthMiddlewareOptions } from '@commercetools/ts-client';
 
 import { commercetoolsEnv } from './env';
+import { createHttpMiddlewareOptions } from './http-options';
 import { ctSdkLoggerFn, shouldEnableSdkLogger } from './sdk-logger';
 
 const authMiddlewareOptions: AuthMiddlewareOptions = {
@@ -20,16 +17,10 @@ const authMiddlewareOptions: AuthMiddlewareOptions = {
   httpClient: fetch,
 };
 
-const httpMiddlewareOptions: HttpMiddlewareOptions = {
-  host: commercetoolsEnv.apiUrl,
-  httpClient: fetch,
-  includeRequestInErrorResponse: false,
-};
-
 const builder = new ClientBuilder()
   .withProjectKey(commercetoolsEnv.projectKey)
   .withClientCredentialsFlow(authMiddlewareOptions)
-  .withHttpMiddleware(httpMiddlewareOptions)
+  .withHttpMiddleware(createHttpMiddlewareOptions())
   .withCorrelationIdMiddleware({ generate: () => crypto.randomUUID() })
   .withConcurrentModificationMiddleware();
 

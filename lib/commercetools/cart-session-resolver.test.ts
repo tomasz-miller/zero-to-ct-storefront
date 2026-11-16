@@ -118,12 +118,21 @@ import {
   findCustomerCart,
   findCustomerCartForMarket,
   getCartForCheckout,
+  getGuestCart,
   getOwnedGuestCartRef,
   OutOfStockError,
   realignCartForStorefront,
   reconcileCartOnAuth,
   restoreCustomerCartSession,
 } from './cart';
+
+function ctError(statusCode: number, code = 'Error', message = 'ct') {
+  return Object.assign(new Error(message), {
+    statusCode,
+    code,
+    body: { statusCode, message, errors: [{ code, message }] },
+  });
+}
 
 function emptyGuestCart(overrides: Partial<Cart> = {}): Cart {
   return createCartFixture({
@@ -157,6 +166,51 @@ describe('cart session resolver', () => {
       country: 'DE',
       locale: 'de-DE',
     });
+  });
+
+  it('does not clear the cart session when the cart GET returns 503', async () => {
+    mockGetCustomerSession.mockResolvedValue(null);
+    mockGetCartSession.mockResolvedValue({ anonymousId: 'anon-1', cartId: 'cart-1' });
+    mockExecute.mockRejectedValueOnce(ctError(503));
+    await expect(addLineItem('SKU-1', 1)).rejects.toMatchObject({ statusCode: 503 });
+    expect(mockClearCartSession).not.toHaveBeenCalled();
+    expect(mockCartsPost).not.toHaveBeenCalled();
+  });
+
+  it('clears the cart session when the cart GET returns 404', async () => {
+    mockGetCustomerSession.mockResolvedValue(null);
+    mockGetCartSession.mockResolvedValue({ anonymousId: 'anon-1', cartId: 'cart-1' });
+    mockExecute.mockRejectedValueOnce(ctError(404, 'ResourceNotFound'));
+    await getGuestCart();
+    expect(mockClearCartSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('getGuestCart rethrows a 503 and keeps the cart cookie', async () => {
+    mockGetCustomerSession.mockResolvedValue(null);
+    mockGetCartSession.mockResolvedValue({ anonymousId: 'anon-1', cartId: 'cart-1' });
+    mockExecute.mockRejectedValueOnce(ctError(503));
+    await expect(getGuestCart()).rejects.toMatchObject({ statusCode: 503 });
+    expect(mockClearCartSession).not.toHaveBeenCalled();
+  });
+
+  it('getGuestCart returns null when the cart is gone (404)', async () => {
+    mockGetCustomerSession.mockResolvedValue(null);
+    mockGetCartSession.mockResolvedValue({ anonymousId: 'anon-1', cartId: 'cart-1' });
+    mockExecute.mockRejectedValueOnce(ctError(404, 'ResourceNotFound'));
+    await expect(getGuestCart()).resolves.toBeNull();
+  });
+
+  // Track 1A outcome fact 7: a CT 5xx must not look like "no guest cart"; customer-auth logs it (owner decision 2026-11-13).
+  it('getOwnedGuestCartRef rethrows a 503 instead of returning null', async () => {
+    mockGetCartSession.mockResolvedValueOnce({ anonymousId: 'anon-1', cartId: 'cart-guest' });
+    mockExecute.mockRejectedValueOnce(ctError(503));
+    await expect(getOwnedGuestCartRef()).rejects.toMatchObject({ statusCode: 503 });
+  });
+
+  it('getOwnedGuestCartRef returns null when the cookie cart is gone (404)', async () => {
+    mockGetCartSession.mockResolvedValueOnce({ anonymousId: 'anon-1', cartId: 'cart-guest' });
+    mockExecute.mockRejectedValueOnce(ctError(404, 'ResourceNotFound'));
+    await expect(getOwnedGuestCartRef()).resolves.toBeNull();
   });
 
   it('throws OutOfStockError before cart mutation when sku is unavailable', async () => {
