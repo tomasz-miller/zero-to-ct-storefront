@@ -189,11 +189,6 @@ async function ensureWishlistSession(): Promise<WishlistSession | null> {
   return session;
 }
 
-async function mapOwnedWishlist(shoppingList: ShoppingList): Promise<StorefrontWishlist> {
-  const { locale } = await getStorefrontContext();
-  return mapWishlist(shoppingList, locale);
-}
-
 export async function getWishlist(): Promise<StorefrontWishlist | null> {
   const session = await getWishlistSession();
   if (!session) {
@@ -205,7 +200,8 @@ export async function getWishlist(): Promise<StorefrontWishlist | null> {
     return null;
   }
 
-  return mapOwnedWishlist(shoppingList);
+  const { locale } = await getStorefrontContext();
+  return mapWishlist(shoppingList, locale);
 }
 
 function findLineItemBySku(shoppingList: ShoppingList, sku: string) {
@@ -223,8 +219,10 @@ export async function addWishlistItem(sku: string): Promise<StorefrontWishlist> 
     throw new WishlistNotFoundError();
   }
 
+  const { locale } = await getStorefrontContext();
+
   if (findLineItemBySku(shoppingList, sku)) {
-    return mapOwnedWishlist(shoppingList);
+    return mapWishlist(shoppingList, locale);
   }
 
   const response = await apiRoot
@@ -245,7 +243,7 @@ export async function addWishlistItem(sku: string): Promise<StorefrontWishlist> 
     })
     .execute();
 
-  return mapOwnedWishlist(response.body);
+  return mapWishlist(response.body, locale);
 }
 
 export async function removeWishlistItem(lineItemId: string): Promise<StorefrontWishlist> {
@@ -281,7 +279,8 @@ export async function removeWishlistItem(lineItemId: string): Promise<Storefront
     })
     .execute();
 
-  return mapOwnedWishlist(response.body);
+  const { locale } = await getStorefrontContext();
+  return mapWishlist(response.body, locale);
 }
 
 async function mergeGuestListIntoCustomerList(
