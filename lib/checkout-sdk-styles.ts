@@ -1,6 +1,8 @@
-import type { CheckoutStyles } from '@commercetools/checkout-browser-sdk';
+import type { CheckoutFlowData } from '@commercetools/checkout-browser-sdk';
 
-const DEFAULT_CHECKOUT_STYLES: CheckoutStyles = {
+export type CheckoutSdkStyles = NonNullable<CheckoutFlowData['styles']>;
+
+const DEFAULT_CHECKOUT_STYLES: CheckoutSdkStyles = {
   '--font-family': 'Arial, sans-serif',
   '--button': '#27272a',
   '--button-outline': '#27272a',
@@ -26,7 +28,7 @@ function resolveCssColor(variable: string, fallback: string): string {
   return resolved && resolved !== 'rgba(0, 0, 0, 0)' ? resolved : fallback;
 }
 
-export function resolveCheckoutSdkStyles(): CheckoutStyles {
+export function resolveCheckoutSdkStyles(): CheckoutSdkStyles {
   if (typeof document === 'undefined') {
     return DEFAULT_CHECKOUT_STYLES;
   }
