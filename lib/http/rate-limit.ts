@@ -9,7 +9,9 @@ type FixedWindowLimiterOptions = {
   windowMs: number;
   /**
    * Upper bound on tracked keys. Expired counters are evicted first; counters still inside
-   * their window are never dropped, so at the bound new keys are rejected (fail closed).
+   * their window are never dropped. At the bound, new keys that cannot get their own counter
+   * share one overflow counter (same limit and window), so a flood of distinct keys cannot
+   * lock out every new client, and the traffic it lets through stays bounded.
    */
   maxKeys?: number;
 };
@@ -26,6 +28,9 @@ export function createFixedWindowLimiter({
   maxKeys = 10_000,
 }: FixedWindowLimiterOptions) {
   const entries = new Map<string, Entry>();
+  // Shared by every key that cannot get its own counter. Never evicted for room and not
+  // part of `entries`, so it does not count toward `maxKeys`.
+  let overflow: Entry | undefined;
 
   const isExpired = (entry: Entry, now: number) => now - entry.windowStart >= windowMs;
 
@@ -34,16 +39,24 @@ export function createFixedWindowLimiter({
     retryAfterSeconds: Math.max(1, Math.ceil((entry.windowStart + windowMs - now) / 1000)),
   });
 
-  /** Frees room for one new key; returns the soonest retry-after when none can be freed. */
-  function makeRoom(now: number): RateLimitResult {
-    if (entries.size < maxKeys) return { allowed: true };
-    let soonestExpiry = Infinity;
+  /** Frees room for one new key by dropping expired counters; false when every counter is live. */
+  function makeRoom(now: number): boolean {
+    if (entries.size < maxKeys) return true;
     for (const [key, entry] of entries) {
       if (isExpired(entry, now)) entries.delete(key);
-      else soonestExpiry = Math.min(soonestExpiry, entry.windowStart + windowMs);
     }
-    if (entries.size < maxKeys) return { allowed: true };
-    return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((soonestExpiry - now) / 1000)) };
+    return entries.size < maxKeys;
+  }
+
+  /** Counts one attempt on the shared overflow counter. */
+  function consumeOverflow(now: number): RateLimitResult {
+    if (!overflow || isExpired(overflow, now)) {
+      overflow = { windowStart: now, count: 1 };
+      return { allowed: true };
+    }
+    if (overflow.count >= limit) return denied(overflow, now);
+    overflow.count += 1;
+    return { allowed: true };
   }
 
   return {
@@ -56,12 +69,14 @@ export function createFixedWindowLimiter({
         return { allowed: true };
       }
       if (existing) entries.delete(key);
-      const room = makeRoom(now);
-      if (!room.allowed) return room;
+      if (!makeRoom(now)) return consumeOverflow(now);
       entries.set(key, { windowStart: now, count: 1 });
       return { allowed: true };
     },
-    /** Reports whether the next `consume` would be allowed, without counting. */
+    /**
+     * Reports whether the next `consume` would be allowed, without counting. Only the key's
+     * own counter is consulted; the shared overflow counter is not.
+     */
     peek(key: string, now: number = Date.now()): RateLimitResult {
       const existing = entries.get(key);
       if (!existing || isExpired(existing, now)) return { allowed: true };
@@ -72,6 +87,7 @@ export function createFixedWindowLimiter({
     },
     clear(): void {
       entries.clear();
+      overflow = undefined;
     },
   };
 }
