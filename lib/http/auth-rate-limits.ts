@@ -20,8 +20,9 @@ const MINUTE = 60_000;
  * ceiling (5 reset requests / 60 min) that still stops attacks spread over many addresses.
  * Rotating addresses can burn it to deny a chosen customer for one window, which is the
  * accepted trade-off; one address alone cannot. The login email ceiling is not a rule here:
- * it counts failed sign-ins only (`loginEmailFailures`), so a flood of requests cannot lock
- * the account owner out.
+ * it counts failed sign-ins only (`loginEmailFailures`), so the owner's own successful sign-ins
+ * and service errors never spend it. It does not keep an attacker from locking the owner out:
+ * wrong passwords count as failures.
  */
 type Rule = { scope: 'ip' | 'client-email' | 'email'; limit: number; windowMs: number };
 
@@ -58,10 +59,15 @@ const loginFailures = createFixedWindowLimiter({ limit: 5, windowMs: 15 * MINUTE
 
 /**
  * Failed sign-ins per email from any client: 30 within 15 minutes block further sign-in
- * attempts for that email. A slot is reserved before the credential check and kept only when
- * commercetools rejects the credentials, so concurrent requests cannot exceed the cap and a
- * full limiter still caps through its shared overflow counter. Successful sign-ins and
- * service errors give their slot back; a success never clears the failures already recorded.
+ * attempts for that email, which limits password guessing to 30 per email per window per
+ * instance. A slot is reserved before the credential check and kept only when commercetools
+ * rejects the credentials, so concurrent requests cannot exceed the cap and a full limiter
+ * still caps through its shared overflow counter. The owner's successful sign-ins and service
+ * errors give their slot back and a success never clears failures already recorded.
+ * It does not stop an attacker from locking the owner out: wrong passwords count as failures,
+ * so 30 failures per window (from at least 6 clients, each locked out after 5 by
+ * `loginFailures`) hold the email at the cap. Separating the owner from an attacker would need
+ * a known-device mechanism, which is not implemented.
  */
 const loginEmailFailures = createFixedWindowLimiter({ limit: 30, windowMs: 15 * MINUTE });
 
