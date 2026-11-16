@@ -16,8 +16,7 @@ export default async function HomePage() {
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-medium">Best Sellers</h1>
           <p className="text-sm text-muted-foreground">
-            Established catalog favorites from your commercetools demo project (
-            {bestSellers.total} products).
+            Established catalog favorites from your commercetools demo project.
           </p>
         </div>
         <ProductGridCompact products={bestSellers.products} />

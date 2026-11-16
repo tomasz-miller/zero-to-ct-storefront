@@ -9,11 +9,13 @@ vi.mock('@/lib/commercetools/env', () => import('@/test/mocks/commercetools-env'
 
 const {
   mockExecute,
+  mockGraphqlPost,
   mockProjectionsGet,
   mockApiRoot,
   mockGetSearchableAttributeFacetConfigsForQuery,
 } = vi.hoisted(() => {
   const mockExecute = vi.fn();
+  const mockGraphqlPost = vi.fn(() => ({ execute: mockExecute }));
   const mockProjectionsGet = vi.fn<
     (args: { queryArgs: Record<string, unknown> }) => {
       execute: typeof mockExecute;
@@ -38,9 +40,11 @@ const {
     orders: vi.fn(() => ({
       get: vi.fn(() => ({ execute: mockExecute })),
     })),
+    graphql: vi.fn(() => ({ post: mockGraphqlPost })),
   };
   return {
     mockExecute,
+    mockGraphqlPost,
     mockProjectionsGet,
     mockApiRoot,
     mockGetSearchableAttributeFacetConfigsForQuery,
@@ -380,15 +384,19 @@ describe('listBestSellingProducts', () => {
     mockExecute
       .mockResolvedValueOnce({
         body: {
-          results: [
-            {
-              lineItems: [
-                { productId: 'prod-popular', quantity: 5 },
-                { productId: 'prod-other', quantity: 1 },
-                { productId: 'prod-third', quantity: 1 },
+          data: {
+            orders: {
+              results: [
+                {
+                  lineItems: [
+                    { productId: 'prod-popular', quantity: 5 },
+                    { productId: 'prod-other', quantity: 1 },
+                    { productId: 'prod-third', quantity: 1 },
+                  ],
+                },
               ],
             },
-          ],
+          },
         },
       })
       .mockResolvedValueOnce({
@@ -410,17 +418,16 @@ describe('listBestSellingProducts', () => {
 
     const result = await listBestSellingProducts({ limit: 2 });
 
-    expect(mockApiRoot.orders).toHaveBeenCalled();
+    expect(mockGraphqlPost).toHaveBeenCalled();
     expect(result.products).toHaveLength(2);
     expect(result.products[0]?.id).toBe('prod-popular');
     expect(result.products[0]?.name).toBe('Popular Item');
-    expect(result.total).toBe(3);
   });
 
   it('falls back to catalog heuristic when there are no orders', async () => {
     mockExecute
       .mockResolvedValueOnce({
-        body: { results: [] },
+        body: { data: { orders: { results: [] } } },
       })
       .mockResolvedValueOnce({
         body: {
@@ -456,7 +463,6 @@ describe('listBestSellingProducts', () => {
 
     expect(result.products).toHaveLength(1);
     expect(result.products[0]?.id).toBe('prod-heuristic');
-    expect(result.total).toBe(2);
   });
 
   it('does not double count ranked ids when fallback is used', async () => {
@@ -469,11 +475,15 @@ describe('listBestSellingProducts', () => {
     mockExecute
       .mockResolvedValueOnce({
         body: {
-          results: [
-            {
-              lineItems: [{ productId: 'prod-unmappable', quantity: 2 }],
+          data: {
+            orders: {
+              results: [
+                {
+                  lineItems: [{ productId: 'prod-unmappable', quantity: 2 }],
+                },
+              ],
             },
-          ],
+          },
         },
       })
       .mockResolvedValueOnce({
@@ -501,18 +511,21 @@ describe('listBestSellingProducts', () => {
 
     expect(result.products).toHaveLength(1);
     expect(result.products[0]?.id).toBe('prod-heuristic');
-    expect(result.total).toBe(2);
   });
 
   it('reuses cached order line items within the TTL window', async () => {
     mockExecute
       .mockResolvedValueOnce({
         body: {
-          results: [
-            {
-              lineItems: [{ productId: 'prod-1', quantity: 2 }],
+          data: {
+            orders: {
+              results: [
+                {
+                  lineItems: [{ productId: 'prod-1', quantity: 2 }],
+                },
+              ],
             },
-          ],
+          },
         },
       })
       .mockResolvedValueOnce({
@@ -529,6 +542,61 @@ describe('listBestSellingProducts', () => {
     await listBestSellingProducts({ limit: 1 });
     await listBestSellingProducts({ limit: 1 });
 
-    expect(mockApiRoot.orders).toHaveBeenCalledTimes(1);
+    expect(mockGraphqlPost).toHaveBeenCalledTimes(1);
+  });
+
+  it('ranks from GraphQL order line items and never fetches full Orders', async () => {
+    mockExecute.mockResolvedValueOnce({
+      body: {
+        data: {
+          orders: {
+            results: [{ lineItems: [{ productId: 'p1', quantity: 3 }] }],
+          },
+        },
+      },
+    });
+    mockExecute.mockResolvedValueOnce({
+      body: { results: [createProductProjection({ id: 'p1' })] },
+    });
+
+    const result = await listBestSellingProducts({ limit: 1 });
+
+    expect(result).toEqual({
+      products: [expect.objectContaining({ id: 'p1' })],
+    });
+    expect(mockApiRoot.orders).not.toHaveBeenCalled();
+    expect(mockGraphqlPost).toHaveBeenCalledWith({
+      body: expect.objectContaining({ variables: { limit: 200 } }),
+    });
+  });
+
+  it('falls back to the catalog heuristic when GraphQL returns errors', async () => {
+    mockExecute.mockResolvedValueOnce({
+      body: { errors: [{ message: 'insufficient_scope' }] },
+    });
+    // getCategoryByKey('new-arrivals') in the heuristic
+    mockExecute.mockResolvedValueOnce({ body: { results: [] } });
+    mockExecute.mockResolvedValueOnce({
+      body: { results: [createProductProjection({ id: 'prod-heuristic' })] },
+    });
+
+    const result = await listBestSellingProducts({ limit: 1 });
+
+    expect(result.products[0]?.id).toBe('prod-heuristic');
+  });
+
+  it('fetches at most twice the missing slots for the heuristic', async () => {
+    mockExecute.mockResolvedValueOnce({
+      body: { data: { orders: { results: [] } } },
+    });
+    // getCategoryByKey('new-arrivals') in the heuristic
+    mockExecute.mockResolvedValueOnce({ body: { results: [] } });
+    mockExecute.mockResolvedValueOnce({ body: { results: [] } });
+
+    await listBestSellingProducts({ limit: 1 });
+
+    expect(mockProjectionsGet).toHaveBeenLastCalledWith({
+      queryArgs: expect.objectContaining({ limit: 2 }),
+    });
   });
 });

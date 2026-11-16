@@ -343,6 +343,9 @@ export async function listNewArrivalProducts(options?: {
 }
 
 const BESTSELLER_ORDER_SAMPLE_LIMIT = 200;
+const BESTSELLER_ORDERS_QUERY = `query BestsellerOrderLines($limit: Int!) {
+  orders(limit: $limit, sort: ["createdAt desc"]) { results { lineItems { productId quantity } } }
+}`;
 const BESTSELLER_ORDER_CACHE_TTL_MS = 5 * 60 * 1000;
 
 type OrderLineItemVolume = {
@@ -366,7 +369,7 @@ async function listCatalogHeuristicBestsellers(options: {
   currency: string;
   country: string;
   excludeProductIds?: ReadonlySet<string>;
-}): Promise<{ products: StorefrontProduct[]; poolSize: number }> {
+}): Promise<StorefrontProduct[]> {
   const newArrivalsCategory = await getCategoryByKey('new-arrivals');
   const newArrivalsCategoryId = newArrivalsCategory?.id;
   const excludeProductIds = options.excludeProductIds ?? new Set<string>();
@@ -375,7 +378,7 @@ async function listCatalogHeuristicBestsellers(options: {
     .productProjections()
     .get({
       queryArgs: {
-        limit: 500,
+        limit: Math.min(500, (options.limit + excludeProductIds.size) * 2),
         staged: false,
         localeProjection: options.locale,
         priceCurrency: options.currency,
@@ -391,7 +394,7 @@ async function listCatalogHeuristicBestsellers(options: {
       !isNewArrivalProduct(projection, newArrivalsCategoryId),
   );
 
-  const products = pool
+  return pool
     .slice(0, options.limit)
     .map((projection) =>
       mapProjection(
@@ -402,11 +405,6 @@ async function listCatalogHeuristicBestsellers(options: {
       ),
     )
     .filter((product): product is StorefrontProduct => product !== null);
-
-  return {
-    products,
-    poolSize: pool.length,
-  };
 }
 
 async function fetchRecentOrderLineItems(): Promise<OrderLineItemVolume[]> {
@@ -420,16 +418,24 @@ async function fetchRecentOrderLineItems(): Promise<OrderLineItemVolume[]> {
 
   try {
     const response = await apiRoot
-      .orders()
-      .get({
-        queryArgs: {
-          limit: BESTSELLER_ORDER_SAMPLE_LIMIT,
-          sort: 'createdAt desc',
+      .graphql()
+      .post({
+        body: {
+          query: BESTSELLER_ORDERS_QUERY,
+          variables: { limit: BESTSELLER_ORDER_SAMPLE_LIMIT },
         },
       })
       .execute();
 
-    const items = response.body.results.flatMap((order) =>
+    const { data, errors } = response.body as {
+      data?: { orders?: { results: { lineItems: OrderLineItemVolume[] }[] } };
+      errors?: unknown[];
+    };
+    if (errors?.length || !data?.orders) {
+      throw new Error('Bestseller order lines query failed');
+    }
+
+    const items = data.orders.results.flatMap((order) =>
       order.lineItems.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
@@ -449,7 +455,7 @@ export async function listBestSellingProducts(options?: {
   limit?: number;
   locale?: string;
   currency?: string;
-}): Promise<{ products: StorefrontProduct[]; total: number }> {
+}): Promise<{ products: StorefrontProduct[] }> {
   const limit = options?.limit ?? 12;
   const { locale, currency, country } = await getCatalogContext();
   const resolvedLocale = options?.locale ?? locale;
@@ -475,11 +481,7 @@ export async function listBestSellingProducts(options?: {
     .filter((product): product is StorefrontProduct => product !== null);
 
   if (rankedProducts.length >= limit) {
-    return {
-      products: rankedProducts.slice(0, limit),
-      // Full ranked pool size (not just the page), for homepage copy.
-      total: allRankedProductIds.length,
-    };
+    return { products: rankedProducts.slice(0, limit) };
   }
 
   const fallback = await listCatalogHeuristicBestsellers({
@@ -490,12 +492,7 @@ export async function listBestSellingProducts(options?: {
     excludeProductIds: new Set(allRankedProductIds),
   });
 
-  const products = [...rankedProducts, ...fallback.products].slice(0, limit);
-
-  return {
-    products,
-    total: allRankedProductIds.length + fallback.poolSize,
-  };
+  return { products: [...rankedProducts, ...fallback].slice(0, limit) };
 }
 
 export async function getProductBySlug(
