@@ -133,8 +133,10 @@ import {
   OutOfStockError,
   realignCartForStorefront,
   reconcileCartOnAuth,
+  requireActiveCart,
   restoreCustomerCartSession,
 } from './cart';
+import { CartNotFoundError } from './domain-errors';
 
 function ctError(statusCode: number, code = 'Error', message = 'ct') {
   return Object.assign(new Error(message), {
@@ -873,5 +875,13 @@ describe('cart session resolver', () => {
       .mockRejectedValueOnce(new Error('CT unavailable'));
 
     await expect(realignCartForStorefront()).rejects.toThrow('CT unavailable');
+  });
+
+  it('requireActiveCart rejects a Frozen cart by default and accepts it with allowFrozen', async () => {
+    mockGetCustomerSession.mockResolvedValue(null);
+    mockGetCartSession.mockResolvedValue({ anonymousId: 'anon-1', cartId: 'cart-1' });
+    mockExecute.mockResolvedValue({ body: createCartFixture({ cartState: 'Frozen', anonymousId: 'anon-1', country: 'DE' }) });
+    await expect(requireActiveCart()).rejects.toBeInstanceOf(CartNotFoundError);
+    await expect(requireActiveCart({ allowFrozen: true })).resolves.toMatchObject({ id: 'cart-1', cartState: 'Frozen' });
   });
 });

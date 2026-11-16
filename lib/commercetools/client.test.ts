@@ -99,4 +99,10 @@ describe('ctpClient', () => {
       }),
     );
   });
+
+  it('registers the selective concurrent modification handler', async () => {
+    await import('./client');
+    const { concurrentModificationHandler } = await import('./concurrent-modification');
+    expect(builderChain.withConcurrentModificationMiddleware).toHaveBeenCalledWith({ concurrentModificationHandlerFn: concurrentModificationHandler });
+  });
 });

@@ -185,27 +185,59 @@ export async function placeMockPayment(
   await (deps.sleep ?? delay)(MOCK_PAYMENT_DELAY_MS);
   cart = await loadExpandedActiveCart();
   assertCartReadyForPayment(cart);
-  cart = await ensureMockPayment(cart);
 
-  const orderNumber = createOrderNumber();
-  const order = await executeCommercetools(() =>
-    apiRoot
-      .orders()
-      .post({
-        body: {
-          cart: { typeId: 'cart', id: cart.id },
-          version: cart.version,
-          orderNumber,
-          paymentState: 'Paid',
-        },
-      })
-      .execute(),
-  );
+  // Freeze the cart so nothing can change the total between the payment and the order.
+  cart = await updateCart(cart, [
+    { action: 'freezeCart', strategy: 'HardFreeze' },
+  ]);
+
+  let orderId: string;
+  let orderNumber: string;
+  try {
+    cart = await ensureMockPayment(cart);
+
+    const fresh = await fetchExpandedCart(cart.id);
+    if (!sameMoney(findMockPayment(fresh)?.amount, chargeAmount(fresh))) {
+      throw new MockCheckoutError(
+        'Your cart changed during payment. Review your cart and try again.',
+      );
+    }
+
+    orderNumber = createOrderNumber();
+    const order = await executeCommercetools(() =>
+      apiRoot
+        .orders()
+        .post({
+          body: {
+            cart: { typeId: 'cart', id: fresh.id },
+            version: fresh.version,
+            orderNumber,
+            paymentState: 'Paid',
+          },
+        })
+        .execute(),
+    );
+    orderId = order.body.id;
+  } catch (error) {
+    await unfreezeCartBestEffort(cart.id);
+    throw error;
+  }
 
   await setLastOrderSession({ orderNumber, cartId: cart.id });
   await clearCartSession();
 
-  return { orderId: order.body.id, orderNumber };
+  return { orderId, orderNumber };
+}
+
+async function unfreezeCartBestEffort(cartId: string): Promise<void> {
+  try {
+    const latest = await fetchExpandedCart(cartId);
+    if (latest.cartState === 'Frozen') {
+      await updateCart(latest, [{ action: 'unfreezeCart' }]);
+    }
+  } catch {
+    console.warn('[mock-payment] unfreeze failed', { cartId });
+  }
 }
 
 function assertMockPaymentsEnabled(): void {
@@ -269,12 +301,11 @@ function toCartAddress(address: MockCheckoutAddress, country: string) {
   };
 }
 
-async function loadExpandedActiveCart(): Promise<Cart> {
-  const cart = await requireActiveCart();
+async function fetchExpandedCart(cartId: string): Promise<Cart> {
   const response = await executeCommercetools(() =>
     apiRoot
       .carts()
-      .withId({ ID: cart.id })
+      .withId({ ID: cartId })
       .get({
         queryArgs: {
           expand: [...CART_EXPAND],
@@ -283,15 +314,27 @@ async function loadExpandedActiveCart(): Promise<Cart> {
       .execute(),
   );
 
-  if (response.body.lineItems.length === 0) {
+  return response.body;
+}
+
+/** Always returns an Active cart; a cart left Frozen by an earlier attempt is unfrozen first. */
+async function loadExpandedActiveCart(): Promise<Cart> {
+  const resolved = await requireActiveCart({ allowFrozen: true });
+  const cart = await fetchExpandedCart(resolved.id);
+
+  if (cart.lineItems.length === 0) {
     throw new CartNotFoundError('Cart is empty');
   }
 
-  if (response.body.cartState !== 'Active') {
+  if (cart.cartState === 'Frozen') {
+    return updateCart(cart, [{ action: 'unfreezeCart' }]);
+  }
+
+  if (cart.cartState !== 'Active') {
     throw new CartNotFoundError('Cart is not active');
   }
 
-  return response.body;
+  return cart;
 }
 
 async function updateCart(

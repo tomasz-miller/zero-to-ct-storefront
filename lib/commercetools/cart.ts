@@ -764,14 +764,19 @@ export async function removeDiscountCode(
   }
 }
 
-export async function requireActiveCart(): Promise<Cart> {
+export async function requireActiveCart(
+  options: { allowFrozen?: boolean } = {},
+): Promise<Cart> {
   const { cart } = await loadResolvedCartIfSessionExists();
 
   if (cart.lineItems.length === 0) {
     throw new CartNotFoundError('Cart is empty');
   }
 
-  if (cart.cartState !== 'Active') {
+  const accepted =
+    cart.cartState === 'Active' ||
+    (options.allowFrozen === true && cart.cartState === 'Frozen');
+  if (!accepted) {
     throw new CartNotFoundError('Cart is not active');
   }
 

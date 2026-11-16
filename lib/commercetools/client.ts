@@ -2,6 +2,7 @@ import 'server-only';
 
 import { ClientBuilder, type AuthMiddlewareOptions } from '@commercetools/ts-client';
 
+import { concurrentModificationHandler } from './concurrent-modification';
 import { commercetoolsEnv } from './env';
 import { createHttpMiddlewareOptions } from './http-options';
 import { ctSdkLoggerFn, shouldEnableSdkLogger } from './sdk-logger';
@@ -22,7 +23,9 @@ const builder = new ClientBuilder()
   .withClientCredentialsFlow(authMiddlewareOptions)
   .withHttpMiddleware(createHttpMiddlewareOptions())
   .withCorrelationIdMiddleware({ generate: () => crypto.randomUUID() })
-  .withConcurrentModificationMiddleware();
+  .withConcurrentModificationMiddleware({
+    concurrentModificationHandlerFn: concurrentModificationHandler,
+  });
 
 if (shouldEnableSdkLogger()) {
   builder.withLoggerMiddleware({ loggerFn: ctSdkLoggerFn });
