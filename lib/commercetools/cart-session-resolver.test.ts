@@ -198,6 +198,8 @@ describe('cart session resolver', () => {
     mockGetCartSession.mockResolvedValue({ anonymousId: 'anon-1', cartId: 'cart-1' });
     mockExecute.mockRejectedValueOnce(ctError(404, 'ResourceNotFound'));
     await expect(getGuestCart()).resolves.toBeNull();
+    expect(mockClearCartSession).toHaveBeenCalledTimes(1);
+    expect(mockCartsPost).not.toHaveBeenCalled();
   });
 
   // Track 1A outcome fact 7: a CT 5xx must not look like "no guest cart"; customer-auth logs it (owner decision 2026-11-13).
