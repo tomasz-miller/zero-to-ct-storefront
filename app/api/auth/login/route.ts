@@ -18,9 +18,6 @@ export async function POST(request: NextRequest) {
 
   const { email, password } = parsed.data;
 
-  const limited = limitAuthRequest(request, 'login', email);
-  if (limited) return limited;
-
   const emailError = validateEmail(email);
   if (emailError) {
     return NextResponse.json({ error: emailError }, { status: 400 });
@@ -30,6 +27,10 @@ export async function POST(request: NextRequest) {
   if (passwordError) {
     return NextResponse.json({ error: passwordError }, { status: 400 });
   }
+
+  // Only well-formed requests create limiter keys: malformed or empty emails never do.
+  const limited = limitAuthRequest(request, 'login', email);
+  if (limited) return limited;
 
   try {
     const customer = await loginCustomer(email, password);

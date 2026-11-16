@@ -37,6 +37,17 @@ describe('POST /api/auth/login', () => {
     expect(response.status).toBe(400);
   });
 
+  it('does not consume email-scoped limits for invalid emails', async () => {
+    const attempt = (ip: string, email: string) =>
+      POST(jsonRequest(LOGIN_URL, { email, password: 'password123' }, { headers: { 'x-forwarded-for': ip } }));
+    // 31 empty emails from distinct clients would trip a shared 30/15 min email bucket.
+    for (let i = 0; i < 31; i++) expect((await attempt(`10.0.0.${i + 1}`, '')).status).toBe(400);
+    // 11 malformed emails from one client would trip the 10/15 min client-email bucket.
+    for (let i = 0; i < 11; i++) expect((await attempt('9.9.9.9', 'not-an-email')).status).toBe(400);
+    mockLoginCustomer.mockResolvedValue({ id: 'cust-1', email: 'jane@example.com', displayName: 'Jane' });
+    expect((await attempt('9.9.9.9', 'jane@example.com')).status).toBe(200);
+  });
+
   it.each([[null], [{ email: 1, password: 'x' }], [[]]])('returns 400 for %j', async (b) => {
     expect((await POST(jsonRequest(LOGIN_URL, b))).status).toBe(400);
     expect(mockLoginCustomer).not.toHaveBeenCalled();

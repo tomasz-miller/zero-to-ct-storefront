@@ -59,7 +59,7 @@ const clientEmailKey = (ip: string, normalizedEmail: string) =>
 
 /**
  * Returns a 429 response when the request is over a limit, else null.
- * Call it right after the body has been parsed.
+ * Call it only after the body and email are validated: every email passed here creates limiter keys.
  */
 export function limitAuthRequest(
   request: Request,
