@@ -38,7 +38,7 @@ describe('auth-rate-limits', () => {
   });
 
   it('still trips a loose per-email login ceiling across many clients', () => {
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 30; i++) {
       expect(
         limitAuthRequest(reqFrom(`10.0.${Math.floor(i / 250)}.${i % 250}`), 'login', 'victim@example.com'),
       ).toBeNull();
@@ -68,7 +68,7 @@ describe('auth-rate-limits', () => {
   });
 
   it('still trips a loose per-email forgot-password ceiling across many clients', () => {
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 5; i++) {
       expect(
         limitAuthRequest(reqFrom(`10.0.0.${i + 1}`), 'forgot-password', 'victim@example.com'),
       ).toBeNull();

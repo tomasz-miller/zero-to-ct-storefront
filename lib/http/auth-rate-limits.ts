@@ -15,9 +15,10 @@ const MINUTE = 60_000;
 
 /**
  * `ip`: client address only. `client-email`: client address plus email, so one client
- * cannot burn another client's budget for the same account. `email`: email only; a loose
- * ceiling that still stops attacks spread over many addresses without letting one
- * address lock a chosen customer out.
+ * cannot burn another client's budget for the same account. `email`: email only; a low
+ * ceiling (30 sign-ins / 15 min, 5 reset requests / 60 min) that still stops attacks spread
+ * over many addresses. Rotating addresses can burn it to deny a chosen customer for one
+ * window, which is the accepted trade-off; one address alone cannot.
  */
 type Rule = { scope: 'ip' | 'client-email' | 'email'; limit: number; windowMs: number };
 
@@ -25,13 +26,13 @@ const RULES: Record<AuthAction, Rule[]> = {
   login: [
     { scope: 'ip', limit: 20, windowMs: 15 * MINUTE },
     { scope: 'client-email', limit: 10, windowMs: 15 * MINUTE },
-    { scope: 'email', limit: 100, windowMs: 15 * MINUTE },
+    { scope: 'email', limit: 30, windowMs: 15 * MINUTE },
   ],
   register: [{ scope: 'ip', limit: 5, windowMs: 60 * MINUTE }],
   'forgot-password': [
     { scope: 'ip', limit: 5, windowMs: 15 * MINUTE },
     { scope: 'client-email', limit: 3, windowMs: 60 * MINUTE },
-    { scope: 'email', limit: 20, windowMs: 60 * MINUTE },
+    { scope: 'email', limit: 5, windowMs: 60 * MINUTE },
   ],
   'reset-password': [{ scope: 'ip', limit: 10, windowMs: 15 * MINUTE }],
 };
