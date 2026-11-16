@@ -99,12 +99,12 @@ The auth routes (`/api/auth/login`, `register`, `forgot-password`, `reset-passwo
 
 | Route | Per IP | Per IP and email | Per email (any IP) | Lockout |
 |-------|--------|------------------|--------------------|---------|
-| login | 20 / 15 min | 10 / 15 min | 30 / 15 min | 5 failed sign-ins / 15 min per IP and email |
+| login | 20 / 15 min | 10 / 15 min | 30 failed sign-ins / 15 min | 5 failed sign-ins / 15 min per IP and email |
 | register | 5 / 60 min | n/a | n/a | n/a |
 | forgot-password | 5 / 15 min | 3 / 60 min | 5 / 60 min | n/a |
 | reset-password | 10 / 15 min | n/a | n/a | n/a |
 
-The per-email ceiling stops an attack spread over many addresses. It is deliberately low, so an attacker rotating addresses can hold a chosen customer at the limit for one window; the per-IP-and-email rules ensure a single address cannot.
+The per-email ceiling stops an attack spread over many addresses. For forgot-password it counts every request and is deliberately low, so an attacker rotating addresses can hold a chosen customer at the limit for one window; the per-IP-and-email rules ensure a single address cannot. For login it counts only failed sign-ins (wrong credentials): a flood of requests cannot lock the real owner out when they type the correct password, while password guessing stays capped at 30 failures per 15 minutes per email. A successful sign-in clears that counter (and the per-IP-and-email lockout of the signing-in client).
 
 Each limiter tracks at most 10,000 keys and never evicts a counter that is still inside its window. When it is full of live counters, new keys share one overflow counter with the rule's own limit and window, so traffic beyond capacity stays bounded and new visitors get some attempts per window. A sustained flood of new keys can spend that budget and lock new visitors out on that instance until it subsides; the Vercel WAF rule below is the defence for that case. Over the limit, a route answers `429` with a `Retry-After` header. The counters live in one serverless instance, so they are best effort: a request that lands on another instance starts with fresh counters. IPv6 clients are keyed by their /64 prefix (one host usually controls a whole /64), and an IPv4-mapped IPv6 address counts as IPv4. On Vercel `x-forwarded-for` is overwritten by the platform, so the client IP cannot be spoofed through that header; outside Vercel, make sure your proxy does the same.
 

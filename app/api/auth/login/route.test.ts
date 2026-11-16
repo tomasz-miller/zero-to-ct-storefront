@@ -116,4 +116,39 @@ describe('POST /api/auth/login', () => {
     expect(sixth.headers.get('Retry-After')).not.toBeNull();
     expect(mockLoginCustomer).toHaveBeenCalledTimes(5);
   });
+
+  const attemptFrom = (ip: string, password: string) =>
+    POST(
+      jsonRequest(
+        LOGIN_URL,
+        { email: 'owner@example.com', password },
+        { headers: { 'x-forwarded-for': ip } },
+      ),
+    );
+
+  it('caps guessing at 30 failed sign-ins per email across clients, even for the correct password', async () => {
+    mockLoginCustomer.mockRejectedValue(
+      new CustomerError('InvalidCredentials', 'Invalid email or password', 401),
+    );
+    for (let i = 0; i < 30; i++) expect((await attemptFrom(`10.0.0.${i + 1}`, 'wrong-pass')).status).toBe(401);
+    mockLoginCustomer.mockResolvedValue({ id: 'cust-1', email: 'owner@example.com', displayName: 'Owner' });
+    const blocked = await attemptFrom('10.9.9.9', 'right-pass');
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get('Retry-After')).not.toBeNull();
+    expect(mockLoginCustomer).toHaveBeenCalledTimes(30);
+  });
+
+  it('does not exhaust the per-email ceiling with successful sign-ins from many clients', async () => {
+    mockLoginCustomer.mockResolvedValue({ id: 'cust-1', email: 'owner@example.com', displayName: 'Owner' });
+    for (let i = 0; i < 40; i++) expect((await attemptFrom(`10.0.0.${i + 1}`, 'right-pass')).status).toBe(200);
+  });
+
+  it('lets the owner sign in while failed attempts from other clients stay below the cap', async () => {
+    mockLoginCustomer.mockRejectedValue(
+      new CustomerError('InvalidCredentials', 'Invalid email or password', 401),
+    );
+    for (let i = 0; i < 29; i++) expect((await attemptFrom(`10.0.0.${i + 1}`, 'wrong-pass')).status).toBe(401);
+    mockLoginCustomer.mockResolvedValue({ id: 'cust-1', email: 'owner@example.com', displayName: 'Owner' });
+    expect((await attemptFrom('10.9.9.9', 'right-pass')).status).toBe(200);
+  });
 });

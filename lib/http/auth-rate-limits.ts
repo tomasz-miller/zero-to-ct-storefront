@@ -16,9 +16,11 @@ const MINUTE = 60_000;
 /**
  * `ip`: client address only. `client-email`: client address plus email, so one client
  * cannot burn another client's budget for the same account. `email`: email only; a low
- * ceiling (30 sign-ins / 15 min, 5 reset requests / 60 min) that still stops attacks spread
- * over many addresses. Rotating addresses can burn it to deny a chosen customer for one
- * window, which is the accepted trade-off; one address alone cannot.
+ * ceiling (5 reset requests / 60 min) that still stops attacks spread over many addresses.
+ * Rotating addresses can burn it to deny a chosen customer for one window, which is the
+ * accepted trade-off; one address alone cannot. The login email ceiling is not a rule here:
+ * it counts failed sign-ins only (`loginEmailFailures`), so a flood of requests cannot lock
+ * the account owner out.
  */
 type Rule = { scope: 'ip' | 'client-email' | 'email'; limit: number; windowMs: number };
 
@@ -26,7 +28,6 @@ const RULES: Record<AuthAction, Rule[]> = {
   login: [
     { scope: 'ip', limit: 20, windowMs: 15 * MINUTE },
     { scope: 'client-email', limit: 10, windowMs: 15 * MINUTE },
-    { scope: 'email', limit: 30, windowMs: 15 * MINUTE },
   ],
   register: [{ scope: 'ip', limit: 5, windowMs: 60 * MINUTE }],
   'forgot-password': [
@@ -51,6 +52,15 @@ for (const [action, rules] of Object.entries(RULES)) {
 /** Failed logins per client and email: 5 within 15 minutes lock further attempts from that client. */
 const loginFailures = createFixedWindowLimiter({ limit: 5, windowMs: 15 * MINUTE });
 
+/**
+ * Failed sign-ins per email from any client: 30 within 15 minutes block further sign-in
+ * attempts for that email. Only wrong credentials count (never every request), so an
+ * attacker flooding an email cannot lock out the owner who types the right password, while
+ * password guessing stays capped. A successful sign-in clears it: only someone who knows
+ * the password can succeed, so clearing gives an attacker nothing and spares the owner.
+ */
+const loginEmailFailures = createFixedWindowLimiter({ limit: 30, windowMs: 15 * MINUTE });
+
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 /** Unambiguous composite key: neither an IPv6 address nor an email can collide across the pair. */
@@ -72,6 +82,8 @@ export function limitAuthRequest(
   if (action === 'login' && normalized !== undefined) {
     const locked = loginFailures.peek(clientEmailKey(ip, normalized));
     if (!locked.allowed) return tooManyRequestsResponse(locked.retryAfterSeconds);
+    const emailLocked = loginEmailFailures.peek(normalized);
+    if (!emailLocked.allowed) return tooManyRequestsResponse(emailLocked.retryAfterSeconds);
   }
 
   for (const rule of RULES[action]) {
@@ -86,16 +98,22 @@ export function limitAuthRequest(
   return null;
 }
 
+/** Call only when commercetools rejected the credentials. */
 export function recordLoginFailure(request: Request, email: string): void {
-  loginFailures.consume(clientEmailKey(getClientIp(request), normalizeEmail(email)));
+  const normalized = normalizeEmail(email);
+  loginFailures.consume(clientEmailKey(getClientIp(request), normalized));
+  loginEmailFailures.consume(normalized);
 }
 
 export function clearLoginFailures(request: Request, email: string): void {
-  loginFailures.reset(clientEmailKey(getClientIp(request), normalizeEmail(email)));
+  const normalized = normalizeEmail(email);
+  loginFailures.reset(clientEmailKey(getClientIp(request), normalized));
+  loginEmailFailures.reset(normalized);
 }
 
 /** Test helper: forget all counters. */
 export function resetAuthRateLimits(): void {
   for (const limiter of limiters.values()) limiter.clear();
   loginFailures.clear();
+  loginEmailFailures.clear();
 }

@@ -37,14 +37,34 @@ describe('auth-rate-limits', () => {
     expect(limitAuthRequest(reqFrom('2.2.2.2'), 'login', 'victim@example.com')).toBeNull();
   });
 
-  it('still trips a loose per-email login ceiling across many clients', () => {
+  const variedIp = (i: number) => reqFrom(`10.0.${Math.floor(i / 250)}.${i % 250}`);
+
+  it('caps password guessing at 30 failures per email across many clients', () => {
     for (let i = 0; i < 30; i++) {
-      expect(
-        limitAuthRequest(reqFrom(`10.0.${Math.floor(i / 250)}.${i % 250}`), 'login', 'victim@example.com'),
-      ).toBeNull();
+      expect(limitAuthRequest(variedIp(i), 'login', 'victim@example.com')).toBeNull();
+      recordLoginFailure(variedIp(i), 'victim@example.com');
     }
     expect(limitAuthRequest(reqFrom('10.9.9.9'), 'login', 'victim@example.com')?.status).toBe(429);
     expect(limitAuthRequest(reqFrom('10.9.9.9'), 'login', 'other@example.com')).toBeNull();
+  });
+
+  it('does not count requests that are not failed sign-ins toward the per-email ceiling', () => {
+    for (let i = 0; i < 100; i++) {
+      expect(limitAuthRequest(variedIp(i), 'login', 'owner@example.com')).toBeNull();
+    }
+    expect(limitAuthRequest(reqFrom('10.9.9.9'), 'login', 'owner@example.com')).toBeNull();
+  });
+
+  it('does not block the owner while failures from other clients stay below the cap', () => {
+    for (let i = 0; i < 29; i++) recordLoginFailure(variedIp(i), 'owner@example.com');
+    expect(limitAuthRequest(reqFrom('7.7.7.7'), 'login', 'owner@example.com')).toBeNull();
+  });
+
+  it('clears the per-email failure counter on a successful sign-in', () => {
+    for (let i = 0; i < 29; i++) recordLoginFailure(variedIp(i), 'owner@example.com');
+    clearLoginFailures(reqFrom('7.7.7.7'), 'owner@example.com');
+    for (let i = 0; i < 29; i++) recordLoginFailure(variedIp(i + 50), 'owner@example.com');
+    expect(limitAuthRequest(reqFrom('7.7.7.7'), 'login', 'owner@example.com')).toBeNull();
   });
 
   it('clears the failure counter of the same client and email on success', () => {
