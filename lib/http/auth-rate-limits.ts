@@ -61,7 +61,7 @@ const loginFailures = createFixedWindowLimiter({ limit: 5, windowMs: 15 * MINUTE
  * attempts for that email. A slot is reserved before the credential check and kept only when
  * commercetools rejects the credentials, so concurrent requests cannot exceed the cap and a
  * full limiter still caps through its shared overflow counter. Successful sign-ins and
- * service errors give their slot back; a success also clears the counter.
+ * service errors give their slot back; a success never clears the failures already recorded.
  */
 const loginEmailFailures = createFixedWindowLimiter({ limit: 30, windowMs: 15 * MINUTE });
 
@@ -168,12 +168,9 @@ export function reserveLoginAttempt(request: Request, email: string): LoginReser
         settled = true;
         if (outcome === 'failed') return;
         giveBack();
-        // A success clears the failure counters of this client and of the email: only someone
-        // who knows the password can succeed.
-        if (outcome === 'succeeded') {
-          loginFailures.reset(pairKey);
-          loginEmailFailures.reset(normalized);
-        }
+        // Only this client's own ip+email counter is cleared. The account-wide counter is not:
+        // clearing it on success would refund an attacker's guesses whenever the owner signs in.
+        if (outcome === 'succeeded') loginFailures.reset(pairKey);
       },
     },
   };

@@ -165,6 +165,18 @@ describe('POST /api/auth/login', () => {
     for (let i = 0; i < 40; i++) expect((await attemptFrom(`10.0.0.${i + 1}`, 'any-pass')).status).toBe(500);
   });
 
+  it('does not refund failed guesses when the owner signs in', async () => {
+    mockLoginCustomer.mockRejectedValue(
+      new CustomerError('InvalidCredentials', 'Invalid email or password', 401),
+    );
+    for (let i = 0; i < 29; i++) expect((await attemptFrom(`10.0.0.${i + 1}`, 'wrong-pass')).status).toBe(401);
+    mockLoginCustomer.mockResolvedValueOnce({ id: 'cust-1', email: 'owner@example.com', displayName: 'Owner' });
+    expect((await attemptFrom('10.1.0.1', 'right-pass')).status).toBe(200);
+    // Still 29 failures on record: one more reaches the cap and the next attempt is refused.
+    expect((await attemptFrom('10.1.0.2', 'wrong-pass')).status).toBe(401);
+    expect((await attemptFrom('10.1.0.3', 'right-pass')).status).toBe(429);
+  });
+
   it('does not exhaust the per-email ceiling with successful sign-ins from many clients', async () => {
     mockLoginCustomer.mockResolvedValue({ id: 'cust-1', email: 'owner@example.com', displayName: 'Owner' });
     for (let i = 0; i < 40; i++) expect((await attemptFrom(`10.0.0.${i + 1}`, 'right-pass')).status).toBe(200);

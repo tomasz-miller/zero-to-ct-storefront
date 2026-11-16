@@ -70,12 +70,18 @@ describe('auth-rate-limits', () => {
 
   it('gives the slot back on success and on non-credential errors', () => {
     for (let i = 0; i < 29; i++) reserved(variedIp(i), 'owner@example.com').settle('failed');
+    for (let i = 0; i < 20; i++) reserved(variedIp(100 + i), 'owner@example.com').settle('succeeded');
     for (let i = 0; i < 20; i++) reserved(variedIp(200 + i), 'owner@example.com').settle('error');
     // Only the 29 failures are on record: the 30th still goes through, the 31st does not.
     reserved(variedIp(300), 'owner@example.com').settle('failed');
     expect(refusedStatus(variedIp(301), 'owner@example.com')).toBe(429);
-    resetAuthRateLimits();
-    for (let i = 0; i < 40; i++) reserved(variedIp(i), 'owner@example.com').settle('succeeded');
+  });
+
+  it('does not refund failed guesses when the owner signs in', () => {
+    for (let i = 0; i < 29; i++) reserved(variedIp(i), 'owner@example.com').settle('failed');
+    reserved(variedIp(100), 'owner@example.com').settle('succeeded');
+    reserved(variedIp(101), 'owner@example.com').settle('failed');
+    expect(refusedStatus(variedIp(102), 'owner@example.com')).toBe(429);
   });
 
   it('settles an attempt only once', () => {
@@ -83,6 +89,7 @@ describe('auth-rate-limits', () => {
     const attempt = reserved(variedIp(100), 'owner@example.com');
     attempt.settle('failed');
     attempt.settle('error');
+    attempt.settle('succeeded');
     expect(refusedStatus(variedIp(101), 'owner@example.com')).toBe(429);
   });
 
