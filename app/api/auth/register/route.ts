@@ -13,9 +13,6 @@ export async function POST(request: NextRequest) {
 
   const { email, password, firstName, lastName } = parsed.data;
 
-  const limited = limitAuthRequest(request, 'register');
-  if (limited) return limited;
-
   const emailError = validateEmail(email);
   if (emailError) {
     return NextResponse.json({ error: emailError }, { status: 400 });
@@ -33,6 +30,10 @@ export async function POST(request: NextRequest) {
   if (!lastName) {
     return NextResponse.json({ error: 'Last name is required' }, { status: 400 });
   }
+
+  // Spend the sign-up budget only on requests that passed validation.
+  const limited = limitAuthRequest(request, 'register');
+  if (limited) return limited;
 
   try {
     const customer = await registerCustomer({

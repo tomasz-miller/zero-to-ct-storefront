@@ -7,7 +7,10 @@ export type RateLimitResult =
 type FixedWindowLimiterOptions = {
   limit: number;
   windowMs: number;
-  /** Upper bound on tracked keys; the oldest entries are evicted beyond it. */
+  /**
+   * Upper bound on tracked keys. Expired counters are evicted first; counters still inside
+   * their window are never dropped, so at the bound new keys are rejected (fail closed).
+   */
   maxKeys?: number;
 };
 
@@ -31,16 +34,16 @@ export function createFixedWindowLimiter({
     retryAfterSeconds: Math.max(1, Math.ceil((entry.windowStart + windowMs - now) / 1000)),
   });
 
-  function makeRoom(now: number) {
-    if (entries.size < maxKeys) return;
+  /** Frees room for one new key; returns the soonest retry-after when none can be freed. */
+  function makeRoom(now: number): RateLimitResult {
+    if (entries.size < maxKeys) return { allowed: true };
+    let soonestExpiry = Infinity;
     for (const [key, entry] of entries) {
       if (isExpired(entry, now)) entries.delete(key);
+      else soonestExpiry = Math.min(soonestExpiry, entry.windowStart + windowMs);
     }
-    while (entries.size >= maxKeys) {
-      const oldest = entries.keys().next();
-      if (oldest.done) break;
-      entries.delete(oldest.value);
-    }
+    if (entries.size < maxKeys) return { allowed: true };
+    return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((soonestExpiry - now) / 1000)) };
   }
 
   return {
@@ -53,7 +56,8 @@ export function createFixedWindowLimiter({
         return { allowed: true };
       }
       if (existing) entries.delete(key);
-      makeRoom(now);
+      const room = makeRoom(now);
+      if (!room.allowed) return room;
       entries.set(key, { windowStart: now, count: 1 });
       return { allowed: true };
     },
@@ -72,15 +76,19 @@ export function createFixedWindowLimiter({
   };
 }
 
+/** Longest address kept as a rate-limit key (IPv6 is at most 45 characters). */
+const MAX_CLIENT_KEY_LENGTH = 64;
+
 /**
  * Client address for rate-limit keys. On Vercel `x-forwarded-for` is
  * overwritten by the platform, so the first entry cannot be spoofed there.
+ * A value longer than 64 characters is not an address: it shares the `unknown`
+ * bucket so a client cannot mint unbounded or oversized keys.
  */
 export function getClientIp(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  if (forwarded) return forwarded;
-  const real = request.headers.get('x-real-ip')?.trim();
-  return real || 'unknown';
+  const candidate = forwarded || request.headers.get('x-real-ip')?.trim() || 'unknown';
+  return candidate.length > MAX_CLIENT_KEY_LENGTH ? 'unknown' : candidate;
 }
 
 export function tooManyRequestsResponse(retryAfterSeconds: number): NextResponse {
