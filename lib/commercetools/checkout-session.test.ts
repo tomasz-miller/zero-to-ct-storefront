@@ -42,6 +42,12 @@ describe('createCheckoutSession', () => {
     });
   });
 
+  it('sends the request with a timeout signal', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ id: 'sess-1' }), { status: 201 }));
+    await expect(createCheckoutSession('cart-1', 'DE', 'ZT-20261113-0000ABCD')).resolves.toBe('sess-1');
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('throws CheckoutSessionError without the response body', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     fetchMock.mockResolvedValueOnce(

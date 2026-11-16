@@ -45,6 +45,12 @@ describe('requestCustomerPasswordToken', () => {
     );
   });
 
+  it('sends the password grant with a timeout signal', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_in: 172800 }), { status: 200 }));
+    await expect(requestCustomerPasswordToken('a@example.com', 'pw')).resolves.toMatchObject({ accessToken: 'a', refreshToken: 'r' });
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('throws a CtFetchError carrying invalid_scope and logs the configuration hint without the password', async () => {
     fetchMock.mockResolvedValueOnce(reply(400, { statusCode: 400, error: 'invalid_scope' }));
     const err = await requestCustomerPasswordToken('jane@example.com', 'pw').catch((e: unknown) => e);
@@ -88,6 +94,12 @@ describe('refreshCustomerSession', () => {
     expect(body.get('scope')).toBeNull();
   });
 
+  it('sends the refresh grant with a timeout signal', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'a2', expires_in: 172800 }), { status: 200 }));
+    await expect(refreshCustomerSession(session)).resolves.toMatchObject({ accessToken: 'a2' });
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('keeps the previous refresh token when the response has none', async () => {
     vi.useFakeTimers({ now: 1_000 });
     fetchMock.mockResolvedValueOnce(reply(200, { access_token: 'a-new', expires_in: 172800 }));
@@ -128,6 +140,12 @@ describe('token revocation', () => {
     const body = new URLSearchParams(init.body);
     expect(body.get('token')).toBe('r');
     expect(body.get('token_type_hint')).toBe('refresh_token');
+  });
+
+  it('sends the revocation with a timeout signal', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    await expect(revokeCustomerRefreshToken('r')).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   });
 
   it('throws a CtFetchError when revocation answers 5xx', async () => {

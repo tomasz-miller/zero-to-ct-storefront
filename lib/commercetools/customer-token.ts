@@ -4,6 +4,7 @@ import { parseCtError, toCtFetchError } from './ct-errors';
 import type { CustomerSession } from './customer-session';
 import { CustomerError } from './domain-errors';
 import { commercetoolsEnv } from './env';
+import { CT_AUTH_TIMEOUT_MS } from './http-options';
 
 export type CustomerTokenResponse = {
   access_token: string;
@@ -47,6 +48,7 @@ export async function requestCustomerPasswordToken(
         password,
         scope: commercetoolsEnv.customerScopes,
       }),
+      signal: AbortSignal.timeout(CT_AUTH_TIMEOUT_MS),
     },
   );
 
@@ -106,6 +108,7 @@ export async function refreshCustomerSession(
       grant_type: 'refresh_token',
       refresh_token: session.refreshToken,
     }),
+    signal: AbortSignal.timeout(CT_AUTH_TIMEOUT_MS),
   });
 
   const raw = await response.text();
@@ -148,6 +151,7 @@ async function revokeCustomerToken(
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({ token, token_type_hint: tokenTypeHint }),
+    signal: AbortSignal.timeout(CT_AUTH_TIMEOUT_MS),
   });
 
   if (!response.ok) {

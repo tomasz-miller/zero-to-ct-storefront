@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { Customer, CustomerSignInResult } from '@commercetools/platform-sdk';
+import type { CustomerSignInResult } from '@commercetools/platform-sdk';
 
 import { apiRoot } from './api-root';
 import { getOwnedGuestCartRef, reconcileCartOnAuth } from './cart';
@@ -25,9 +25,9 @@ import {
   revokeCustomerAccessToken,
   revokeCustomerRefreshToken,
 } from './customer-token';
-import { getCtErrorObjects, isCtNotFound, parseCtError, toCtFetchError } from './ct-errors';
+import { getCtErrorObjects, isCtNotFound, parseCtError } from './ct-errors';
+import { createCustomerApiRoot } from './customer-client';
 import { mapCustomerCtError } from './customer-errors';
-import { commercetoolsEnv } from './env';
 import { clearLastOrderSession } from './last-order-session';
 import { clearMarketCartMap } from './market-cart-session';
 import {
@@ -59,23 +59,12 @@ async function exchangePasswordForCustomerToken(
 }
 
 async function resolveCustomerIdFromAccessToken(accessToken: string): Promise<string> {
-  const response = await fetch(
-    `${commercetoolsEnv.apiUrl}/${commercetoolsEnv.projectKey}/me`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    },
-  );
-
-  const raw = await response.text();
-  if (!response.ok) {
-    const ctError = toCtFetchError(response, raw);
-    throw mapCustomerCtError(ctError) ?? ctError;
+  try {
+    const response = await createCustomerApiRoot(accessToken).me().get().execute();
+    return response.body.id;
+  } catch (error) {
+    throw mapCustomerCtError(error) ?? error;
   }
-
-  const customer = JSON.parse(raw) as Customer;
-  return customer.id;
 }
 
 /**
@@ -340,24 +329,14 @@ export async function getAuthenticatedCustomerProfile(): Promise<StorefrontCusto
     return null;
   }
 
-  const response = await fetch(
-    `${commercetoolsEnv.apiUrl}/${commercetoolsEnv.projectKey}/me`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    },
-  );
-
-  const raw = await response.text();
-  if (!response.ok) {
-    if (response.status === 401) {
+  try {
+    const response = await createCustomerApiRoot(accessToken).me().get().execute();
+    return mapCustomer(response.body);
+  } catch (error) {
+    if (parseCtError(error).statusCode === 401) {
       await clearCustomerSession();
       return null;
     }
-    const ctError = toCtFetchError(response, raw);
-    throw mapCustomerCtError(ctError) ?? ctError;
+    throw mapCustomerCtError(error) ?? error;
   }
-
-  return mapCustomer(JSON.parse(raw) as Customer);
 }

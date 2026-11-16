@@ -51,6 +51,14 @@ const {
   mockClearLastOrderSession: vi.fn(),
 }));
 
+const { mockCreateCustomerApiRoot, meGetExecute } = vi.hoisted(() => {
+  const meGetExecute = vi.fn();
+  const meChain = { me: () => ({ get: () => ({ execute: meGetExecute }) }) };
+  return { mockCreateCustomerApiRoot: vi.fn(() => meChain), meGetExecute };
+});
+
+vi.mock('./customer-client', () => ({ createCustomerApiRoot: mockCreateCustomerApiRoot }));
+
 vi.mock('./customer-token', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./customer-token')>()),
   refreshCustomerSession: mockRefreshCustomerSession,
@@ -176,16 +184,9 @@ describe('customer-auth', () => {
             refresh_token: 'refresh-token',
             expires_in: 3600,
           }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        text: async () =>
-          JSON.stringify({
-            id: 'cust-1',
-            email: 'jane@example.com',
-          }),
       });
     vi.stubGlobal('fetch', fetchMock);
+    meGetExecute.mockResolvedValueOnce({ body: { id: 'cust-1', email: 'jane@example.com' } });
 
     const customer = await loginCustomer('jane@example.com', 'password123');
 
@@ -246,16 +247,9 @@ describe('customer-auth', () => {
             refresh_token: 'refresh-token',
             expires_in: 3600,
           }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        text: async () =>
-          JSON.stringify({
-            id: 'cust-1',
-            email: 'jane@example.com',
-          }),
       });
     vi.stubGlobal('fetch', fetchMock);
+    meGetExecute.mockResolvedValueOnce({ body: { id: 'cust-1', email: 'jane@example.com' } });
 
     await loginCustomer('jane@example.com', 'password123');
 
@@ -322,16 +316,9 @@ describe('customer-auth', () => {
             refresh_token: 'refresh-token',
             expires_in: 3600,
           }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        text: async () =>
-          JSON.stringify({
-            id: 'cust-2',
-            email: 'new@example.com',
-          }),
       });
     vi.stubGlobal('fetch', fetchMock);
+    meGetExecute.mockResolvedValueOnce({ body: { id: 'cust-2', email: 'new@example.com' } });
 
     const customer = await registerCustomer({
       email: 'new@example.com',
@@ -380,22 +367,17 @@ describe('customer-auth', () => {
     function stubTokenAndMe() {
       vi.stubGlobal(
         'fetch',
-        vi
-          .fn()
-          .mockResolvedValueOnce({
-            ok: true,
-            text: async () =>
-              JSON.stringify({
-                access_token: 'access-token',
-                refresh_token: 'refresh-token',
-                expires_in: 3600,
-              }),
-          })
-          .mockResolvedValueOnce({
-            ok: true,
-            text: async () => JSON.stringify({ id: 'cust-1', email: 'jane@example.com' }),
-          }),
+        vi.fn().mockResolvedValueOnce({
+          ok: true,
+          text: async () =>
+            JSON.stringify({
+              access_token: 'access-token',
+              refresh_token: 'refresh-token',
+              expires_in: 3600,
+            }),
+        }),
       );
+      meGetExecute.mockResolvedValueOnce({ body: { id: 'cust-1', email: 'jane@example.com' } });
     }
 
     it('logs in with anonymousCart, anonymousId and MergeWithExistingCustomerCart', async () => {
@@ -610,13 +592,14 @@ describe('customer access tokens', () => {
     mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() - 1 });
     await expect(getAuthenticatedCustomerProfile()).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockCreateCustomerApiRoot).not.toHaveBeenCalled();
     expect(mockRefreshCustomerSession).not.toHaveBeenCalled();
     expect(mockSetCustomerSession).not.toHaveBeenCalled();
   });
 
   it('getAuthenticatedCustomerProfile clears the session on a 401 from /me and returns null', async () => {
     mockGetCustomerSession.mockResolvedValueOnce({ ...session, expiresAt: Date.now() + 10_000 });
-    fetchMock.mockResolvedValueOnce(new Response('{}', { status: 401 }));
+    meGetExecute.mockRejectedValueOnce(ctErr('invalid_token', 'ct', 401));
     mockClearCustomerSession.mockResolvedValueOnce(false); // render: cookies are read-only
     await expect(getAuthenticatedCustomerProfile()).resolves.toBeNull();
     expect(mockClearCustomerSession).toHaveBeenCalledTimes(1);

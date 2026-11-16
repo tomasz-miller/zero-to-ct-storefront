@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { commercetoolsEnv } from './env';
+import { CT_AUTH_TIMEOUT_MS } from './http-options';
 
 type TokenCache = {
   accessToken: string;
@@ -29,6 +30,7 @@ export async function getClientCredentialsAccessToken(): Promise<string> {
       grant_type: 'client_credentials',
       scope: `manage_sessions:${commercetoolsEnv.projectKey}`,
     }),
+    signal: AbortSignal.timeout(CT_AUTH_TIMEOUT_MS),
   });
 
   const raw = await response.text();

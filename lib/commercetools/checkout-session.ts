@@ -4,6 +4,7 @@ import { getClientCredentialsAccessToken } from './access-token';
 import { getCtCorrelationId, toCtFetchError } from './ct-errors';
 import { CheckoutSessionError } from './domain-errors';
 import { commercetoolsEnv } from './env';
+import { CT_AUTH_TIMEOUT_MS } from './http-options';
 import { resolveCheckoutApplicationKey } from './storefront-context';
 
 type SessionResponse = {
@@ -37,6 +38,7 @@ export async function createCheckoutSession(
           futureOrderNumber,
         },
       }),
+      signal: AbortSignal.timeout(CT_AUTH_TIMEOUT_MS),
     },
   );
 
