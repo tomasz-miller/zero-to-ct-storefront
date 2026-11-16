@@ -526,6 +526,30 @@ export function assertValidLineItemQuantity(quantity: number): void {
   }
 }
 
+/**
+ * commercetools merges an added item into the existing line of the same SKU, so the cap
+ * applies to the resulting line, not just to this request. Updates are not checked here:
+ * `updateLineItemQuantity` accepts any 1..99, which lets an over-cap line be reduced.
+ */
+function assertResultingLineQuantities(
+  cart: Cart,
+  items: Array<{ sku: string; quantity: number }>,
+): void {
+  const requested = new Map<string, number>();
+  for (const item of items) {
+    requested.set(item.sku, (requested.get(item.sku) ?? 0) + item.quantity);
+  }
+
+  for (const [sku, quantity] of requested) {
+    const existing = cart.lineItems
+      .filter((lineItem) => lineItem.variant.sku === sku)
+      .reduce((sum, lineItem) => sum + lineItem.quantity, 0);
+    if (existing + quantity > MAX_LINE_ITEM_QUANTITY) {
+      throw new InvalidQuantityError();
+    }
+  }
+}
+
 export async function addLineItem(
   sku: string,
   quantity: number,
@@ -538,6 +562,7 @@ export async function addLineItem(
   }
 
   const { cart } = await loadResolvedCart();
+  assertResultingLineQuantities(cart, [{ sku, quantity }]);
 
   const response = await apiRoot
     .carts()
@@ -584,6 +609,7 @@ export async function addLineItems(
   }
 
   const { cart } = await loadResolvedCart();
+  assertResultingLineQuantities(cart, items);
   return updateCartWithActions(
     cart,
     items.map((item) => ({
