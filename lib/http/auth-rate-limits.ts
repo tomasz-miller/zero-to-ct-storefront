@@ -6,7 +6,8 @@ import {
   createFixedWindowLimiter,
   getClientIp,
   tooManyRequestsResponse,
-  type RateLimitResult,
+  type ConsumeResult,
+  type LimiterSlot,
 } from './rate-limit';
 
 export type AuthAction = 'login' | 'register' | 'forgot-password' | 'reset-password';
@@ -49,15 +50,18 @@ for (const [action, rules] of Object.entries(RULES)) {
   }
 }
 
-/** Failed logins per client and email: 5 within 15 minutes lock further attempts from that client. */
+/**
+ * Failed logins per client and email: 5 within 15 minutes lock further attempts from that
+ * client. A slot is reserved before the credential check (see `reserveLoginAttempt`).
+ */
 const loginFailures = createFixedWindowLimiter({ limit: 5, windowMs: 15 * MINUTE });
 
 /**
  * Failed sign-ins per email from any client: 30 within 15 minutes block further sign-in
- * attempts for that email. Only wrong credentials count (never every request), so an
- * attacker flooding an email cannot lock out the owner who types the right password, while
- * password guessing stays capped. A successful sign-in clears it: only someone who knows
- * the password can succeed, so clearing gives an attacker nothing and spares the owner.
+ * attempts for that email. A slot is reserved before the credential check and kept only when
+ * commercetools rejects the credentials, so concurrent requests cannot exceed the cap and a
+ * full limiter still caps through its shared overflow counter. Successful sign-ins and
+ * service errors give their slot back; a success also clears the counter.
  */
 const loginEmailFailures = createFixedWindowLimiter({ limit: 30, windowMs: 15 * MINUTE });
 
@@ -67,48 +71,112 @@ const normalizeEmail = (email: string) => email.trim().toLowerCase();
 const clientEmailKey = (ip: string, normalizedEmail: string) =>
   JSON.stringify([ip, normalizedEmail]);
 
-/**
- * Returns a 429 response when the request is over a limit, else null.
- * Call it only after the body and email are validated: every email passed here creates limiter keys.
- */
-export function limitAuthRequest(
-  request: Request,
+/** Consumes the request-count rules of `action` (ip, client-email, email); 429 when over one. */
+function consumeRules(
   action: AuthAction,
-  email?: string,
+  ip: string,
+  normalized: string | undefined,
 ): NextResponse | null {
-  const normalized = email === undefined ? undefined : normalizeEmail(email);
-  const ip = getClientIp(request);
-
-  if (action === 'login' && normalized !== undefined) {
-    const locked = loginFailures.peek(clientEmailKey(ip, normalized));
-    if (!locked.allowed) return tooManyRequestsResponse(locked.retryAfterSeconds);
-    const emailLocked = loginEmailFailures.peek(normalized);
-    if (!emailLocked.allowed) return tooManyRequestsResponse(emailLocked.retryAfterSeconds);
-  }
-
   for (const rule of RULES[action]) {
     let value: string;
     if (rule.scope === 'ip') value = ip;
     else if (normalized === undefined) continue;
     else value = rule.scope === 'email' ? normalized : clientEmailKey(ip, normalized);
-    const limiter = limiters.get(`${action}:${rule.scope}`);
-    const result: RateLimitResult | undefined = limiter?.consume(`${action}:${rule.scope}:${value}`);
+    const result = limiters.get(`${action}:${rule.scope}`)?.consume(`${action}:${rule.scope}:${value}`);
     if (result && !result.allowed) return tooManyRequestsResponse(result.retryAfterSeconds);
   }
   return null;
 }
 
-/** Call only when commercetools rejected the credentials. */
-export function recordLoginFailure(request: Request, email: string): void {
-  const normalized = normalizeEmail(email);
-  loginFailures.consume(clientEmailKey(getClientIp(request), normalized));
-  loginEmailFailures.consume(normalized);
+/**
+ * Returns a 429 response when the request is over a limit, else null. Not for `login`, which
+ * has failure caps and goes through `reserveLoginAttempt`.
+ * Call it only after the body and email are validated: every email passed here creates limiter keys.
+ */
+export function limitAuthRequest(
+  request: Request,
+  action: Exclude<AuthAction, 'login'>,
+  email?: string,
+): NextResponse | null {
+  return consumeRules(
+    action,
+    getClientIp(request),
+    email === undefined ? undefined : normalizeEmail(email),
+  );
 }
 
-export function clearLoginFailures(request: Request, email: string): void {
+export type LoginOutcome =
+  /** commercetools rejected the credentials: the reserved failure slots stay spent. */
+  | 'failed'
+  /** The client signed in: its slots are released and its own ip+email failure counter cleared. */
+  | 'succeeded'
+  /** Any other error (5xx, network, unexpected): the reserved failure slots are released. */
+  | 'error';
+
+export type LoginAttempt = {
+  /** Resolves the reservation; only the first call has an effect. */
+  settle(outcome: LoginOutcome): void;
+};
+
+export type LoginReservation =
+  | { ok: true; attempt: LoginAttempt }
+  | { ok: false; response: NextResponse };
+
+/**
+ * Starts a sign-in attempt: reserves one slot on each failure cap (per client and email 5, per
+ * email 30 per 15 min) and applies the request-count rules, all BEFORE the credential check.
+ * Reserving up front is what makes the caps hard: parallel requests cannot all pass a check
+ * that only later records a failure, and an email with no counter of its own (limiter full)
+ * is still capped through the overflow counter. Call `attempt.settle(...)` exactly once after
+ * the credential check. Call it only after the body and email are validated: every email
+ * passed here creates limiter keys.
+ */
+export function reserveLoginAttempt(request: Request, email: string): LoginReservation {
   const normalized = normalizeEmail(email);
-  loginFailures.reset(clientEmailKey(getClientIp(request), normalized));
-  loginEmailFailures.reset(normalized);
+  const ip = getClientIp(request);
+  const pairKey = clientEmailKey(ip, normalized);
+
+  const reservations: Array<{ limiter: typeof loginFailures; key: string; slot: LimiterSlot }> = [];
+  const giveBack = () => {
+    for (const { limiter, key, slot } of reservations) limiter.release(key, slot);
+  };
+
+  for (const [limiter, key] of [
+    [loginFailures, pairKey],
+    [loginEmailFailures, normalized],
+  ] as const) {
+    const result: ConsumeResult = limiter.consume(key);
+    if (!result.allowed) {
+      giveBack();
+      return { ok: false, response: tooManyRequestsResponse(result.retryAfterSeconds) };
+    }
+    reservations.push({ limiter, key, slot: result.slot });
+  }
+
+  const limited = consumeRules('login', ip, normalized);
+  if (limited) {
+    giveBack();
+    return { ok: false, response: limited };
+  }
+
+  let settled = false;
+  return {
+    ok: true,
+    attempt: {
+      settle(outcome) {
+        if (settled) return;
+        settled = true;
+        if (outcome === 'failed') return;
+        giveBack();
+        // A success clears the failure counters of this client and of the email: only someone
+        // who knows the password can succeed.
+        if (outcome === 'succeeded') {
+          loginFailures.reset(pairKey);
+          loginEmailFailures.reset(normalized);
+        }
+      },
+    },
+  };
 }
 
 /** Test helper: forget all counters. */

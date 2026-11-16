@@ -138,6 +138,33 @@ describe('POST /api/auth/login', () => {
     expect(mockLoginCustomer).toHaveBeenCalledTimes(30);
   });
 
+  it('lets only 30 concurrent attempts per email reach commercetools', async () => {
+    const rejections: Array<(reason: unknown) => void> = [];
+    mockLoginCustomer.mockImplementation(
+      () => new Promise((_resolve, reject) => rejections.push(reject)),
+    );
+    const responses = Array.from({ length: 40 }, (_, i) =>
+      attemptFrom(`10.0.0.${i + 1}`, 'wrong-pass'),
+    );
+    await vi.waitFor(() => expect(mockLoginCustomer).toHaveBeenCalledTimes(30));
+    // Give the other ten requests time to reach (and be stopped before) the credential call.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(mockLoginCustomer).toHaveBeenCalledTimes(30);
+
+    for (const reject of rejections) {
+      reject(new CustomerError('InvalidCredentials', 'Invalid email or password', 401));
+    }
+    const statuses = (await Promise.all(responses)).map((response) => response.status);
+    expect(statuses.filter((status) => status === 401)).toHaveLength(30);
+    expect(statuses.filter((status) => status === 429)).toHaveLength(10);
+  });
+
+  it('does not spend the per-email ceiling on commercetools errors', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockLoginCustomer.mockRejectedValue(new Error('commercetools unavailable'));
+    for (let i = 0; i < 40; i++) expect((await attemptFrom(`10.0.0.${i + 1}`, 'any-pass')).status).toBe(500);
+  });
+
   it('does not exhaust the per-email ceiling with successful sign-ins from many clients', async () => {
     mockLoginCustomer.mockResolvedValue({ id: 'cust-1', email: 'owner@example.com', displayName: 'Owner' });
     for (let i = 0; i < 40; i++) expect((await attemptFrom(`10.0.0.${i + 1}`, 'right-pass')).status).toBe(200);

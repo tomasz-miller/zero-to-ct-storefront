@@ -2,9 +2,18 @@ import { isIP } from 'node:net';
 
 import { NextResponse } from 'next/server';
 
-export type RateLimitResult =
-  | { allowed: true }
-  | { allowed: false; retryAfterSeconds: number };
+type RateLimitDenied = { allowed: false; retryAfterSeconds: number };
+
+export type RateLimitResult = { allowed: true } | RateLimitDenied;
+
+/**
+ * Where an allowed `consume` counted its hit: the key's own counter or the shared overflow
+ * counter. Opaque to callers; hand it back to `release` to undo exactly that hit. The window
+ * start tells `release` to leave a counter alone once its window has been replaced.
+ */
+export type LimiterSlot = { where: 'key' | 'overflow'; windowStart: number };
+
+export type ConsumeResult = { allowed: true; slot: LimiterSlot } | RateLimitDenied;
 
 type FixedWindowLimiterOptions = {
   limit: number;
@@ -38,7 +47,7 @@ export function createFixedWindowLimiter({
 
   const isExpired = (entry: Entry, now: number) => now - entry.windowStart >= windowMs;
 
-  const denied = (entry: Entry, now: number): RateLimitResult => ({
+  const denied = (entry: Entry, now: number): RateLimitDenied => ({
     allowed: false,
     retryAfterSeconds: Math.max(1, Math.ceil((entry.windowStart + windowMs - now) / 1000)),
   });
@@ -53,29 +62,44 @@ export function createFixedWindowLimiter({
   }
 
   /** Counts one attempt on the shared overflow counter. */
-  function consumeOverflow(now: number): RateLimitResult {
+  function consumeOverflow(now: number): ConsumeResult {
     if (!overflow || isExpired(overflow, now)) {
       overflow = { windowStart: now, count: 1 };
-      return { allowed: true };
+      return { allowed: true, slot: { where: 'overflow', windowStart: now } };
     }
     if (overflow.count >= limit) return denied(overflow, now);
     overflow.count += 1;
-    return { allowed: true };
+    return { allowed: true, slot: { where: 'overflow', windowStart: overflow.windowStart } };
   }
 
   return {
-    /** Counts one attempt for `key` and reports whether it is within the limit. */
-    consume(key: string, now: number = Date.now()): RateLimitResult {
+    /**
+     * Counts one attempt for `key` and reports whether it is within the limit. An allowed
+     * result carries the slot the hit landed in, for `release`.
+     */
+    consume(key: string, now: number = Date.now()): ConsumeResult {
       const existing = entries.get(key);
       if (existing && !isExpired(existing, now)) {
         if (existing.count >= limit) return denied(existing, now);
         existing.count += 1;
-        return { allowed: true };
+        return { allowed: true, slot: { where: 'key', windowStart: existing.windowStart } };
       }
       if (existing) entries.delete(key);
       if (!makeRoom(now)) return consumeOverflow(now);
       entries.set(key, { windowStart: now, count: 1 });
-      return { allowed: true };
+      return { allowed: true, slot: { where: 'key', windowStart: now } };
+    },
+    /**
+     * Undoes one hit that `consume` allowed, on the counter it landed in (the key's own or the
+     * overflow). A no-op once that counter's window has ended or the counter is gone, so a late
+     * release never refunds a newer window. Memory bounds are unchanged: it only lowers counts
+     * and drops an entry whose count reaches zero.
+     */
+    release(key: string, slot: LimiterSlot): void {
+      const entry = slot.where === 'overflow' ? overflow : entries.get(key);
+      if (!entry || entry.windowStart !== slot.windowStart || entry.count <= 0) return;
+      entry.count -= 1;
+      if (entry.count === 0 && slot.where === 'key') entries.delete(key);
     },
     /**
      * Reports whether the next `consume` would be allowed, without counting. Only the key's
