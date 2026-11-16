@@ -109,6 +109,60 @@ describe('rate-limit', () => {
     expect(getClientIp(new Request('http://x'))).toBe('unknown');
   });
 
+  describe('IPv6 client keys', () => {
+    const ip = (value: string, header = 'x-forwarded-for') =>
+      getClientIp(new Request('http://x', { headers: { [header]: value } }));
+
+    it('buckets a full address by its /64 prefix', () => {
+      expect(ip('2001:db8:1:2:3:4:5:6')).toBe('2001:db8:1:2::/64');
+      expect(ip('2001:0DB8:0001:0002:aaaa:bbbb:cccc:dddd')).toBe('2001:db8:1:2::/64');
+      expect(ip('2001:db8:1:3:3:4:5:6')).toBe('2001:db8:1:3::/64');
+    });
+
+    it('gives every host in one /64 the same key', () => {
+      const keys = new Set(
+        ['2001:db8:1:2::1', '2001:db8:1:2::ffff', '2001:db8:1:2:a:b:c:d', '2001:DB8:1:2:0:0:0:9'].map(
+          (v) => ip(v),
+        ),
+      );
+      expect([...keys]).toEqual(['2001:db8:1:2::/64']);
+    });
+
+    it('expands compressed forms', () => {
+      expect(ip('2001:db8::1')).toBe('2001:db8:0:0::/64');
+      expect(ip('2001:db8:1:2::')).toBe('2001:db8:1:2::/64');
+      expect(ip('2001:db8:1::5:6')).toBe('2001:db8:1:0::/64');
+      expect(ip('::1')).toBe('0:0:0:0::/64');
+      expect(ip('::')).toBe('0:0:0:0::/64');
+      expect(ip('1::')).toBe('1:0:0:0::/64');
+    });
+
+    it('treats IPv4-mapped addresses as IPv4', () => {
+      expect(ip('::ffff:1.2.3.4')).toBe('1.2.3.4');
+      expect(ip('::FFFF:1.2.3.4')).toBe('1.2.3.4');
+      expect(ip('0:0:0:0:0:ffff:102:304')).toBe('1.2.3.4');
+      expect(ip('::ffff:102:304')).toBe('1.2.3.4');
+    });
+
+    it('ignores a zone id', () => {
+      expect(ip('fe80::1%eth0')).toBe('fe80:0:0:0::/64');
+      expect(ip('fe80::2%en1')).toBe(ip('fe80::1%eth0'));
+    });
+
+    it('applies to x-real-ip and keeps the first x-forwarded-for entry', () => {
+      expect(ip('2001:db8:1:2::9', 'x-real-ip')).toBe('2001:db8:1:2::/64');
+      expect(ip('2001:db8:1:2::9, 1.1.1.1')).toBe('2001:db8:1:2::/64');
+      expect(ip('1.1.1.1, 2001:db8:1:2::9')).toBe('1.1.1.1');
+    });
+
+    it('leaves IPv4, non-addresses and the unknown bucket unchanged', () => {
+      expect(ip('203.0.113.7')).toBe('203.0.113.7');
+      expect(ip('not-an-ip')).toBe('not-an-ip');
+      expect(ip('2001:db8:1:2:3:4:5:6:7')).toBe('2001:db8:1:2:3:4:5:6:7');
+      expect(getClientIp(new Request('http://x'))).toBe('unknown');
+    });
+  });
+
   it('caps the derived client key length and falls back to the unknown bucket', () => {
     const long = 'a'.repeat(65);
     expect(
