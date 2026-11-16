@@ -18,6 +18,7 @@ import {
   customerSessionCookie,
   type CustomerSession,
 } from '@/lib/commercetools/customer-session';
+import { CustomerError } from '@/lib/commercetools/domain-errors';
 
 import { withRefreshedCustomerSession } from './customer-session-refresh';
 
@@ -69,6 +70,14 @@ describe('withRefreshedCustomerSession', () => {
 
   it('deletes the cookie when refresh fails with 401', async () => {
     mockRefresh.mockRejectedValueOnce(new CtFetchError(401, null, null));
+    const request = requestWith(near);
+    const result = await withRefreshedCustomerSession(request, NextResponse.next());
+    expect(result.cookies.get(CUSTOMER_SESSION_COOKIE)?.value).toBe('');
+    expect(request.cookies.has(CUSTOMER_SESSION_COOKIE)).toBe(false);
+  });
+
+  it('deletes the cookie when the refresh names another customer', async () => {
+    mockRefresh.mockRejectedValueOnce(new CustomerError('RefreshFailed', 'Session expired', 401));
     const request = requestWith(near);
     const result = await withRefreshedCustomerSession(request, NextResponse.next());
     expect(result.cookies.get(CUSTOMER_SESSION_COOKIE)?.value).toBe('');

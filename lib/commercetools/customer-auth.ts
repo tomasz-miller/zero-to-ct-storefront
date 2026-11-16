@@ -25,9 +25,11 @@ import {
   revokeCustomerAccessToken,
   revokeCustomerRefreshToken,
 } from './customer-token';
+import { parseCustomerIdFromScope } from './customer-token-scope';
 import { getCtErrorObjects, isCtNotFound, parseCtError } from './ct-errors';
 import { createCustomerApiRoot } from './customer-client';
 import { mapCustomerCtError } from './customer-errors';
+import { CustomerError } from './domain-errors';
 import { clearLastOrderSession } from './last-order-session';
 import { clearMarketCartMap } from './market-cart-session';
 import {
@@ -45,10 +47,22 @@ function isConsumedAnonymousIdError(error: unknown): boolean {
 async function exchangePasswordForCustomerToken(
   email: string,
   password: string,
+  expectedCustomerId: string,
 ): Promise<CustomerSession> {
   const token = await requestCustomerPasswordToken(email, password);
 
-  const customerId = await resolveCustomerIdFromAccessToken(token.accessToken);
+  // The token scope carries customer_id:{id}; GET /me is only the fallback when it is missing.
+  const customerId =
+    parseCustomerIdFromScope(token.scope) ??
+    (await resolveCustomerIdFromAccessToken(token.accessToken));
+
+  if (customerId !== expectedCustomerId) {
+    await Promise.allSettled([
+      revokeCustomerRefreshToken(token.refreshToken),
+      revokeCustomerAccessToken(token.accessToken),
+    ]);
+    throw new CustomerError('TokenError', 'Sign-in failed', 500);
+  }
 
   return {
     accessToken: token.accessToken,
@@ -217,7 +231,11 @@ export async function loginCustomer(
   await syncCartAfterAuth(response.body);
   await reconcileWishlistOnAuth(response.body.customer.id);
 
-  const session = await exchangePasswordForCustomerToken(email, password);
+  const session = await exchangePasswordForCustomerToken(
+    email,
+    password,
+    response.body.customer.id,
+  );
   await setCustomerSession(session);
 
   return mapCustomer(response.body.customer);
@@ -245,7 +263,11 @@ export async function registerCustomer(input: {
 
   await reconcileWishlistOnAuth(customer.id);
 
-  const session = await exchangePasswordForCustomerToken(input.email, input.password);
+  const session = await exchangePasswordForCustomerToken(
+    input.email,
+    input.password,
+    customer.id,
+  );
   await setCustomerSession(session);
 
   return mapCustomer(customer);

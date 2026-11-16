@@ -13,6 +13,7 @@ import {
   revokeCustomerAccessToken,
   revokeCustomerRefreshToken,
 } from './customer-token';
+import { CustomerError } from './domain-errors';
 
 const fetchMock = vi.fn();
 vi.stubGlobal('fetch', fetchMock);
@@ -67,6 +68,17 @@ describe('requestCustomerPasswordToken', () => {
       code: 'TokenError',
       message: 'Sign-in failed',
     });
+  });
+
+  it('requestCustomerPasswordToken returns the token scope', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_in: 172800, scope: 'manage_my_profile:demo customer_id:cust-1' })));
+    await expect(requestCustomerPasswordToken('a@example.com', 'pw')).resolves.toMatchObject({ scope: 'manage_my_profile:demo customer_id:cust-1' });
+  });
+
+  // Track 1A outcome fact 7: expires_in is validated, never turned into NaN.
+  it('requestCustomerPasswordToken rejects a token response without a valid expires_in', async () => {
+    fetchMock.mockResolvedValueOnce(reply(200, { access_token: 'a', refresh_token: 'r', expires_in: 'soon' }));
+    await expect(requestCustomerPasswordToken('a@example.com', 'pw')).rejects.toMatchObject({ code: 'TokenError', status: 500 });
   });
 });
 
@@ -123,6 +135,42 @@ describe('refreshCustomerSession', () => {
     expect(isCustomerSessionRejected(new CtFetchError(401, null, null))).toBe(true);
     expect(isCustomerSessionRejected(new CtFetchError(503, null, null))).toBe(false);
     expect(isCustomerSessionRejected(new TypeError('fetch failed'))).toBe(false);
+  });
+
+  it('refreshCustomerSession keeps the session customerId without calling /me', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'a2', expires_in: 172800, scope: 'manage_my_profile:demo customer_id:cust-1' })));
+    await expect(refreshCustomerSession(session)).resolves.toMatchObject({ customerId: 'cust-1', refreshToken: 'r-old' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshCustomerSession accepts a scope without customer_id', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'a2', expires_in: 172800, scope: 'manage_my_profile:demo' })));
+    await expect(refreshCustomerSession(session)).resolves.toMatchObject({ customerId: 'cust-1' });
+  });
+
+  it('refreshCustomerSession fails with a signed-out error when the refreshed scope names a different customer', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'a2', expires_in: 172800, scope: 'customer_id:cust-2' })));
+    const error = await refreshCustomerSession(session).catch((e) => e);
+    expect(error).toBeInstanceOf(CustomerError);
+    expect(error).toMatchObject({ code: 'RefreshFailed', status: 401 });
+    expect(isCustomerSessionRejected(error)).toBe(true);
+  });
+
+  it('isCustomerSessionRejected accepts 400/401 and RefreshFailed only', () => {
+    expect(isCustomerSessionRejected(new CtFetchError(401, null, null))).toBe(true);
+    expect(isCustomerSessionRejected(new CtFetchError(400, { error: 'invalid_grant' }, null))).toBe(true);
+    expect(isCustomerSessionRejected(new CustomerError('RefreshFailed', 'Session expired', 401))).toBe(true);
+    expect(isCustomerSessionRejected(new CtFetchError(503, null, null))).toBe(false);
+    expect(isCustomerSessionRejected(new CustomerError('TokenError', 'Sign-in failed', 500))).toBe(false);
+    expect(isCustomerSessionRejected(new TypeError('fetch failed'))).toBe(false);
+  });
+
+  it('refreshCustomerSession rejects a missing expires_in without signing the shopper out', async () => {
+    fetchMock.mockResolvedValueOnce(reply(200, { access_token: 'a2' }));
+    const error = await refreshCustomerSession(session).catch((e) => e);
+    expect(error).toBeInstanceOf(CustomerError);
+    expect(error).toMatchObject({ code: 'TokenError', status: 500 });
+    expect(isCustomerSessionRejected(error)).toBe(false);
   });
 });
 

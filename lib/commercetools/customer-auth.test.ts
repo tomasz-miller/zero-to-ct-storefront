@@ -20,6 +20,7 @@ const {
   mockRestoreCustomerCartSession,
   mockReconcileCartOnAuth,
   mockRefreshCustomerSession,
+  mockRequestCustomerPasswordToken,
   mockGetOwnedGuestCartRef,
   mockRevokeCustomerRefreshToken,
   mockRevokeCustomerAccessToken,
@@ -41,6 +42,7 @@ const {
   mockRestoreCustomerCartSession: vi.fn(),
   mockReconcileCartOnAuth: vi.fn(),
   mockRefreshCustomerSession: vi.fn(),
+  mockRequestCustomerPasswordToken: vi.fn(),
   mockGetOwnedGuestCartRef: vi.fn(
     async (): Promise<{ cartId: string; anonymousId: string } | null> => null,
   ),
@@ -62,6 +64,7 @@ vi.mock('./customer-client', () => ({ createCustomerApiRoot: mockCreateCustomerA
 vi.mock('./customer-token', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./customer-token')>()),
   refreshCustomerSession: mockRefreshCustomerSession,
+  requestCustomerPasswordToken: mockRequestCustomerPasswordToken,
   revokeCustomerRefreshToken: mockRevokeCustomerRefreshToken,
   revokeCustomerAccessToken: mockRevokeCustomerAccessToken,
 }));
@@ -136,10 +139,13 @@ import { CustomerError } from './domain-errors';
 import { reconcileWishlistOnAuth } from './shopping-lists';
 
 describe('customer-auth', () => {
+  const token = (scope?: string) => ({ accessToken: 'access-1', refreshToken: 'refresh-1', expiresAt: 9e12, scope });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     mockExecute.mockReset();
+    meGetExecute.mockReset();
     mockGetCartSession.mockReset();
     mockSetCartSession.mockReset();
     mockGetCustomerSession.mockReset();
@@ -174,26 +180,11 @@ describe('customer-auth', () => {
       },
     });
 
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        text: async () =>
-          JSON.stringify({
-            access_token: 'access-token',
-            refresh_token: 'refresh-token',
-            expires_in: 3600,
-          }),
-      });
-    vi.stubGlobal('fetch', fetchMock);
-    meGetExecute.mockResolvedValueOnce({ body: { id: 'cust-1', email: 'jane@example.com' } });
+    mockRequestCustomerPasswordToken.mockResolvedValueOnce(token('customer_id:cust-1'));
 
     const customer = await loginCustomer('jane@example.com', 'password123');
 
     expect(customer.email).toBe('jane@example.com');
-    expect(new URLSearchParams(fetchMock.mock.calls[0][1].body).get('scope')).toBe(
-      'manage_my_profile:demo-project manage_my_orders:demo-project',
-    );
     expect(mockLoginPost).toHaveBeenCalledWith({
       body: {
         email: 'jane@example.com',
@@ -209,8 +200,8 @@ describe('customer-auth', () => {
     });
     expect(mockSetCustomerSession).toHaveBeenCalledWith(
       expect.objectContaining({
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
+        accessToken: 'access-1',
+        refreshToken: 'refresh-1',
         customerId: 'cust-1',
       }),
     );
@@ -237,19 +228,7 @@ describe('customer-auth', () => {
       },
     });
 
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        text: async () =>
-          JSON.stringify({
-            access_token: 'access-token',
-            refresh_token: 'refresh-token',
-            expires_in: 3600,
-          }),
-      });
-    vi.stubGlobal('fetch', fetchMock);
-    meGetExecute.mockResolvedValueOnce({ body: { id: 'cust-1', email: 'jane@example.com' } });
+    mockRequestCustomerPasswordToken.mockResolvedValueOnce(token('customer_id:cust-1'));
 
     await loginCustomer('jane@example.com', 'password123');
 
@@ -306,19 +285,7 @@ describe('customer-auth', () => {
         },
       });
 
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        text: async () =>
-          JSON.stringify({
-            access_token: 'access-token',
-            refresh_token: 'refresh-token',
-            expires_in: 3600,
-          }),
-      });
-    vi.stubGlobal('fetch', fetchMock);
-    meGetExecute.mockResolvedValueOnce({ body: { id: 'cust-2', email: 'new@example.com' } });
+    mockRequestCustomerPasswordToken.mockResolvedValueOnce(token('customer_id:cust-2'));
 
     const customer = await registerCustomer({
       email: 'new@example.com',
@@ -365,19 +332,7 @@ describe('customer-auth', () => {
     };
 
     function stubTokenAndMe() {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValueOnce({
-          ok: true,
-          text: async () =>
-            JSON.stringify({
-              access_token: 'access-token',
-              refresh_token: 'refresh-token',
-              expires_in: 3600,
-            }),
-        }),
-      );
-      meGetExecute.mockResolvedValueOnce({ body: { id: 'cust-1', email: 'jane@example.com' } });
+      mockRequestCustomerPasswordToken.mockResolvedValueOnce(token('customer_id:cust-1'));
     }
 
     it('logs in with anonymousCart, anonymousId and MergeWithExistingCustomerCart', async () => {
@@ -421,6 +376,50 @@ describe('customer-auth', () => {
       expect(mockCustomersPost).toHaveBeenCalledWith({ body: expect.objectContaining({
         anonymousCart: { typeId: 'cart', id: 'cart-guest' }, anonymousId: 'anon-1' }) });
       expect(JSON.stringify(mockCustomersPost.mock.calls[0])).not.toContain('anonymousCartSignInMode');
+    });
+
+    it('logs in with POST /login plus one token call and no /me call', async () => {
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      mockRequestCustomerPasswordToken.mockResolvedValueOnce(token('manage_my_profile:demo manage_my_orders:demo customer_id:cust-1'));
+      await loginCustomer('a@example.com', 'pw');
+      expect(mockRequestCustomerPasswordToken).toHaveBeenCalledTimes(1);
+      expect(mockCreateCustomerApiRoot).not.toHaveBeenCalled();
+      expect(mockSetCustomerSession).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'cust-1' }));
+    });
+
+    it('rejects login and revokes the tokens when the token scope names a different customer', async () => {
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      mockRequestCustomerPasswordToken.mockResolvedValueOnce(token('manage_my_profile:demo customer_id:cust-2'));
+      const error = await loginCustomer('a@example.com', 'pw').catch((e) => e);
+      expect(error).toBeInstanceOf(CustomerError);
+      expect(error).toMatchObject({ code: 'TokenError', status: 500, message: 'Sign-in failed' });
+      expect(mockSetCustomerSession).not.toHaveBeenCalled();
+      expect(mockRevokeCustomerRefreshToken).toHaveBeenCalledWith('refresh-1');
+      expect(mockRevokeCustomerAccessToken).toHaveBeenCalledWith('access-1');
+    });
+
+    it('falls back to GET /me when the token scope has no customer_id', async () => {
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      mockRequestCustomerPasswordToken.mockResolvedValueOnce(token('manage_my_profile:demo'));
+      meGetExecute.mockResolvedValueOnce({ body: { id: 'cust-1' } });
+      await loginCustomer('a@example.com', 'pw');
+      expect(mockCreateCustomerApiRoot).toHaveBeenCalledWith('access-1');
+      expect(mockSetCustomerSession).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'cust-1' }));
+    });
+
+    it('rejects login when GET /me names a different customer', async () => {
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      mockRequestCustomerPasswordToken.mockResolvedValueOnce(token(undefined));
+      meGetExecute.mockResolvedValueOnce({ body: { id: 'cust-2' } });
+      await expect(loginCustomer('a@example.com', 'pw')).rejects.toMatchObject({ code: 'TokenError' });
+      expect(mockSetCustomerSession).not.toHaveBeenCalled();
+    });
+
+    it('registers with the customer id from the token scope', async () => {
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      mockRequestCustomerPasswordToken.mockResolvedValueOnce(token('customer_id:cust-1'));
+      await registerCustomer({ email: 'a@example.com', password: 'pw', firstName: 'A', lastName: 'B' });
+      expect(mockSetCustomerSession).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'cust-1' }));
     });
   });
 
@@ -577,6 +576,13 @@ describe('customer access tokens', () => {
     mockRefreshCustomerSession.mockRejectedValueOnce(
       new CtFetchError(400, { error: 'invalid_grant' }, null),
     );
+    await expect(getValidCustomerAccessToken()).resolves.toBeNull();
+    expect(mockClearCustomerSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('getValidCustomerAccessToken clears the session when the refresh names another customer', async () => {
+    mockGetCustomerSession.mockResolvedValueOnce({ accessToken: 'a-old', refreshToken: 'r-old', customerId: 'cust-1', expiresAt: Date.now() + 30_000 });
+    mockRefreshCustomerSession.mockRejectedValueOnce(new CustomerError('RefreshFailed', 'Session expired', 401));
     await expect(getValidCustomerAccessToken()).resolves.toBeNull();
     expect(mockClearCustomerSession).toHaveBeenCalledTimes(1);
   });
