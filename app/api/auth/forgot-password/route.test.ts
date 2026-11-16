@@ -46,6 +46,17 @@ describe('POST /api/auth/forgot-password', () => {
     expect(response.status).toBe(400);
   });
 
+  it('does not consume email-scoped limits for invalid emails', async () => {
+    const attempt = (ip: string, email: string) =>
+      POST(jsonRequest(FORGOT_URL, { email }, { headers: { 'x-forwarded-for': ip } }));
+    // 6 empty emails from distinct clients would trip a shared 5/60 min email bucket.
+    for (let i = 0; i < 6; i++) expect((await attempt(`10.0.0.${i + 1}`, '')).status).toBe(400);
+    // 4 malformed emails from one client would trip the 3/60 min client-email bucket.
+    for (let i = 0; i < 4; i++) expect((await attempt('9.9.9.9', 'not-an-email')).status).toBe(400);
+    mockRequestPasswordReset.mockResolvedValue({});
+    expect((await attempt('9.9.9.9', 'jane@example.com')).status).toBe(200);
+  });
+
   it('returns generic success message', async () => {
     mockRequestPasswordReset.mockResolvedValue({ tokenValue: 'tok-1' });
 

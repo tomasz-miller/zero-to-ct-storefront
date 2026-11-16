@@ -5,10 +5,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const {
   mockAddLineItems,
+  mockGetGuestCart,
   mockGetMyOrder,
   mockGetProductAvailabilityBySku,
 } = vi.hoisted(() => ({
   mockAddLineItems: vi.fn(),
+  mockGetGuestCart: vi.fn(
+    async (): Promise<{ lineItems: Array<{ sku?: string; quantity: number }> } | null> => null,
+  ),
   mockGetMyOrder: vi.fn(),
   mockGetProductAvailabilityBySku: vi.fn(async () => ({
     isOnStock: true,
@@ -18,6 +22,7 @@ const {
 
 vi.mock('./cart', () => ({
   addLineItems: mockAddLineItems,
+  getGuestCart: mockGetGuestCart,
 }));
 
 vi.mock('./customer-api', () => ({
@@ -46,6 +51,7 @@ function money(centAmount: number) {
 describe('reorderOrder', () => {
   afterEach(() => {
     vi.clearAllMocks();
+    mockGetGuestCart.mockResolvedValue(null);
     mockGetProductAvailabilityBySku.mockResolvedValue({
       isOnStock: true,
       status: 'in_stock',
@@ -207,5 +213,90 @@ describe('reorderOrder', () => {
       NothingToReorderError,
     );
     expect(mockAddLineItems).not.toHaveBeenCalled();
+  });
+
+  describe('line quantity cap', () => {
+    const orderLine = (id: string, sku: string, quantity: number) => ({
+      id,
+      name: sku,
+      sku,
+      quantity,
+      unitPrice: money(100),
+      totalPrice: money(100 * quantity),
+    });
+
+    const givenOrder = (lineItems: ReturnType<typeof orderLine>[]) =>
+      mockGetMyOrder.mockResolvedValue({
+        id: 'order-1',
+        createdAt: '2026-07-01T00:00:00.000Z',
+        orderState: 'Open',
+        paymentStatus: 'Paid',
+        total: money(1000),
+        payments: [],
+        lineItems,
+      });
+
+    it('clamps a line to the quantity that still fits in the cart', async () => {
+      givenOrder([orderLine('li-1', 'SKU-OK', 20)]);
+      mockGetGuestCart.mockResolvedValue({ lineItems: [{ sku: 'SKU-OK', quantity: 90 }] });
+      mockAddLineItems.mockResolvedValue({ id: 'cart-1', itemCount: 99, lineItems: [] });
+
+      const result = await reorderOrder('order-1');
+
+      expect(mockAddLineItems).toHaveBeenCalledWith([{ sku: 'SKU-OK', quantity: 9 }], {
+        checkAvailability: false,
+      });
+      expect(result.added).toBe(1);
+      expect(result.skipped).toBe(0);
+    });
+
+    it('skips and reports a line whose sku is already at the cap', async () => {
+      givenOrder([orderLine('li-1', 'SKU-FULL', 1), orderLine('li-2', 'SKU-OK', 2)]);
+      mockGetGuestCart.mockResolvedValue({ lineItems: [{ sku: 'SKU-FULL', quantity: 99 }] });
+      mockAddLineItems.mockResolvedValue({ id: 'cart-1', itemCount: 101, lineItems: [] });
+
+      const result = await reorderOrder('order-1');
+
+      expect(mockAddLineItems).toHaveBeenCalledWith([{ sku: 'SKU-OK', quantity: 2 }], {
+        checkAvailability: false,
+      });
+      expect(result.added).toBe(1);
+      expect(result.skipped).toBe(1);
+    });
+
+    it('throws NothingToReorder when every line is already at the cap', async () => {
+      givenOrder([orderLine('li-1', 'SKU-FULL', 1)]);
+      mockGetGuestCart.mockResolvedValue({ lineItems: [{ sku: 'SKU-FULL', quantity: 99 }] });
+
+      await expect(reorderOrder('order-1')).rejects.toBeInstanceOf(NothingToReorderError);
+      expect(mockAddLineItems).not.toHaveBeenCalled();
+    });
+
+    it('counts repeated skus of one order against the same cap', async () => {
+      givenOrder([orderLine('li-1', 'SKU-OK', 60), orderLine('li-2', 'SKU-OK', 60)]);
+      mockAddLineItems.mockResolvedValue({ id: 'cart-1', itemCount: 99, lineItems: [] });
+
+      const result = await reorderOrder('order-1');
+
+      expect(mockAddLineItems).toHaveBeenCalledWith(
+        [
+          { sku: 'SKU-OK', quantity: 60 },
+          { sku: 'SKU-OK', quantity: 39 },
+        ],
+        { checkAvailability: false },
+      );
+      expect(result.skipped).toBe(0);
+    });
+
+    it('clamps an order line that is itself above 99', async () => {
+      givenOrder([orderLine('li-1', 'SKU-OK', 150)]);
+      mockAddLineItems.mockResolvedValue({ id: 'cart-1', itemCount: 99, lineItems: [] });
+
+      await reorderOrder('order-1');
+
+      expect(mockAddLineItems).toHaveBeenCalledWith([{ sku: 'SKU-OK', quantity: 99 }], {
+        checkAvailability: false,
+      });
+    });
   });
 });

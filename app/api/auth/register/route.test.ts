@@ -93,6 +93,34 @@ describe('POST /api/auth/register', () => {
     expect(response.status).toBe(409);
   });
 
+  it('does not spend the sign-up budget on requests rejected by validation', async () => {
+    mockRegisterCustomer.mockResolvedValue({ id: 'cust-1', email: 'jane@example.com' });
+    const headers = { 'x-forwarded-for': '7.7.7.7' };
+
+    for (let i = 0; i < 6; i++) {
+      const rejected = await POST(
+        jsonRequest(
+          REGISTER_URL,
+          { email: 'jane@example.com', password: 'password123', lastName: 'Doe' },
+          { headers },
+        ),
+      );
+      expect(rejected.status).toBe(400);
+    }
+
+    const valid = {
+      email: 'jane@example.com',
+      password: 'password123',
+      firstName: 'Jane',
+      lastName: 'Doe',
+    };
+    for (let i = 0; i < 5; i++) {
+      expect((await POST(jsonRequest(REGISTER_URL, valid, { headers }))).status).toBe(200);
+    }
+    expect((await POST(jsonRequest(REGISTER_URL, valid, { headers }))).status).toBe(429);
+    expect(mockRegisterCustomer).toHaveBeenCalledTimes(5);
+  });
+
   it('maps DuplicateField to 409 with fixed copy', async () => {
     mockRegisterCustomer.mockRejectedValue(
       new CustomerError('DuplicateField', 'An account with this email already exists', 409),

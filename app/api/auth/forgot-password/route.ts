@@ -20,13 +20,14 @@ export async function POST(request: NextRequest) {
 
   const { email } = parsed.data;
 
-  const limited = limitAuthRequest(request, 'forgot-password', email);
-  if (limited) return limited;
-
   const emailError = validateEmail(email);
   if (emailError) {
     return NextResponse.json({ error: emailError }, { status: 400 });
   }
+
+  // Only well-formed emails create limiter keys: malformed or empty emails never do.
+  const limited = limitAuthRequest(request, 'forgot-password', email);
+  if (limited) return limited;
 
   // No delivery path: do not mint a live token commercetools would hold for nobody.
   if (!isPasswordResetDeliveryConfigured()) {

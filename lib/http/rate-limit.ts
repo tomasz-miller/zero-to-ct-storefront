@@ -1,13 +1,31 @@
+import { isIP } from 'node:net';
+
 import { NextResponse } from 'next/server';
 
-export type RateLimitResult =
-  | { allowed: true }
-  | { allowed: false; retryAfterSeconds: number };
+type RateLimitDenied = { allowed: false; retryAfterSeconds: number };
+
+export type RateLimitResult = { allowed: true } | RateLimitDenied;
+
+/**
+ * Where an allowed `consume` counted its hit: the key's own counter or the shared overflow
+ * counter. Opaque to callers; hand it back to `release` to undo exactly that hit. The window
+ * start tells `release` to leave a counter alone once its window has been replaced.
+ */
+export type LimiterSlot = { where: 'key' | 'overflow'; windowStart: number };
+
+export type ConsumeResult = { allowed: true; slot: LimiterSlot } | RateLimitDenied;
 
 type FixedWindowLimiterOptions = {
   limit: number;
   windowMs: number;
-  /** Upper bound on tracked keys; the oldest entries are evicted beyond it. */
+  /**
+   * Upper bound on tracked keys. Expired counters are evicted first; counters still inside
+   * their window are never dropped. At the bound, new keys that cannot get their own counter
+   * share one overflow counter with the rule's limit and window, so traffic beyond capacity
+   * stays bounded and new visitors get some attempts per window. A sustained flood of new
+   * keys can spend that budget and lock new visitors out on this instance until it subsides;
+   * the Vercel WAF rule is the defence for that case.
+   */
   maxKeys?: number;
 };
 
@@ -23,41 +41,70 @@ export function createFixedWindowLimiter({
   maxKeys = 10_000,
 }: FixedWindowLimiterOptions) {
   const entries = new Map<string, Entry>();
+  // Shared by every key that cannot get its own counter. Never evicted for room and not
+  // part of `entries`, so it does not count toward `maxKeys`.
+  let overflow: Entry | undefined;
 
   const isExpired = (entry: Entry, now: number) => now - entry.windowStart >= windowMs;
 
-  const denied = (entry: Entry, now: number): RateLimitResult => ({
+  const denied = (entry: Entry, now: number): RateLimitDenied => ({
     allowed: false,
     retryAfterSeconds: Math.max(1, Math.ceil((entry.windowStart + windowMs - now) / 1000)),
   });
 
-  function makeRoom(now: number) {
-    if (entries.size < maxKeys) return;
+  /** Frees room for one new key by dropping expired counters; false when every counter is live. */
+  function makeRoom(now: number): boolean {
+    if (entries.size < maxKeys) return true;
     for (const [key, entry] of entries) {
       if (isExpired(entry, now)) entries.delete(key);
     }
-    while (entries.size >= maxKeys) {
-      const oldest = entries.keys().next();
-      if (oldest.done) break;
-      entries.delete(oldest.value);
+    return entries.size < maxKeys;
+  }
+
+  /** Counts one attempt on the shared overflow counter. */
+  function consumeOverflow(now: number): ConsumeResult {
+    if (!overflow || isExpired(overflow, now)) {
+      overflow = { windowStart: now, count: 1 };
+      return { allowed: true, slot: { where: 'overflow', windowStart: now } };
     }
+    if (overflow.count >= limit) return denied(overflow, now);
+    overflow.count += 1;
+    return { allowed: true, slot: { where: 'overflow', windowStart: overflow.windowStart } };
   }
 
   return {
-    /** Counts one attempt for `key` and reports whether it is within the limit. */
-    consume(key: string, now: number = Date.now()): RateLimitResult {
+    /**
+     * Counts one attempt for `key` and reports whether it is within the limit. An allowed
+     * result carries the slot the hit landed in, for `release`.
+     */
+    consume(key: string, now: number = Date.now()): ConsumeResult {
       const existing = entries.get(key);
       if (existing && !isExpired(existing, now)) {
         if (existing.count >= limit) return denied(existing, now);
         existing.count += 1;
-        return { allowed: true };
+        return { allowed: true, slot: { where: 'key', windowStart: existing.windowStart } };
       }
       if (existing) entries.delete(key);
-      makeRoom(now);
+      if (!makeRoom(now)) return consumeOverflow(now);
       entries.set(key, { windowStart: now, count: 1 });
-      return { allowed: true };
+      return { allowed: true, slot: { where: 'key', windowStart: now } };
     },
-    /** Reports whether the next `consume` would be allowed, without counting. */
+    /**
+     * Undoes one hit that `consume` allowed, on the counter it landed in (the key's own or the
+     * overflow). A no-op once that counter's window has ended or the counter is gone, so a late
+     * release never refunds a newer window. Memory bounds are unchanged: it only lowers counts
+     * and drops an entry whose count reaches zero.
+     */
+    release(key: string, slot: LimiterSlot): void {
+      const entry = slot.where === 'overflow' ? overflow : entries.get(key);
+      if (!entry || entry.windowStart !== slot.windowStart || entry.count <= 0) return;
+      entry.count -= 1;
+      if (entry.count === 0 && slot.where === 'key') entries.delete(key);
+    },
+    /**
+     * Reports whether the next `consume` would be allowed, without counting. Only the key's
+     * own counter is consulted; the shared overflow counter is not.
+     */
     peek(key: string, now: number = Date.now()): RateLimitResult {
       const existing = entries.get(key);
       if (!existing || isExpired(existing, now)) return { allowed: true };
@@ -68,19 +115,63 @@ export function createFixedWindowLimiter({
     },
     clear(): void {
       entries.clear();
+      overflow = undefined;
     },
   };
 }
 
+/** Longest address kept as a rate-limit key (IPv6 is at most 45 characters). */
+const MAX_CLIENT_KEY_LENGTH = 64;
+
+/** Expands an IPv6 address (already validated by `isIP`) into its eight 16-bit groups. */
+function ipv6Groups(address: string): number[] | null {
+  let text = address;
+  const tailStart = text.lastIndexOf(':') + 1;
+  const tail = text.slice(tailStart);
+  if (tail.includes('.')) {
+    const [a, b, c, d] = tail.split('.').map(Number);
+    text = `${text.slice(0, tailStart)}${(((a << 8) | b) >>> 0).toString(16)}:${(((c << 8) | d) >>> 0).toString(16)}`;
+  }
+  const halves = text.split('::');
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(':') : [];
+  const rest = halves[1] ? halves[1].split(':') : [];
+  const fill = 8 - head.length - rest.length;
+  if (halves.length === 1 ? fill !== 0 : fill < 1) return null;
+  const groups = [...head, ...Array<string>(halves.length === 2 ? fill : 0).fill('0'), ...rest].map(
+    (group) => parseInt(group, 16),
+  );
+  return groups.length === 8 && groups.every((g) => Number.isInteger(g)) ? groups : null;
+}
+
 /**
- * Client address for rate-limit keys. On Vercel `x-forwarded-for` is
- * overwritten by the platform, so the first entry cannot be spoofed there.
+ * Rate-limit key for one address: IPv6 collapses to its /64 prefix (a single host
+ * routinely controls a whole /64 and could otherwise mint unlimited keys), an
+ * IPv4-mapped IPv6 address becomes plain IPv4, a zone id is dropped. IPv4 and
+ * anything that is not an address pass through unchanged.
+ */
+function clientKeyFor(candidate: string): string {
+  const address = candidate.split('%')[0];
+  if (isIP(address) !== 6) return candidate;
+  const groups = ipv6Groups(address);
+  if (!groups) return candidate;
+  if (groups.slice(0, 5).every((g) => g === 0) && groups[5] === 0xffff) {
+    return `${groups[6] >> 8}.${groups[6] & 0xff}.${groups[7] >> 8}.${groups[7] & 0xff}`;
+  }
+  return `${groups.slice(0, 4).map((g) => g.toString(16)).join(':')}::/64`;
+}
+
+/**
+ * Client key for rate limits. On Vercel `x-forwarded-for` is overwritten by the
+ * platform, so the first entry cannot be spoofed there. IPv6 clients share one key
+ * per /64 prefix (`2001:db8:1:2::/64`). A value longer than 64 characters is not an
+ * address: it shares the `unknown` bucket so a client cannot mint unbounded or
+ * oversized keys.
  */
 export function getClientIp(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  if (forwarded) return forwarded;
-  const real = request.headers.get('x-real-ip')?.trim();
-  return real || 'unknown';
+  const candidate = forwarded || request.headers.get('x-real-ip')?.trim() || 'unknown';
+  return candidate.length > MAX_CLIENT_KEY_LENGTH ? 'unknown' : clientKeyFor(candidate);
 }
 
 export function tooManyRequestsResponse(retryAfterSeconds: number): NextResponse {

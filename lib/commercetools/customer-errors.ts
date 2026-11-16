@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { parseCtError } from './ct-errors';
 import { CustomerError } from './domain-errors';
 
