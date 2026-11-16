@@ -13,17 +13,25 @@ export type AuthAction = 'login' | 'register' | 'forgot-password' | 'reset-passw
 
 const MINUTE = 60_000;
 
-type Rule = { scope: 'ip' | 'email'; limit: number; windowMs: number };
+/**
+ * `ip`: client address only. `client-email`: client address plus email, so one client
+ * cannot burn another client's budget for the same account. `email`: email only; a loose
+ * ceiling that still stops attacks spread over many addresses without letting one
+ * address lock a chosen customer out.
+ */
+type Rule = { scope: 'ip' | 'client-email' | 'email'; limit: number; windowMs: number };
 
 const RULES: Record<AuthAction, Rule[]> = {
   login: [
     { scope: 'ip', limit: 20, windowMs: 15 * MINUTE },
-    { scope: 'email', limit: 10, windowMs: 15 * MINUTE },
+    { scope: 'client-email', limit: 10, windowMs: 15 * MINUTE },
+    { scope: 'email', limit: 100, windowMs: 15 * MINUTE },
   ],
   register: [{ scope: 'ip', limit: 5, windowMs: 60 * MINUTE }],
   'forgot-password': [
     { scope: 'ip', limit: 5, windowMs: 15 * MINUTE },
-    { scope: 'email', limit: 3, windowMs: 60 * MINUTE },
+    { scope: 'client-email', limit: 3, windowMs: 60 * MINUTE },
+    { scope: 'email', limit: 20, windowMs: 60 * MINUTE },
   ],
   'reset-password': [{ scope: 'ip', limit: 10, windowMs: 15 * MINUTE }],
 };
@@ -39,10 +47,14 @@ for (const [action, rules] of Object.entries(RULES)) {
   }
 }
 
-/** Failed logins per email: 5 within 15 minutes lock further attempts. */
+/** Failed logins per client and email: 5 within 15 minutes lock further attempts from that client. */
 const loginFailures = createFixedWindowLimiter({ limit: 5, windowMs: 15 * MINUTE });
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+/** Unambiguous composite key: neither an IPv6 address nor an email can collide across the pair. */
+const clientEmailKey = (ip: string, normalizedEmail: string) =>
+  JSON.stringify([ip, normalizedEmail]);
 
 /**
  * Returns a 429 response when the request is over a limit, else null.
@@ -54,16 +66,18 @@ export function limitAuthRequest(
   email?: string,
 ): NextResponse | null {
   const normalized = email === undefined ? undefined : normalizeEmail(email);
+  const ip = getClientIp(request);
 
   if (action === 'login' && normalized !== undefined) {
-    const locked = loginFailures.peek(normalized);
+    const locked = loginFailures.peek(clientEmailKey(ip, normalized));
     if (!locked.allowed) return tooManyRequestsResponse(locked.retryAfterSeconds);
   }
 
-  const ip = getClientIp(request);
   for (const rule of RULES[action]) {
-    const value = rule.scope === 'ip' ? ip : normalized;
-    if (value === undefined) continue;
+    let value: string;
+    if (rule.scope === 'ip') value = ip;
+    else if (normalized === undefined) continue;
+    else value = rule.scope === 'email' ? normalized : clientEmailKey(ip, normalized);
     const limiter = limiters.get(`${action}:${rule.scope}`);
     const result: RateLimitResult | undefined = limiter?.consume(`${action}:${rule.scope}:${value}`);
     if (result && !result.allowed) return tooManyRequestsResponse(result.retryAfterSeconds);
@@ -71,12 +85,12 @@ export function limitAuthRequest(
   return null;
 }
 
-export function recordLoginFailure(email: string): void {
-  loginFailures.consume(normalizeEmail(email));
+export function recordLoginFailure(request: Request, email: string): void {
+  loginFailures.consume(clientEmailKey(getClientIp(request), normalizeEmail(email)));
 }
 
-export function clearLoginFailures(email: string): void {
-  loginFailures.reset(normalizeEmail(email));
+export function clearLoginFailures(request: Request, email: string): void {
+  loginFailures.reset(clientEmailKey(getClientIp(request), normalizeEmail(email)));
 }
 
 /** Test helper: forget all counters. */

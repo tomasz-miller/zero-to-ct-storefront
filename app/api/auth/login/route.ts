@@ -33,11 +33,11 @@ export async function POST(request: NextRequest) {
 
   try {
     const customer = await loginCustomer(email, password);
-    clearLoginFailures(email);
+    clearLoginFailures(request, email);
     return NextResponse.json({ customer });
   } catch (error) {
     if (error instanceof CustomerError && error.code === 'InvalidCredentials') {
-      recordLoginFailure(email);
+      recordLoginFailure(request, email);
     }
     return toErrorResponse(error, 'api/auth/login');
   }
