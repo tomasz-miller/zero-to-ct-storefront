@@ -372,12 +372,13 @@ export async function reconcileWishlistOnAuth(customerId: string): Promise<void>
     return;
   }
 
-  const guestList = await loadOwnedShoppingList(session);
-  if (!guestList || guestList.customer?.id) {
-    return;
-  }
-
+  let guestList: ShoppingList | null = null;
   try {
+    guestList = await loadOwnedShoppingList(session);
+    if (!guestList || guestList.customer?.id) {
+      return;
+    }
+
     const customerList = await findCustomerShoppingList(customerId);
     const resolvedList = customerList
       ? await mergeGuestListIntoCustomerList(guestList, customerList)
@@ -388,8 +389,11 @@ export async function reconcileWishlistOnAuth(customerId: string): Promise<void>
       shoppingListId: resolvedList.id,
     });
   } catch (error) {
+    // Sign-in must not fail on a wishlist step. A failed guest-list read keeps the cookie; a failed merge or transfer rotates it.
     console.error('[wishlist] reconcileWishlistOnAuth failed', error);
-    await rotateWishlistSessionAnonymousId();
+    if (guestList) {
+      await rotateWishlistSessionAnonymousId();
+    }
   }
 }
 

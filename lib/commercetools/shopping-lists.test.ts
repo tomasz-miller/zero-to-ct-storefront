@@ -171,6 +171,29 @@ describe('wishlist lookup errors', () => {
     await expect(getWishlist()).resolves.toBeNull();
     expect(mockClearWishlistSession).toHaveBeenCalledTimes(1);
   });
+
+  it('reconcileWishlistOnAuth resolves and keeps the wishlist cookie when the guest-list GET fails with 503', async () => {
+    // Call counts carry over between tests in this file (no mock reset configured), so clear the session spies first.
+    mockClearWishlistSession.mockClear();
+    mockSetWishlistSession.mockClear();
+    mockRotateWishlistSessionAnonymousId.mockClear();
+    mockShoppingListsGet.mockClear();
+    mockGetWishlistSession.mockResolvedValue({ anonymousId: 'anon-1', shoppingListId: 'list-1' });
+    withIdExecute.mockRejectedValueOnce(ctError(503));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(reconcileWishlistOnAuth('cust-1')).resolves.toBeUndefined();
+
+    expect(mockClearWishlistSession).not.toHaveBeenCalled();
+    expect(mockSetWishlistSession).not.toHaveBeenCalled();
+    expect(mockRotateWishlistSessionAnonymousId).not.toHaveBeenCalled();
+    expect(queryExecute).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      '[wishlist] reconcileWishlistOnAuth failed',
+      expect.anything(),
+    );
+    consoleError.mockRestore();
+  });
 });
 
 describe('customer wishlist lookup', () => {
