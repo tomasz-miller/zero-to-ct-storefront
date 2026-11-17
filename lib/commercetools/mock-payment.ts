@@ -21,6 +21,7 @@ import {
   MockCheckoutConflictError,
   MockCheckoutError,
   MockPaymentsDisabledError,
+  OutOfStockError,
 } from './domain-errors';
 import { setLastOrderSession } from './last-order-session';
 import { createOrderNumber } from './order-number';
@@ -596,7 +597,13 @@ async function executeCommercetools<T>(work: () => Promise<T>): Promise<T> {
 
 function mapCommercetoolsError(
   error: unknown,
-): MockCheckoutConflictError | MockCheckoutError | null {
+): MockCheckoutConflictError | MockCheckoutError | OutOfStockError | null {
+  if (getCtErrorObjects(error).some((entry) => entry.code === 'OutOfStock')) {
+    return new OutOfStockError(
+      'Some items in your cart are no longer in stock. Update your cart and try again.',
+    );
+  }
+
   if (isCtConcurrentModification(error)) {
     return new MockCheckoutConflictError();
   }

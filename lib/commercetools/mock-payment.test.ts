@@ -108,6 +108,7 @@ vi.mock('./storefront-context', () => ({
   getStorefrontContext: mockGetStorefrontContext,
 }));
 
+import { OutOfStockError } from './domain-errors';
 import {
   MOCK_PAYMENT_DELAY_MS,
   MockCheckoutConflictError,
@@ -401,6 +402,17 @@ describe('mock payments', () => {
     expect((err as Error).message).toBe('Checkout could not be completed. Please review your details and try again.');
   });
 
+  it.each([400, 409])('maps an OutOfStock order failure (status %i) to OutOfStockError with checkout copy', async (status) => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    arrangeReadyCart();
+    orderPostExecute.mockRejectedValue(ctError(status, 'OutOfStock', 'Some line items are out of stock at the time of placing the order: SKU-1.'));
+    const err = await placeMockPayment({ shippingMethodId: 'ship-1' }, { sleep: vi.fn().mockResolvedValue(undefined) }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(OutOfStockError);
+    expect(err).toMatchObject({ status: 409, code: 'OutOfStock' });
+    expect((err as Error).message).toBe('Some items in your cart are no longer in stock. Update your cart and try again.');
+    expect(err).not.toHaveProperty('body');
+  });
+
   it('deletes the replaced mock payment', async () => {
     arrangeChangedAmountCart();
     await placeMockPayment({}, { sleep: vi.fn().mockResolvedValue(undefined) });
@@ -623,6 +635,15 @@ describe('mock payments', () => {
     arrangeFreezeFlow();
     orderPostExecute.mockRejectedValue(ctError(409, 'ConcurrentModification'));
     await expect(placeMockPayment({}, { sleep: noDelay })).rejects.toBeInstanceOf(MockCheckoutConflictError);
+    expect(lastCartPostActions()).toEqual([{ action: 'unfreezeCart' }]);
+    expect(mockSetLastOrderSession).not.toHaveBeenCalled();
+    expect(mockClearCartSession).not.toHaveBeenCalled();
+  });
+
+  it('unfreezes the cart and keeps the session when order creation is out of stock', async () => {
+    arrangeFreezeFlow();
+    orderPostExecute.mockRejectedValue(ctError(400, 'OutOfStock'));
+    await expect(placeMockPayment({}, { sleep: noDelay })).rejects.toBeInstanceOf(OutOfStockError);
     expect(lastCartPostActions()).toEqual([{ action: 'unfreezeCart' }]);
     expect(mockSetLastOrderSession).not.toHaveBeenCalled();
     expect(mockClearCartSession).not.toHaveBeenCalled();
