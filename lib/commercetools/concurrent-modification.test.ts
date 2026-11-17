@@ -14,6 +14,9 @@ it.each([
   ['/{projectKey}/carts/{ID}', { version: 3, actions: [{ action: 'freezeCart' }] }],
   ['/{projectKey}/carts/{ID}', JSON.stringify({ version: 3, actions: [{ action: 'unfreezeCart' }] })],
   ['/{projectKey}/carts/{ID}', new Uint8Array([1])],
+  ['/{projectKey}/carts/{ID}', { version: 3, actions: [{ action: 'setCustomerId', customerId: 'c1' }] }],
+  ['/{projectKey}/carts/{ID}', JSON.stringify({ version: 3, actions: [{ action: 'setAnonymousId', anonymousId: 'a1' }] })],
+  ['/{projectKey}/shopping-lists/{ID}', { version: 3, actions: [{ action: 'setCustomer', customer: { typeId: 'customer', id: 'c1' } }] }],
 ])('does not rebase %s', (uriTemplate, body) => {
   expect(shouldRebaseOnConcurrentModification({ method: 'POST', uriTemplate, body })).toBe(false);
 });
@@ -31,5 +34,9 @@ it('returns the body with the current version when rebaseable', async () => {
 });
 it('rethrows the original 409 error when not rebaseable', async () => {
   const request = { method: 'POST', uriTemplate: '/{projectKey}/orders', body: { version: 3 } };
+  await expect(concurrentModificationHandler(7, request as never, response409 as never)).rejects.toBe(response409.error);
+});
+it('rethrows the 409 for setCustomerId instead of rebasing', async () => {
+  const request = { method: 'POST', uriTemplate: '/{projectKey}/carts/{ID}', body: JSON.stringify({ version: 3, actions: [{ action: 'setCustomerId', customerId: 'c1' }] }) };
   await expect(concurrentModificationHandler(7, request as never, response409 as never)).rejects.toBe(response409.error);
 });

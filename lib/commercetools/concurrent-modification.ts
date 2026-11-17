@@ -17,6 +17,9 @@ const NON_REBASEABLE_ACTIONS = new Set([
   'removePayment',
   'freezeCart',
   'unfreezeCart',
+  'setCustomerId',
+  'setCustomer',
+  'setAnonymousId',
 ]);
 
 function parseJsonBody(body: unknown): Record<string, unknown> | undefined {
@@ -44,6 +47,9 @@ function parseJsonBody(body: unknown): Record<string, unknown> | undefined {
  * The default middleware resends every 409 with the current version. That is
  * only safe for idempotent cart and list edits: an order, a payment or a cart
  * freeze/payment change must surface the conflict to the caller instead.
+ * Ownership changes (`setCustomerId`, `setCustomer`, `setAnonymousId`) also
+ * surface the conflict, because the caller checked ownership at the original
+ * version.
  */
 export function shouldRebaseOnConcurrentModification(
   request: Pick<MiddlewareRequest, 'method' | 'uriTemplate' | 'body'>,
