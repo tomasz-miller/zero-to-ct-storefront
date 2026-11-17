@@ -2,8 +2,10 @@ import 'server-only';
 
 import { parseCtError, toCtFetchError } from './ct-errors';
 import type { CustomerSession } from './customer-session';
+import { parseCustomerIdFromScope } from './customer-token-scope';
 import { CustomerError } from './domain-errors';
 import { commercetoolsEnv } from './env';
+import { CT_AUTH_TIMEOUT_MS } from './http-options';
 
 export type CustomerTokenResponse = {
   access_token: string;
@@ -24,6 +26,14 @@ function tokenError(): CustomerError {
   return new CustomerError('TokenError', 'Sign-in failed', 500);
 }
 
+/** `expires_in` must be a positive finite number; anything else would turn expiresAt into NaN. */
+function expiresAtFrom(expiresIn: unknown): number {
+  if (typeof expiresIn !== 'number' || !Number.isFinite(expiresIn) || expiresIn <= 0) {
+    throw tokenError();
+  }
+  return Date.now() + expiresIn * 1000;
+}
+
 /**
  * Password-flow token request. The scope list comes from CTP_CUSTOMER_SCOPES (default:
  * manage_my_profile and manage_my_orders); omitting it would grant every scope of the API client.
@@ -32,7 +42,12 @@ function tokenError(): CustomerError {
 export async function requestCustomerPasswordToken(
   email: string,
   password: string,
-): Promise<{ accessToken: string; refreshToken: string; expiresAt: number }> {
+): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  scope: string | undefined;
+}> {
   const response = await fetch(
     `${commercetoolsEnv.authUrl}/oauth/${commercetoolsEnv.projectKey}/customers/token`,
     {
@@ -47,6 +62,7 @@ export async function requestCustomerPasswordToken(
         password,
         scope: commercetoolsEnv.customerScopes,
       }),
+      signal: AbortSignal.timeout(CT_AUTH_TIMEOUT_MS),
     },
   );
 
@@ -75,17 +91,23 @@ export async function requestCustomerPasswordToken(
   return {
     accessToken: body.access_token,
     refreshToken: body.refresh_token,
-    expiresAt: Date.now() + body.expires_in * 1000,
+    expiresAt: expiresAtFrom(body.expires_in),
+    scope: body.scope,
   };
 }
 
 /**
- * True only when the token endpoint rejected the refresh token (400/401). Network errors and 5xx
- * are transient: callers keep the cookie and retry later.
+ * True when the token endpoint rejected the refresh token (400/401) or the refresh named another
+ * customer (RefreshFailed). Network errors and 5xx are transient: callers keep the cookie and
+ * retry later.
  */
 export function isCustomerSessionRejected(error: unknown): boolean {
   const { statusCode } = parseCtError(error);
-  return statusCode === 400 || statusCode === 401;
+  return (
+    statusCode === 400 ||
+    statusCode === 401 ||
+    (error instanceof CustomerError && error.code === 'RefreshFailed')
+  );
 }
 
 /**
@@ -106,6 +128,7 @@ export async function refreshCustomerSession(
       grant_type: 'refresh_token',
       refresh_token: session.refreshToken,
     }),
+    signal: AbortSignal.timeout(CT_AUTH_TIMEOUT_MS),
   });
 
   const raw = await response.text();
@@ -124,10 +147,19 @@ export async function refreshCustomerSession(
     throw tokenError();
   }
 
+  const expiresAt = expiresAtFrom(body.expires_in);
+
+  // The refresh keeps the original grant, so a scope naming another customer means the session
+  // no longer belongs to this shopper: sign them out through isCustomerSessionRejected.
+  const scopedCustomerId = parseCustomerIdFromScope(body.scope);
+  if (scopedCustomerId && scopedCustomerId !== session.customerId) {
+    throw new CustomerError('RefreshFailed', 'Session expired', 401);
+  }
+
   return {
     accessToken: body.access_token,
     refreshToken: body.refresh_token ?? session.refreshToken,
-    expiresAt: Date.now() + body.expires_in * 1000,
+    expiresAt,
     customerId: session.customerId,
   };
 }
@@ -148,6 +180,7 @@ async function revokeCustomerToken(
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({ token, token_type_hint: tokenTypeHint }),
+    signal: AbortSignal.timeout(CT_AUTH_TIMEOUT_MS),
   });
 
   if (!response.ok) {

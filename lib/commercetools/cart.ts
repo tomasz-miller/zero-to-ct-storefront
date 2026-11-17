@@ -15,6 +15,8 @@ import {
   setCartSession,
   type CartSession,
 } from './cart-session';
+import { commercetoolsEnv } from './env';
+import { isCtNotFound } from './ct-errors';
 import { getCustomerSession } from './customer-session';
 import {
   CartAccessError,
@@ -34,7 +36,7 @@ import {
   getStorefrontContext,
   type StorefrontCountry,
 } from './storefront-context';
-import { getProductAvailabilityBySku } from './products';
+import { getProductAvailabilityBySkus } from './products';
 
 export {
   CartAccessError,
@@ -65,8 +67,11 @@ async function fetchCartById(cartId: string): Promise<Cart | null> {
       })
       .execute();
     return response.body;
-  } catch {
-    return null;
+  } catch (error) {
+    if (isCtNotFound(error)) {
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -240,12 +245,8 @@ export async function getGuestCart(): Promise<StorefrontCart | null> {
     return null;
   }
 
-  try {
-    const { cart } = await loadResolvedCartIfSessionExists();
-    return mapCart(cart, (await getStorefrontContext()).locale);
-  } catch {
-    return null;
-  }
+  const cart = await loadOwnedCart(existing);
+  return cart ? mapCart(cart, (await getStorefrontContext()).locale) : null;
 }
 
 export async function realignCartForStorefront(): Promise<{
@@ -306,6 +307,7 @@ async function createGuestCart(anonymousId: string): Promise<Cart> {
         country,
         locale,
         anonymousId,
+        inventoryMode: commercetoolsEnv.cartInventoryMode,
       },
     })
     .execute();
@@ -366,6 +368,7 @@ async function createCustomerCart(customerId: string): Promise<Cart> {
         country,
         locale,
         customerId,
+        inventoryMode: commercetoolsEnv.cartInventoryMode,
       },
     })
     .execute();
@@ -452,7 +455,7 @@ export async function reconcileCartOnAuth(customerId: string): Promise<void> {
   await restoreCustomerCartSession(customerId);
 }
 
-async function ensureCartSession(): Promise<CartSession> {
+async function ensureCartSession(): Promise<{ session: CartSession; cart: Cart }> {
   const customerSession = await getCustomerSession();
   const existing = await getCartSession();
 
@@ -461,11 +464,26 @@ async function ensureCartSession(): Promise<CartSession> {
       const cart = await loadOwnedCart(existing);
       if (cart) {
         if (cart.customerId) {
-          return { anonymousId: existing.anonymousId, cartId: cart.id };
+          return { session: { anonymousId: existing.anonymousId, cartId: cart.id }, cart };
+        }
+
+        // Owner decision 2026-11-13: an existing customer cart for this market wins over the guest
+        // cookie cart. The guest cart is dropped from the cookie, never merged or assigned.
+        const { country, currency } = await getStorefrontContext();
+        const customerCart = await findCustomerCartForMarket(
+          customerSession.customerId,
+          country,
+          currency,
+        );
+        if (customerCart) {
+          return {
+            session: await persistCartSession(existing.anonymousId, customerCart),
+            cart: customerCart,
+          };
         }
 
         const assigned = await assignCartToCustomer(cart, customerSession.customerId);
-        return persistCartSession(existing.anonymousId, assigned);
+        return { session: await persistCartSession(existing.anonymousId, assigned), cart: assigned };
       }
     }
 
@@ -477,31 +495,35 @@ async function ensureCartSession(): Promise<CartSession> {
         currency,
       )) ?? (await createCustomerCart(customerSession.customerId));
 
-    return persistCartSession(
-      existing?.anonymousId ?? createAnonymousId(),
-      customerCart,
-    );
+    return {
+      session: await persistCartSession(
+        existing?.anonymousId ?? createAnonymousId(),
+        customerCart,
+      ),
+      cart: customerCart,
+    };
   }
 
   if (existing) {
     const cart = await loadOwnedCart(existing);
     if (cart) {
-      return { anonymousId: existing.anonymousId, cartId: cart.id };
+      return { session: { anonymousId: existing.anonymousId, cartId: cart.id }, cart };
     }
   }
 
   const anonymousId = existing?.anonymousId ?? createAnonymousId();
   const cart = await createGuestCart(anonymousId);
-  return persistCartSession(anonymousId, cart);
+  return { session: await persistCartSession(anonymousId, cart), cart };
 }
 
 async function loadResolvedCart(): Promise<{ session: CartSession; cart: Cart }> {
-  const session = await ensureCartSession();
-  const cart = await loadOwnedCart(session);
-  if (!cart) {
-    throw new CartNotFoundError();
-  }
-  return { session, cart };
+  return ensureCartSession();
+}
+
+/** The cart addLineItem/addLineItems update: found or created exactly as they do (ensureCartSession). */
+export async function resolveCartForAdd(): Promise<StorefrontCart> {
+  const { cart } = await loadResolvedCart();
+  return mapCart(cart, (await getStorefrontContext()).locale);
 }
 
 async function loadResolvedCartIfSessionExists(): Promise<{
@@ -556,8 +578,8 @@ export async function addLineItem(
 ): Promise<StorefrontCart> {
   assertValidLineItemQuantity(quantity);
 
-  const availability = await getProductAvailabilityBySku(sku);
-  if (availability && availability.status === 'out_of_stock') {
+  const availability = (await getProductAvailabilityBySkus([sku])).get(sku);
+  if (availability?.status === 'out_of_stock') {
     throw new OutOfStockError();
   }
 
@@ -600,9 +622,10 @@ export async function addLineItems(
 
   const checkAvailability = options?.checkAvailability ?? true;
   if (checkAvailability) {
-    for (const item of items) {
-      const availability = await getProductAvailabilityBySku(item.sku);
-      if (availability && availability.status === 'out_of_stock') {
+    const requestedSkus = [...new Set(items.map((item) => item.sku))];
+    const availabilityBySku = await getProductAvailabilityBySkus(requestedSkus);
+    for (const sku of requestedSkus) {
+      if (availabilityBySku.get(sku)?.status === 'out_of_stock') {
         throw new OutOfStockError();
       }
     }
@@ -741,14 +764,19 @@ export async function removeDiscountCode(
   }
 }
 
-export async function requireActiveCart(): Promise<Cart> {
+export async function requireActiveCart(
+  options: { allowFrozen?: boolean } = {},
+): Promise<Cart> {
   const { cart } = await loadResolvedCartIfSessionExists();
 
   if (cart.lineItems.length === 0) {
     throw new CartNotFoundError('Cart is empty');
   }
 
-  if (cart.cartState !== 'Active') {
+  const accepted =
+    cart.cartState === 'Active' ||
+    (options.allowFrozen === true && cart.cartState === 'Frozen');
+  if (!accepted) {
     throw new CartNotFoundError('Cart is not active');
   }
 

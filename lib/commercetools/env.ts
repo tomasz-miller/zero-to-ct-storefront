@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { parseCartInventoryMode } from './cart-inventory-mode';
+
 function required(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -30,4 +32,5 @@ export const commercetoolsEnv = {
     projectKey,
   ),
   checkoutApplicationKey: optional('CTP_CHECKOUT_APPLICATION_KEY'),
+  cartInventoryMode: parseCartInventoryMode(process.env.CTP_CART_INVENTORY_MODE),
 } as const;

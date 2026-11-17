@@ -44,3 +44,8 @@ export function mapCustomerCtError(
       return null;
   }
 }
+
+/** Shopper-safe error for a missing session or a customer token commercetools rejected (HTTP 401). */
+export function signInRequired(): CustomerError {
+  return new CustomerError('Unauthorized', 'Sign in required', 401);
+}

@@ -52,7 +52,7 @@ The storefront covers the core B2C purchase path (browse → cart → checkout �
 | Full-text search | `/search?q=` | Product Search API |
 | Search / category listing sort + pagination | `/search`, `/category/[slug]` | Product Search `sort`, `limit`, `offset` |
 | Faceted filters (price, color, brand) | `/search`, `/category/[slug]` | Product Search faceting |
-| Search autocomplete | `SearchForm`, `/api/search/suggestions` | Search Term Suggestions API |
+| Search autocomplete | `SearchForm`, `/api/search/suggestions` | Product Search + Product Projections (name lookup) |
 | Product Detail Page (images, variants) | `/product/[slug]` | Product Projections |
 | Unified compact product cards + add-to-cart | `ProductCardCompact` on `/`, `/search`, `/category/[slug]` | — |
 | Quick View on product listings | `ProductQuickViewDialog`, `ProductCardCompact` | Reuses listing `StorefrontProduct` data |
@@ -221,7 +221,7 @@ Compared to the [Demo flow B2C Retail](https://docs.commercetools.com/tutorials/
 | Faceted filters (price, color, brand) | done | [Product Search faceting](https://docs.commercetools.com/api/storefront-search-overview#faceting) | `lib/commercetools/product-search-facets.ts`, `components/product/product-listing-facets.tsx` | Product Search |
 | Sorting (price, newest) | done | Product Search `sort` | `lib/commercetools/products.ts`, `components/product/product-listing-controls.tsx` | — |
 | Pagination | done | `limit` + `offset` | `app/search/page.tsx`, `app/category/[slug]/page.tsx` | — |
-| Search autocomplete | done | [Search Term Suggestions API](https://docs.commercetools.com/api/projects/search-term-suggestions) | `components/search/search-form.tsx`, `/api/search/suggestions` | — |
+| Search autocomplete | done | [Product Search](https://docs.commercetools.com/api/projects/product-search) + Product Projections (name lookup) | `components/search/search-form.tsx`, `/api/search/suggestions` | — |
 | New Arrivals section on homepage | done | Categories + Product Search | `app/page.tsx` | Categories module |
 | Unified product listing cards | done | — | `components/product/product-card-compact.tsx`, `product-grid-compact.tsx` | Used on `/`, `/search`, `/category/[slug]` |
 | Quick View on product listings | **done** | — | `components/product/product-quick-view-dialog.tsx`, `product-card-compact.tsx` | Reuses `StorefrontProduct` from listings |
@@ -359,7 +359,7 @@ See [Inventory overview](https://docs.commercetools.com/api/inventory-overview) 
 | Custom not-found page | P1 | S | **done** | — |
 | Search facets | P1 | M | **done** | Product Search |
 | Search sort + pagination | P1 | M | **done** | Product Search |
-| Search autocomplete | P1 | S | **done** | Search Term Suggestions |
+| Search autocomplete | P1 | S | **done** | Product Search |
 | Quick View on listings | P1 | M | **done** | — |
 | Order detail page | P2 | S | **done** | `GET /me/orders/{id}` |
 | Profile edit / change password | P2 | M | **done** | `POST /me`, `/me/password` |

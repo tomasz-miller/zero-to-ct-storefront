@@ -1,55 +1,43 @@
 import 'server-only';
 
-import type { Address, Customer, CustomerUpdateAction } from '@commercetools/platform-sdk';
+import type { Address, Customer, MyCustomerUpdateAction } from '@commercetools/platform-sdk';
 import { randomUUID } from 'node:crypto';
 
 import { clearCartSession } from './cart-session';
 import { getValidCustomerAccessToken } from './customer-auth';
 import { clearCustomerSession } from './customer-session';
-import { toCtFetchError } from './ct-errors';
-import { mapCustomerCtError } from './customer-errors';
+import { parseCtError } from './ct-errors';
+import { createCustomerApiRoot } from './customer-client';
+import { mapCustomerCtError, signInRequired } from './customer-errors';
 import {
   mapCustomer,
   type StorefrontCustomer,
   type StorefrontCustomerAddress,
 } from './customer-mappers';
 import { CustomerError } from './domain-errors';
-import { commercetoolsEnv } from './env';
 import type {
   ProfileUpdateInput,
   ValidatedAddressInput,
 } from './customer-profile-validation';
 
-/** Shopper-safe `CustomerError` for whitelisted codes, the raw `CtFetchError` otherwise. */
-function toCustomerFailure(response: Response, raw: string): Error {
-  const ctError = toCtFetchError(response, raw);
-  return mapCustomerCtError(ctError) ?? ctError;
-}
-
 async function requireCustomerAccessToken(): Promise<string> {
   const accessToken = await getValidCustomerAccessToken();
   if (!accessToken) {
-    throw new CustomerError('Unauthorized', 'Sign in required', 401);
+    throw signInRequired();
   }
   return accessToken;
 }
 
 async function fetchMyCustomer(accessToken: string): Promise<Customer> {
-  const response = await fetch(
-    `${commercetoolsEnv.apiUrl}/${commercetoolsEnv.projectKey}/me`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    },
-  );
-
-  const raw = await response.text();
-  if (!response.ok) {
-    throw toCustomerFailure(response, raw);
+  try {
+    const response = await createCustomerApiRoot(accessToken).me().get().execute();
+    return response.body;
+  } catch (error) {
+    throw (
+      mapCustomerCtError(error) ??
+      (parseCtError(error).statusCode === 401 ? signInRequired() : error)
+    );
   }
-
-  return JSON.parse(raw) as Customer;
 }
 
 function normalizeEmail(email: string): string {
@@ -76,8 +64,8 @@ function buildDefaultAddressActions(
   addressId?: string,
   addressKey?: string,
   options?: { isDefaultShipping?: boolean; isDefaultBilling?: boolean },
-): CustomerUpdateAction[] {
-  const actions: CustomerUpdateAction[] = [];
+): MyCustomerUpdateAction[] {
+  const actions: MyCustomerUpdateAction[] = [];
 
   if (options?.isDefaultShipping) {
     actions.push({
@@ -101,31 +89,25 @@ function buildDefaultAddressActions(
 async function postMyCustomerUpdate(
   accessToken: string,
   version: number,
-  actions: CustomerUpdateAction[],
+  actions: MyCustomerUpdateAction[],
 ): Promise<StorefrontCustomer> {
   if (actions.length === 0) {
     const customer = await fetchMyCustomer(accessToken);
     return mapCustomer(customer);
   }
 
-  const response = await fetch(
-    `${commercetoolsEnv.apiUrl}/${commercetoolsEnv.projectKey}/me`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ version, actions }),
-    },
-  );
-
-  const raw = await response.text();
-  if (!response.ok) {
-    throw toCustomerFailure(response, raw);
+  try {
+    const response = await createCustomerApiRoot(accessToken)
+      .me()
+      .post({ body: { version, actions } })
+      .execute();
+    return mapCustomer(response.body);
+  } catch (error) {
+    throw (
+      mapCustomerCtError(error) ??
+      (parseCtError(error).statusCode === 401 ? signInRequired() : error)
+    );
   }
-
-  return mapCustomer(JSON.parse(raw) as Customer);
 }
 
 export async function updateCustomerProfile(
@@ -133,7 +115,7 @@ export async function updateCustomerProfile(
 ): Promise<StorefrontCustomer> {
   const accessToken = await requireCustomerAccessToken();
   const customer = await fetchMyCustomer(accessToken);
-  const actions: CustomerUpdateAction[] = [];
+  const actions: MyCustomerUpdateAction[] = [];
 
   const firstName = input.firstName?.trim();
   const lastName = input.lastName?.trim();
@@ -161,7 +143,7 @@ export async function addCustomerAddress(
   const customer = await fetchMyCustomer(accessToken);
   const addressKey = `addr-${randomUUID()}`;
 
-  const actions: CustomerUpdateAction[] = [
+  const actions: MyCustomerUpdateAction[] = [
     {
       action: 'addAddress',
       address: {
@@ -187,7 +169,7 @@ export async function updateCustomerAddress(
     throw new CustomerError('NotFound', 'Address not found', 404);
   }
 
-  const actions: CustomerUpdateAction[] = [
+  const actions: MyCustomerUpdateAction[] = [
     {
       action: 'changeAddress',
       addressId,
@@ -225,25 +207,19 @@ export async function changeCustomerPassword(
   const accessToken = await requireCustomerAccessToken();
   const customer = await fetchMyCustomer(accessToken);
 
-  const response = await fetch(
-    `${commercetoolsEnv.apiUrl}/${commercetoolsEnv.projectKey}/me/password`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        version: customer.version,
-        currentPassword,
-        newPassword,
-      }),
-    },
-  );
-
-  const raw = await response.text();
-  if (!response.ok) {
-    throw toCustomerFailure(response, raw);
+  try {
+    await createCustomerApiRoot(accessToken)
+      .me()
+      .password()
+      .post({
+        body: { version: customer.version, currentPassword, newPassword },
+      })
+      .execute();
+  } catch (error) {
+    throw (
+      mapCustomerCtError(error) ??
+      (parseCtError(error).statusCode === 401 ? signInRequired() : error)
+    );
   }
 
   await clearCustomerSession();

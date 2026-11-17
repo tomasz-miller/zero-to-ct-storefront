@@ -88,4 +88,21 @@ describe('ctpClient', () => {
       expect.objectContaining({ includeRequestInErrorResponse: false }),
     );
   });
+
+  it('builds the admin client with the shared retrying http options', async () => {
+    await import('./client');
+    expect(builderChain.withHttpMiddleware).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enableRetry: true,
+        timeout: 10_000,
+        includeRequestInErrorResponse: false,
+      }),
+    );
+  });
+
+  it('registers the selective concurrent modification handler', async () => {
+    await import('./client');
+    const { concurrentModificationHandler } = await import('./concurrent-modification');
+    expect(builderChain.withConcurrentModificationMiddleware).toHaveBeenCalledWith({ concurrentModificationHandlerFn: concurrentModificationHandler });
+  });
 });

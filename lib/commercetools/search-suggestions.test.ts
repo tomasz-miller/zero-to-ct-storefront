@@ -42,7 +42,6 @@ import {
   buildProductNameSuggestionQuery,
   escapeWildcardValue,
   mapProductSearchNameSuggestions,
-  mapSearchSuggestionResponse,
   MAX_SEARCH_SUGGESTIONS,
   MIN_SEARCH_SUGGESTION_LENGTH,
 } from './search-suggestion-utils';
@@ -51,43 +50,6 @@ describe('search suggestions', () => {
   it('defines suggestion length guardrails', () => {
     expect(MIN_SEARCH_SUGGESTION_LENGTH).toBe(2);
     expect(MAX_SEARCH_SUGGESTIONS).toBe(8);
-  });
-
-  it('maps locale-specific search keyword suggestion results', () => {
-    expect(
-      mapSearchSuggestionResponse(
-        {
-          'searchKeywords.en-GB': [
-            { text: 'Double bed' },
-            { text: 'Dining table' },
-          ],
-        },
-        'en-GB',
-      ),
-    ).toEqual(['Double bed', 'Dining table']);
-  });
-
-  it('returns an empty list for missing or invalid keyword payloads', () => {
-    expect(mapSearchSuggestionResponse({}, 'en-GB')).toEqual([]);
-    expect(
-      mapSearchSuggestionResponse(
-        { 'searchKeywords.en-GB': [{ text: 123 }] },
-        'en-GB',
-      ),
-    ).toEqual([]);
-  });
-
-  it('caps mapped keyword suggestions to the storefront limit', () => {
-    const suggestions = Array.from({ length: 12 }, (_, index) => ({
-      text: `Suggestion ${index + 1}`,
-    }));
-
-    expect(
-      mapSearchSuggestionResponse(
-        { 'searchKeywords.en-GB': suggestions },
-        'en-GB',
-      ),
-    ).toHaveLength(MAX_SEARCH_SUGGESTIONS);
   });
 
   it('builds Product Search queries aligned with storefront name search', () => {
@@ -138,5 +100,12 @@ describe('getSearchSuggestions', () => {
         'var.ids': ['p1', 'p2'],
       }),
     });
+  });
+
+  it('never calls the deprecated suggest endpoint', async () => {
+    searchExecute.mockResolvedValue({ body: { results: [{ id: 'p1' }] } });
+    projectionsExecute.mockResolvedValue({ body: { results: [{ id: 'p1', name: { 'en-GB': 'Double bed' } }] } });
+    await expect(getSearchSuggestions('bed', 'en-GB')).resolves.toEqual(['Double bed']);
+    expect(mockSuggest).not.toHaveBeenCalled();
   });
 });

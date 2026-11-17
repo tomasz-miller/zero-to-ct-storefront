@@ -3,7 +3,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Cart } from '@commercetools/platform-sdk';
+import type { Cart, TaxPortion } from '@commercetools/platform-sdk';
 
 const {
   mockRequireActiveCart,
@@ -108,6 +108,7 @@ vi.mock('./storefront-context', () => ({
   getStorefrontContext: mockGetStorefrontContext,
 }));
 
+import { OutOfStockError } from './domain-errors';
 import {
   MOCK_PAYMENT_DELAY_MS,
   MockCheckoutConflictError,
@@ -198,15 +199,64 @@ function ctError(statusCode: number, code: string, message = 'm') {
   });
 }
 
+const noDelay = (): Promise<void> => Promise.resolve(); // assignable to the `sleep` dep; the existing tests declare their own `sleep` mocks
+const eur = (centAmount: number) => ({ centAmount, currencyCode: 'EUR', type: 'centPrecision', fractionDigits: 2 }) as const;
+const lastCartPostActions = () => (cartPost.mock.calls.at(-1)?.[0] as { body: { actions: Array<{ action: string }> } }).body.actions;
+const cartPostActionLists = () => cartPost.mock.calls.map(([args]) => (args as { body: { actions: Array<{ action: string }> } }).body.actions);
+
+function frozenCartWithPayment(version: number, grossCentAmount = 1190): Cart {
+  return createCart({
+    version,
+    cartState: 'Frozen',
+    taxedPrice: { totalNet: eur(1000), totalGross: eur(grossCentAmount), totalTax: eur(grossCentAmount - 1000), taxPortions: [] as TaxPortion[] },
+    paymentInfo: {
+      payments: [{ typeId: 'payment', id: 'pay-1', obj: { id: 'pay-1', paymentMethodInfo: { paymentInterface: 'mock' }, amountPlanned: eur(1190) } }],
+    },
+  } as Partial<Cart>);
+}
+
+/** GET response for the re-read after addPayment: version 9, the 1190 EUR mock payment, and the given gross total. */
+function reReadCartWithTotal(grossCentAmount: number): { body: Cart } {
+  return { body: frozenCartWithPayment(9, grossCentAmount) };
+}
+
+/**
+ * Happy path for `placeMockPayment({}, { sleep: noDelay })`: no shipping methods match, the initial load and the
+ * post-delay reload return `initial`, freezeCart answers version 4 (Frozen), addPayment answers version 5,
+ * and the re-read answers `reRead`. With `initial` Frozen, the first cart POST is the unfreeze (answers an
+ * Active version 6) and every later answer moves up by two.
+ */
+function arrangeFreezeFlow({ initial = createCart({ version: 3 }), reRead = reReadCartWithTotal(1190) }: { initial?: Cart; reRead?: { body: Cart } } = {}): void {
+  const active = createCart({ version: initial.cartState === 'Frozen' ? 6 : initial.version });
+  mockRequireActiveCart.mockResolvedValue(initial);
+  shippingGetExecute.mockResolvedValue({ body: { results: [] } });
+  cartGetExecute
+    .mockResolvedValueOnce({ body: initial }) // initial load
+    .mockResolvedValueOnce({ body: active }) // Track 1B reload after the delay
+    .mockResolvedValue(reRead); // re-read after addPayment, and the re-read in the catch
+  if (initial.cartState === 'Frozen') cartPostExecute.mockResolvedValueOnce({ body: active }); // unfreezeCart
+  cartPostExecute
+    .mockResolvedValueOnce({ body: createCart({ version: active.version + 1, cartState: 'Frozen' }) }) // freezeCart
+    .mockResolvedValueOnce({ body: frozenCartWithPayment(active.version + 2) }) // addPayment
+    .mockResolvedValue({ body: createCart({ version: 10 }) }); // unfreezeCart in the catch
+  paymentPostExecute.mockResolvedValue({ body: { id: 'pay-1' } });
+  orderPostExecute.mockResolvedValue({ body: { id: 'order-1' } });
+}
+
 // The arrangement of the 'charges the gross total after a provider delay and creates a paid order' test.
 function arrangeReadyCart(): Cart {
   const cart = createCart();
   mockRequireActiveCart.mockResolvedValue(cart);
-  cartGetExecute.mockResolvedValue({ body: cart });
+  cartGetExecute
+    .mockResolvedValueOnce({ body: cart }) // initial load
+    .mockResolvedValueOnce({ body: cart }) // reload after the delay
+    .mockResolvedValue({ body: frozenCartWithPayment(9) }); // re-read after addPayment, and in the catch
   shippingGetExecute.mockResolvedValue(matchingShippingMethods());
   cartPostExecute
-    .mockResolvedValueOnce({ body: createCart({ version: 4 }) })
-    .mockResolvedValueOnce({ body: createCart({ version: 5 }) });
+    .mockResolvedValueOnce({ body: createCart({ version: 4 }) }) // setShippingMethod
+    .mockResolvedValueOnce({ body: createCart({ version: 4, cartState: 'Frozen' }) }) // freezeCart
+    .mockResolvedValueOnce({ body: createCart({ version: 5 }) }) // addPayment
+    .mockResolvedValue({ body: createCart({ version: 10 }) }); // unfreezeCart in the catch
   paymentPostExecute.mockResolvedValue({ body: { id: 'pay-1' } });
   orderPostExecute.mockResolvedValue({ body: { id: 'order-1' } });
   return cart;
@@ -237,9 +287,14 @@ function arrangeChangedAmountCart(): Cart {
     },
   } as Partial<Cart>);
   mockRequireActiveCart.mockResolvedValue(paidCart);
-  cartGetExecute.mockResolvedValue({ body: paidCart });
+  cartGetExecute
+    .mockResolvedValueOnce({ body: paidCart }) // initial load
+    .mockResolvedValueOnce({ body: paidCart }) // reload after the delay
+    .mockResolvedValue({ body: frozenCartWithPayment(9) }); // re-read after the payment swap
   shippingGetExecute.mockResolvedValue({ body: { results: [] } });
-  cartPostExecute.mockResolvedValue({ body: createCart({ version: 6 }) });
+  cartPostExecute
+    .mockResolvedValueOnce({ body: { ...paidCart, cartState: 'Frozen', version: 4 } }) // freezeCart keeps the expanded pay-existing payment
+    .mockResolvedValue({ body: createCart({ version: 6 }) });
   paymentPostExecute.mockResolvedValue({ body: { id: 'pay-new' } });
   orderPostExecute.mockResolvedValue({ body: { id: 'order-3' } });
   paymentDeleteExecute.mockResolvedValue({ body: {} });
@@ -300,7 +355,11 @@ describe('mock payments', () => {
   it('reuses an existing payment when the key already exists', async () => {
     const cartWithPayment = createCart({ version: 5, paymentInfo: { payments: [{ typeId: 'payment', id: 'pay-1' }] } } as Partial<Cart>);
     mockRequireActiveCart.mockResolvedValue(createCart());
-    cartGetExecute.mockResolvedValueOnce({ body: createCart() }).mockResolvedValue({ body: cartWithPayment });
+    cartGetExecute
+      .mockResolvedValueOnce({ body: createCart() }) // initial load
+      .mockResolvedValueOnce({ body: cartWithPayment }) // reload after the delay
+      .mockResolvedValue({ body: frozenCartWithPayment(9) }); // re-read after the payment
+    cartPostExecute.mockResolvedValueOnce({ body: { ...cartWithPayment, cartState: 'Frozen', version: 6 } }); // freezeCart
     shippingGetExecute.mockResolvedValue({ body: { results: [] } });
     paymentPostExecute.mockRejectedValue(ctError(400, 'DuplicateField'));
     paymentByKeyExecute.mockResolvedValue({ body: { id: 'pay-1', version: 1 } });
@@ -313,13 +372,16 @@ describe('mock payments', () => {
 
   it('reloads the cart after the provider delay', async () => {
     mockRequireActiveCart.mockResolvedValue(createCart());
-    cartGetExecute.mockResolvedValueOnce({ body: createCart({ version: 3 }) }).mockResolvedValue({ body: createCart({ version: 7 }) });
+    cartGetExecute
+      .mockResolvedValueOnce({ body: createCart({ version: 3 }) }) // initial load
+      .mockResolvedValueOnce({ body: createCart({ version: 7 }) }) // reload after the delay
+      .mockResolvedValue({ body: frozenCartWithPayment(9) }); // re-read after the payment
     shippingGetExecute.mockResolvedValue({ body: { results: [] } });
     cartPostExecute.mockResolvedValue({ body: createCart({ version: 8 }) });
     paymentPostExecute.mockResolvedValue({ body: { id: 'pay-1' } });
     orderPostExecute.mockResolvedValue({ body: { id: 'order-1' } });
     await placeMockPayment({}, { sleep: vi.fn().mockResolvedValue(undefined) });
-    expect(cartGetExecute).toHaveBeenCalledTimes(2);
+    expect(cartGetExecute).toHaveBeenCalledTimes(3);
     expect((cartPost.mock.calls[0]?.[0] as { body: { version: number } }).body.version).toBe(7);
   });
 
@@ -338,6 +400,17 @@ describe('mock payments', () => {
     const err = await placeMockPayment({ shippingMethodId: 'ship-1' }, { sleep: vi.fn().mockResolvedValue(undefined) }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(MockCheckoutError);
     expect((err as Error).message).toBe('Checkout could not be completed. Please review your details and try again.');
+  });
+
+  it.each([400, 409])('maps an OutOfStock order failure (status %i) to OutOfStockError with checkout copy', async (status) => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    arrangeReadyCart();
+    orderPostExecute.mockRejectedValue(ctError(status, 'OutOfStock', 'Some line items are out of stock at the time of placing the order: SKU-1.'));
+    const err = await placeMockPayment({ shippingMethodId: 'ship-1' }, { sleep: vi.fn().mockResolvedValue(undefined) }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(OutOfStockError);
+    expect(err).toMatchObject({ status: 409, code: 'OutOfStock' });
+    expect((err as Error).message).toBe('Some items in your cart are no longer in stock. Update your cart and try again.');
+    expect(err).not.toHaveProperty('body');
   });
 
   it('deletes the replaced mock payment', async () => {
@@ -482,7 +555,7 @@ describe('mock payments', () => {
       body: { version: number; paymentState: string; cart: { id: string } };
     };
     expect(orderDraft.body).toMatchObject({
-      version: 5,
+      version: 9,
       paymentState: 'Paid',
       cart: { typeId: 'cart', id: 'cart-1' },
     });
@@ -513,13 +586,14 @@ describe('mock payments', () => {
     const sleep = vi.fn().mockResolvedValue(undefined);
     mockRequireActiveCart.mockResolvedValue(paidCart);
     cartGetExecute.mockResolvedValue({ body: paidCart });
+    cartPostExecute.mockResolvedValueOnce({ body: { ...paidCart, cartState: 'Frozen', version: 4 } }); // freezeCart
     shippingGetExecute.mockResolvedValue({ body: { results: [] } });
     orderPostExecute.mockResolvedValue({ body: { id: 'order-2' } });
 
     await placeMockPayment({}, { sleep });
 
     expect(paymentPost).not.toHaveBeenCalled();
-    expect(cartPost).not.toHaveBeenCalled();
+    expect(cartPostActionLists()).toEqual([[{ action: 'freezeCart', strategy: 'HardFreeze' }]]);
     expect(orderPost).toHaveBeenCalledOnce();
   });
 
@@ -529,7 +603,7 @@ describe('mock payments', () => {
 
     await placeMockPayment({}, { sleep });
 
-    const update = cartPost.mock.calls[0]?.[0] as {
+    const update = cartPost.mock.calls[1]?.[0] as {
       body: { actions: Array<{ action: string }> };
     };
     expect(update.body.actions.map((action) => action.action)).toEqual([
@@ -537,6 +611,59 @@ describe('mock payments', () => {
       'addPayment',
     ]);
     expect(paymentPost).toHaveBeenCalledOnce();
+  });
+
+  it('freezes the cart after the reload and orders the re-read frozen cart', async () => {
+    arrangeFreezeFlow();
+    await expect(placeMockPayment({}, { sleep: noDelay })).resolves.toEqual({ orderId: 'order-1', orderNumber: 'ZT-20261113-0000ABCD' });
+    const actionLists = cartPostActionLists();
+    expect(actionLists[0]).toEqual([{ action: 'freezeCart', strategy: 'HardFreeze' }]);
+    expect(actionLists[1].map((a) => a.action)).toContain('addPayment');
+    expect(actionLists.flat().map((a) => a.action)).not.toContain('unfreezeCart');
+    expect(orderPost).toHaveBeenCalledWith({ body: expect.objectContaining({ version: 9, paymentState: 'Paid', orderNumber: 'ZT-20261113-0000ABCD' }) });
+  });
+
+  it('unfreezes and rejects when the re-read total differs from the payment amount', async () => {
+    arrangeFreezeFlow({ reRead: reReadCartWithTotal(2_000) });
+    await expect(placeMockPayment({}, { sleep: noDelay })).rejects.toThrow('Your cart changed during payment. Review your cart and try again.');
+    expect(lastCartPostActions()).toEqual([{ action: 'unfreezeCart' }]);
+    expect((cartPost.mock.calls.at(-1)?.[0] as { body: { version: number } }).body.version).toBe(9);
+    expect(orderPost).not.toHaveBeenCalled();
+  });
+
+  it('unfreezes the cart when order creation fails', async () => {
+    arrangeFreezeFlow();
+    orderPostExecute.mockRejectedValue(ctError(409, 'ConcurrentModification'));
+    await expect(placeMockPayment({}, { sleep: noDelay })).rejects.toBeInstanceOf(MockCheckoutConflictError);
+    expect(lastCartPostActions()).toEqual([{ action: 'unfreezeCart' }]);
+    expect(mockSetLastOrderSession).not.toHaveBeenCalled();
+    expect(mockClearCartSession).not.toHaveBeenCalled();
+  });
+
+  it('unfreezes the cart and keeps the session when order creation is out of stock', async () => {
+    arrangeFreezeFlow();
+    orderPostExecute.mockRejectedValue(ctError(400, 'OutOfStock'));
+    await expect(placeMockPayment({}, { sleep: noDelay })).rejects.toBeInstanceOf(OutOfStockError);
+    expect(lastCartPostActions()).toEqual([{ action: 'unfreezeCart' }]);
+    expect(mockSetLastOrderSession).not.toHaveBeenCalled();
+    expect(mockClearCartSession).not.toHaveBeenCalled();
+  });
+
+  it('rethrows the original error when the unfreeze also fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    arrangeFreezeFlow();
+    orderPostExecute.mockRejectedValue(ctError(409, 'ConcurrentModification'));
+    cartPostExecute.mockRejectedValue(ctError(503, 'ServiceUnavailable')); // replaces the catch-all unfreeze answer; the queued freeze/addPayment answers still apply
+    await expect(placeMockPayment({}, { sleep: noDelay })).rejects.toBeInstanceOf(MockCheckoutConflictError);
+    expect(warn).toHaveBeenCalledWith('[mock-payment] unfreeze failed', { cartId: 'cart-1' });
+  });
+
+  it('unfreezes a cart left Frozen by an earlier attempt', async () => {
+    arrangeFreezeFlow({ initial: createCart({ cartState: 'Frozen', version: 5 }) });
+    await placeMockPayment({}, { sleep: noDelay });
+    expect(cartPost.mock.calls[0][0]).toMatchObject({ body: { version: 5, actions: [{ action: 'unfreezeCart' }] } });
+    expect(cartPostActionLists()[1]).toEqual([{ action: 'freezeCart', strategy: 'HardFreeze' }]);
+    expect(orderPost).toHaveBeenCalledTimes(1);
   });
 
   it('requires an email and shipping address before payment', async () => {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getMyOrders } from '@/lib/commercetools/customer-api';
 import { getValidCustomerAccessToken } from '@/lib/commercetools/customer-auth';
+import { toErrorResponse } from '@/lib/http/route-errors';
 
 export async function GET(request: NextRequest) {
   const accessToken = await getValidCustomerAccessToken();
@@ -26,7 +27,6 @@ export async function GET(request: NextRequest) {
     const result = await getMyOrders({ limit, offset });
     return NextResponse.json(result);
   } catch (error) {
-    console.error('[api/customer/orders]', error);
-    return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
+    return toErrorResponse(error, 'api/customer/orders');
   }
 }

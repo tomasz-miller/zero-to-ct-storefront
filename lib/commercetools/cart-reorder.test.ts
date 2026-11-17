@@ -7,22 +7,37 @@ const {
   mockAddLineItems,
   mockGetGuestCart,
   mockGetMyOrder,
-  mockGetProductAvailabilityBySku,
+  mockGetProductAvailabilityBySkus,
+  mockResolveCartForAdd,
 } = vi.hoisted(() => ({
   mockAddLineItems: vi.fn(),
+  mockResolveCartForAdd: vi.fn(
+    async (): Promise<{ lineItems: Array<{ sku?: string; quantity: number }> }> => ({
+      lineItems: [],
+    }),
+  ),
   mockGetGuestCart: vi.fn(
     async (): Promise<{ lineItems: Array<{ sku?: string; quantity: number }> } | null> => null,
   ),
   mockGetMyOrder: vi.fn(),
-  mockGetProductAvailabilityBySku: vi.fn(async () => ({
-    isOnStock: true,
-    status: 'in_stock' as 'in_stock' | 'low_stock' | 'out_of_stock',
-  })),
+  mockGetProductAvailabilityBySkus: vi.fn(
+    async (skus: readonly string[]) =>
+      new Map(
+        skus.map((sku) => [
+          sku,
+          {
+            isOnStock: true,
+            status: 'in_stock' as 'in_stock' | 'low_stock' | 'out_of_stock',
+          },
+        ]),
+      ),
+  ),
 }));
 
 vi.mock('./cart', () => ({
   addLineItems: mockAddLineItems,
   getGuestCart: mockGetGuestCart,
+  resolveCartForAdd: mockResolveCartForAdd,
 }));
 
 vi.mock('./customer-api', () => ({
@@ -30,7 +45,7 @@ vi.mock('./customer-api', () => ({
 }));
 
 vi.mock('./products', () => ({
-  getProductAvailabilityBySku: mockGetProductAvailabilityBySku,
+  getProductAvailabilityBySkus: mockGetProductAvailabilityBySkus,
 }));
 
 import {
@@ -52,10 +67,11 @@ describe('reorderOrder', () => {
   afterEach(() => {
     vi.clearAllMocks();
     mockGetGuestCart.mockResolvedValue(null);
-    mockGetProductAvailabilityBySku.mockResolvedValue({
-      isOnStock: true,
-      status: 'in_stock',
-    });
+    mockResolveCartForAdd.mockResolvedValue({ lineItems: [] });
+    mockGetProductAvailabilityBySkus.mockImplementation(
+      async (skus) =>
+        new Map(skus.map((sku) => [sku, { isOnStock: true, status: 'in_stock' as const }])),
+    );
   });
 
   it('throws when the customer is not signed in', async () => {
@@ -109,13 +125,11 @@ describe('reorderOrder', () => {
       ],
     });
 
-    mockGetProductAvailabilityBySku.mockImplementation(
-      (async (sku: string) => {
-        if (sku === 'SKU-OOS') {
-          return { isOnStock: false, status: 'out_of_stock' as const };
-        }
-        return { isOnStock: true, status: 'in_stock' as const };
-      }) as typeof mockGetProductAvailabilityBySku,
+    mockGetProductAvailabilityBySkus.mockResolvedValueOnce(
+      new Map([
+        ['SKU-OOS', { isOnStock: false, status: 'out_of_stock' as const }],
+        ['SKU-OK', { isOnStock: true, status: 'in_stock' as const }],
+      ]),
     );
 
     mockAddLineItems.mockResolvedValue({
@@ -162,12 +176,10 @@ describe('reorderOrder', () => {
       ],
     });
 
-    mockGetProductAvailabilityBySku.mockImplementation((async (sku: string) => {
-      if (sku === 'SKU-MISSING') {
-        return null;
-      }
-      return { isOnStock: true, status: 'in_stock' as const };
-    }) as typeof mockGetProductAvailabilityBySku);
+    // A SKU missing from the catalog is a SKU absent from the Map.
+    mockGetProductAvailabilityBySkus.mockResolvedValueOnce(
+      new Map([['SKU-OK', { isOnStock: true, status: 'in_stock' as const }]]),
+    );
 
     mockAddLineItems.mockResolvedValue({
       id: 'cart-1',
@@ -204,15 +216,35 @@ describe('reorderOrder', () => {
         },
       ],
     });
-    mockGetProductAvailabilityBySku.mockResolvedValue({
-      isOnStock: false,
-      status: 'out_of_stock',
-    });
+    mockGetProductAvailabilityBySkus.mockResolvedValue(
+      new Map([['SKU-OOS', { isOnStock: false, status: 'out_of_stock' as const }]]),
+    );
 
     await expect(reorderOrder('order-1')).rejects.toBeInstanceOf(
       NothingToReorderError,
     );
     expect(mockAddLineItems).not.toHaveBeenCalled();
+  });
+
+  it('checks availability for all order lines in one call', async () => {
+    mockGetMyOrder.mockResolvedValue({
+      id: 'order-1',
+      createdAt: '2026-07-01T00:00:00.000Z',
+      orderState: 'Open',
+      paymentStatus: 'Paid',
+      total: money(3000),
+      payments: [],
+      lineItems: [
+        { id: 'li-1', name: 'A', sku: 'SKU-1', quantity: 1, unitPrice: money(1000), totalPrice: money(1000) },
+        { id: 'li-2', name: 'B', sku: 'SKU-2', quantity: 2, unitPrice: money(1000), totalPrice: money(2000) },
+      ],
+    });
+    mockAddLineItems.mockResolvedValue({ id: 'cart-1', itemCount: 3, lineItems: [] });
+
+    await expect(reorderOrder('order-1')).resolves.toMatchObject({ added: 2, skipped: 0 });
+
+    expect(mockGetProductAvailabilityBySkus).toHaveBeenCalledTimes(1);
+    expect(mockGetProductAvailabilityBySkus).toHaveBeenCalledWith(['SKU-1', 'SKU-2']);
   });
 
   describe('line quantity cap', () => {
@@ -238,7 +270,7 @@ describe('reorderOrder', () => {
 
     it('clamps a line to the quantity that still fits in the cart', async () => {
       givenOrder([orderLine('li-1', 'SKU-OK', 20)]);
-      mockGetGuestCart.mockResolvedValue({ lineItems: [{ sku: 'SKU-OK', quantity: 90 }] });
+      mockResolveCartForAdd.mockResolvedValue({ lineItems: [{ sku: 'SKU-OK', quantity: 90 }] });
       mockAddLineItems.mockResolvedValue({ id: 'cart-1', itemCount: 99, lineItems: [] });
 
       const result = await reorderOrder('order-1');
@@ -252,7 +284,7 @@ describe('reorderOrder', () => {
 
     it('skips and reports a line whose sku is already at the cap', async () => {
       givenOrder([orderLine('li-1', 'SKU-FULL', 1), orderLine('li-2', 'SKU-OK', 2)]);
-      mockGetGuestCart.mockResolvedValue({ lineItems: [{ sku: 'SKU-FULL', quantity: 99 }] });
+      mockResolveCartForAdd.mockResolvedValue({ lineItems: [{ sku: 'SKU-FULL', quantity: 99 }] });
       mockAddLineItems.mockResolvedValue({ id: 'cart-1', itemCount: 101, lineItems: [] });
 
       const result = await reorderOrder('order-1');
@@ -266,10 +298,25 @@ describe('reorderOrder', () => {
 
     it('throws NothingToReorder when every line is already at the cap', async () => {
       givenOrder([orderLine('li-1', 'SKU-FULL', 1)]);
-      mockGetGuestCart.mockResolvedValue({ lineItems: [{ sku: 'SKU-FULL', quantity: 99 }] });
+      mockResolveCartForAdd.mockResolvedValue({ lineItems: [{ sku: 'SKU-FULL', quantity: 99 }] });
 
       await expect(reorderOrder('order-1')).rejects.toBeInstanceOf(NothingToReorderError);
       expect(mockAddLineItems).not.toHaveBeenCalled();
+    });
+
+    it('plans the cap against the cart addLineItems will update when there is no cart cookie', async () => {
+      // Signed in, no cart cookie (getGuestCart answers null), active customer cart already holds 90.
+      givenOrder([orderLine('li-1', 'SKU-OK', 20)]);
+      mockGetGuestCart.mockResolvedValue(null);
+      mockResolveCartForAdd.mockResolvedValue({ lineItems: [{ sku: 'SKU-OK', quantity: 90 }] });
+      mockAddLineItems.mockResolvedValue({ id: 'cart-1', itemCount: 99, lineItems: [] });
+
+      await expect(reorderOrder('order-1')).resolves.toMatchObject({ added: 1, skipped: 0 });
+
+      expect(mockAddLineItems).toHaveBeenCalledWith([{ sku: 'SKU-OK', quantity: 9 }], {
+        checkAvailability: false,
+      });
+      expect(mockGetGuestCart).not.toHaveBeenCalled();
     });
 
     it('counts repeated skus of one order against the same cap', async () => {

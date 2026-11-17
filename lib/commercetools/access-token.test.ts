@@ -35,6 +35,13 @@ describe('getClientCredentialsAccessToken', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('sends the token request with a timeout signal', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'token-abc', expires_in: 3600 }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(getClientCredentialsAccessToken()).resolves.toBe('token-abc');
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('requests client credentials limited to manage_sessions', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

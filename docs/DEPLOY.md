@@ -45,6 +45,7 @@ Copy from [`.env.example`](../.env.example). Set these in the hosting provider (
 | `CTP_CUSTOMER_SCOPES` | Optional. Space-separated scopes requested for customer tokens; `{pk}` is replaced by `CTP_PROJECT_KEY`. Default `manage_my_profile:{pk} manage_my_orders:{pk}`. Every entry must exist on the API client. |
 | `CTP_MOCK_PAYMENTS` | Optional. `true` replaces commercetools Checkout and Stripe with mock payments (demo only). Never set it for a real shop. |
 | `CTP_MOCK_PAYMENTS_PROJECT_KEY` | Required whenever `CTP_MOCK_PAYMENTS=true`. Must equal `CTP_PROJECT_KEY`; if it is missing or differs, mock payments stay disabled and an error is logged once per process. |
+| `CTP_CART_INVENTORY_MODE` | Optional. Inventory mode set on every new cart: `None`, `TrackOnly` or `ReserveOnOrder` (default when unset or empty). `ReserveOnOrder` makes commercetools reject an order whose quantity exceeds available stock (the mock checkout shows an out-of-stock message; commercetools Checkout shows its generic error); `None` disables commercetools stock checks. The value is case-sensitive; any other value, including `ReserveOnCart`, makes `lib/commercetools/env.ts` throw `Invalid CTP_CART_INVENTORY_MODE` when it loads. |
 | `IMAGE_REMOTE_PATTERNS` | Optional. Comma-separated https URL patterns `next/image` may fetch, e.g. `https://cdn.example.com/bucket/**`. Each entry needs a literal hostname and at least one literal path segment; `http:`, wildcard hosts and bare `/**` paths are rejected and fail `next build`. **Set it to the real host and path prefix of your catalog images before deploying against a real project.** The default `https://storage.googleapis.com/merchant-center-europe/sample-data/**` (assumed commercetools sample-data bucket) is unverified; if it does not match your images, `next/image` refuses to load them. |
 | `HEALTH_CHECK_TOKEN` | Optional. Enables the token-gated readiness check `GET /api/health?check=commercetools` (send it in the `x-health-check-token` header). Use at least 32 random characters, e.g. `openssl rand -base64 32`. Without it the check returns 404 and `/api/health` stays a liveness probe. |
 
@@ -126,7 +127,7 @@ Registration still answers `409` for an email that already has an account, becau
 
 ## CI environment
 
-CI (`.github/workflows/ci.yml` and `bitbucket-pipelines.yml`) runs `pnpm build` with placeholder `CTP_*` values and needs no commercetools secrets. `lib/commercetools/env.ts` only checks that the variables are set, and every route renders per request, so the build never calls the commercetools API.
+CI (`.github/workflows/ci.yml` and `bitbucket-pipelines.yml`) runs `pnpm build` with placeholder `CTP_*` values and needs no commercetools secrets. `lib/commercetools/env.ts` checks that the required variables are set and that `CTP_CART_INVENTORY_MODE`, when set, is an allowed value; it makes no network calls, and every route renders per request, so the build never calls the commercetools API.
 
 ---
 

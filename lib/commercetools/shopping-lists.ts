@@ -4,13 +4,13 @@ import type { ShoppingList } from '@commercetools/platform-sdk';
 
 import { apiRoot } from './api-root';
 import { addLineItem } from './cart';
+import { isCtNotFound } from './ct-errors';
 import { getCustomerSession } from './customer-session';
 import {
   WishlistAccessError,
   WishlistLineItemNotFoundError,
   WishlistNotFoundError,
 } from './domain-errors';
-import { pickLocalized } from './product-mappers';
 import { getStorefrontContext } from './storefront-context';
 import { mapWishlist, type StorefrontWishlist } from './wishlist-mappers';
 import {
@@ -28,16 +28,24 @@ export {
   WishlistNotFoundError,
 };
 
+export const SHOPPING_LIST_EXPAND = [
+  'lineItems[*].variant',
+  'lineItems[*].productSlug',
+] as const;
+
 async function fetchShoppingListById(shoppingListId: string): Promise<ShoppingList | null> {
   try {
     const response = await apiRoot
       .shoppingLists()
       .withId({ ID: shoppingListId })
-      .get()
+      .get({ queryArgs: { expand: [...SHOPPING_LIST_EXPAND] } })
       .execute();
     return response.body;
-  } catch {
-    return null;
+  } catch (error) {
+    if (isCtNotFound(error)) {
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -94,6 +102,7 @@ async function findCustomerShoppingList(customerId: string): Promise<ShoppingLis
         'var.customerId': customerId,
         limit: 1,
         sort: 'lastModifiedAt desc',
+        expand: [...SHOPPING_LIST_EXPAND],
       },
     })
     .execute();
@@ -111,6 +120,7 @@ async function createGuestShoppingList(anonymousId: string): Promise<ShoppingLis
         name: { [locale]: 'Wishlist' },
         anonymousId,
       },
+      queryArgs: { expand: [...SHOPPING_LIST_EXPAND] },
     })
     .execute();
 
@@ -130,6 +140,7 @@ async function createCustomerShoppingList(customerId: string): Promise<ShoppingL
           id: customerId,
         },
       },
+      queryArgs: { expand: [...SHOPPING_LIST_EXPAND] },
     })
     .execute();
 
@@ -182,103 +193,6 @@ async function ensureWishlistSession(): Promise<WishlistSession | null> {
   return session;
 }
 
-async function resolveLineItemSku(lineItem: ShoppingList['lineItems'][number]): Promise<string | undefined> {
-  if (lineItem.variant?.sku) {
-    return lineItem.variant.sku;
-  }
-
-  try {
-    const response = await apiRoot
-      .productProjections()
-      .withId({ ID: lineItem.productId })
-      .get()
-      .execute();
-
-    const variant = [response.body.masterVariant, ...response.body.variants].find(
-      (candidate) => candidate.id === lineItem.variantId,
-    );
-
-    return variant?.sku;
-  } catch {
-    return undefined;
-  }
-}
-
-async function enrichWishlistFromProjections(
-  wishlist: StorefrontWishlist,
-  locale: string,
-): Promise<StorefrontWishlist> {
-  const needsEnrichment = wishlist.lineItems.filter(
-    (item) => !item.imageUrl || !item.sku || !item.slug,
-  );
-
-  if (needsEnrichment.length === 0) {
-    return wishlist;
-  }
-
-  const productIds = [...new Set(needsEnrichment.map((item) => item.productId))];
-
-  try {
-    const response = await apiRoot
-      .productProjections()
-      .get({
-        queryArgs: {
-          where: 'id in :ids',
-          'var.ids': productIds,
-          limit: productIds.length,
-          staged: false,
-          localeProjection: locale,
-        },
-      })
-      .execute();
-
-    const projectionById = new Map(
-      response.body.results.map((projection) => [projection.id, projection]),
-    );
-
-    const lineItems = wishlist.lineItems.map((item) => {
-      if (item.imageUrl && item.sku && item.slug) {
-        return item;
-      }
-
-      const projection = projectionById.get(item.productId);
-      if (!projection) {
-        return item;
-      }
-
-      const variants = [projection.masterVariant, ...projection.variants];
-      const variant =
-        variants.find((candidate) => candidate.id === item.variantId) ??
-        projection.masterVariant;
-
-      return {
-        ...item,
-        slug: item.slug ?? pickLocalized(projection.slug, locale),
-        sku: item.sku ?? variant.sku,
-        imageUrl: item.imageUrl ?? variant.images?.[0]?.url,
-      };
-    });
-
-    const skus = lineItems
-      .map((item) => item.sku)
-      .filter((sku): sku is string => Boolean(sku));
-
-    return {
-      ...wishlist,
-      skus,
-      lineItems,
-    };
-  } catch {
-    return wishlist;
-  }
-}
-
-async function mapOwnedWishlist(shoppingList: ShoppingList): Promise<StorefrontWishlist> {
-  const { locale } = await getStorefrontContext();
-  const wishlist = mapWishlist(shoppingList, locale);
-  return enrichWishlistFromProjections(wishlist, locale);
-}
-
 export async function getWishlist(): Promise<StorefrontWishlist | null> {
   const session = await getWishlistSession();
   if (!session) {
@@ -290,7 +204,8 @@ export async function getWishlist(): Promise<StorefrontWishlist | null> {
     return null;
   }
 
-  return mapOwnedWishlist(shoppingList);
+  const { locale } = await getStorefrontContext();
+  return mapWishlist(shoppingList, locale);
 }
 
 function findLineItemBySku(shoppingList: ShoppingList, sku: string) {
@@ -308,8 +223,10 @@ export async function addWishlistItem(sku: string): Promise<StorefrontWishlist> 
     throw new WishlistNotFoundError();
   }
 
+  const { locale } = await getStorefrontContext();
+
   if (findLineItemBySku(shoppingList, sku)) {
-    return mapOwnedWishlist(shoppingList);
+    return mapWishlist(shoppingList, locale);
   }
 
   const response = await apiRoot
@@ -326,10 +243,11 @@ export async function addWishlistItem(sku: string): Promise<StorefrontWishlist> 
           },
         ],
       },
+      queryArgs: { expand: [...SHOPPING_LIST_EXPAND] },
     })
     .execute();
 
-  return mapOwnedWishlist(response.body);
+  return mapWishlist(response.body, locale);
 }
 
 export async function removeWishlistItem(lineItemId: string): Promise<StorefrontWishlist> {
@@ -361,29 +279,34 @@ export async function removeWishlistItem(lineItemId: string): Promise<Storefront
           },
         ],
       },
+      queryArgs: { expand: [...SHOPPING_LIST_EXPAND] },
     })
     .execute();
 
-  return mapOwnedWishlist(response.body);
+  const { locale } = await getStorefrontContext();
+  return mapWishlist(response.body, locale);
 }
 
 async function mergeGuestListIntoCustomerList(
   guestList: ShoppingList,
   customerList: ShoppingList,
 ): Promise<ShoppingList> {
-  const existingSkus = new Set(
-    customerList.lineItems
-      .map((item) => item.variant?.sku)
-      .filter((sku): sku is string => Boolean(sku)),
+  const existingKeys = new Set(
+    customerList.lineItems.map((item) => `${item.productId}:${item.variantId}`),
   );
 
-  const actions = guestList.lineItems
-    .filter((item) => item.variant?.sku && !existingSkus.has(item.variant.sku))
-    .map((item) => ({
-      action: 'addLineItem' as const,
-      sku: item.variant!.sku!,
-      quantity: 1,
-    }));
+  const actions = guestList.lineItems.flatMap((item) =>
+    item.variantId === undefined || existingKeys.has(`${item.productId}:${item.variantId}`)
+      ? []
+      : [
+          {
+            action: 'addLineItem' as const,
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: 1,
+          },
+        ],
+  );
 
   let mergedList = customerList;
 
@@ -396,6 +319,7 @@ async function mergeGuestListIntoCustomerList(
           version: customerList.version,
           actions,
         },
+        queryArgs: { expand: [...SHOPPING_LIST_EXPAND] },
       })
       .execute();
     mergedList = response.body;
@@ -435,6 +359,7 @@ async function transferGuestListToCustomer(
           },
         ],
       },
+      queryArgs: { expand: [...SHOPPING_LIST_EXPAND] },
     })
     .execute();
 
@@ -447,12 +372,13 @@ export async function reconcileWishlistOnAuth(customerId: string): Promise<void>
     return;
   }
 
-  const guestList = await loadOwnedShoppingList(session);
-  if (!guestList || guestList.customer?.id) {
-    return;
-  }
-
+  let guestList: ShoppingList | null = null;
   try {
+    guestList = await loadOwnedShoppingList(session);
+    if (!guestList || guestList.customer?.id) {
+      return;
+    }
+
     const customerList = await findCustomerShoppingList(customerId);
     const resolvedList = customerList
       ? await mergeGuestListIntoCustomerList(guestList, customerList)
@@ -463,8 +389,11 @@ export async function reconcileWishlistOnAuth(customerId: string): Promise<void>
       shoppingListId: resolvedList.id,
     });
   } catch (error) {
+    // Sign-in must not fail on a wishlist step. A failed guest-list read keeps the cookie; a failed merge or transfer rotates it.
     console.error('[wishlist] reconcileWishlistOnAuth failed', error);
-    await rotateWishlistSessionAnonymousId();
+    if (guestList) {
+      await rotateWishlistSessionAnonymousId();
+    }
   }
 }
 
@@ -487,7 +416,7 @@ export async function moveWishlistItemToCart(lineItemId: string): Promise<{
     throw new WishlistLineItemNotFoundError();
   }
 
-  const sku = await resolveLineItemSku(lineItem);
+  const sku = lineItem.variant?.sku;
   if (!sku) {
     throw new WishlistLineItemNotFoundError('Wishlist item is missing a resolvable SKU');
   }

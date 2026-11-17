@@ -194,7 +194,7 @@ export const apiRoot = createApiBuilderFromCtpClient(ctpClient).withProjectKey({
 
 From [SDK middleware docs](https://docs.commercetools.com/dev-tooling/ts-sdk-middleware):
 
-- `withConcurrentModificationMiddleware()` — auto-retry on `409` for cart updates
+- `withConcurrentModificationMiddleware()` with a custom handler (`lib/commercetools/concurrent-modification.ts`): an admin-client `409` is resent with the current version, except for `/orders`, `/payments`, `/payments/{ID}` and any update with `addPayment`, `removePayment`, `freezeCart`, `unfreezeCart`, `setCustomerId`, `setCustomer` or `setAnonymousId`, where the conflict is surfaced to the caller. Customer-token (`/me`) calls are not retried on 409.
 - `withCorrelationIdMiddleware()` — request tracing in logs
 
 ### Checkout API client

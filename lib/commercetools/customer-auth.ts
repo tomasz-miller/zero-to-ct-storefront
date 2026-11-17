@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { Customer, CustomerSignInResult } from '@commercetools/platform-sdk';
+import type { CustomerSignInResult } from '@commercetools/platform-sdk';
 
 import { apiRoot } from './api-root';
 import { getOwnedGuestCartRef, reconcileCartOnAuth } from './cart';
@@ -25,9 +25,11 @@ import {
   revokeCustomerAccessToken,
   revokeCustomerRefreshToken,
 } from './customer-token';
-import { getCtErrorObjects, isCtNotFound, parseCtError, toCtFetchError } from './ct-errors';
+import { parseCustomerIdFromScope } from './customer-token-scope';
+import { getCtErrorObjects, isCtNotFound, parseCtError } from './ct-errors';
+import { createCustomerApiRoot } from './customer-client';
 import { mapCustomerCtError } from './customer-errors';
-import { commercetoolsEnv } from './env';
+import { CustomerError } from './domain-errors';
 import { clearLastOrderSession } from './last-order-session';
 import { clearMarketCartMap } from './market-cart-session';
 import {
@@ -45,37 +47,43 @@ function isConsumedAnonymousIdError(error: unknown): boolean {
 async function exchangePasswordForCustomerToken(
   email: string,
   password: string,
+  expectedCustomerId: string,
 ): Promise<CustomerSession> {
   const token = await requestCustomerPasswordToken(email, password);
 
-  const customerId = await resolveCustomerIdFromAccessToken(token.accessToken);
+  try {
+    // The token scope carries customer_id:{id}; GET /me is only the fallback when it is missing.
+    const customerId =
+      parseCustomerIdFromScope(token.scope) ??
+      (await resolveCustomerIdFromAccessToken(token.accessToken));
 
-  return {
-    accessToken: token.accessToken,
-    refreshToken: token.refreshToken,
-    expiresAt: token.expiresAt,
-    customerId,
-  };
+    if (customerId !== expectedCustomerId) {
+      throw new CustomerError('TokenError', 'Sign-in failed', 500);
+    }
+
+    return {
+      accessToken: token.accessToken,
+      refreshToken: token.refreshToken,
+      expiresAt: token.expiresAt,
+      customerId,
+    };
+  } catch (error) {
+    // Nothing stores this pair once sign-in fails, so revoke it (best effort) before rethrowing.
+    await Promise.allSettled([
+      revokeCustomerRefreshToken(token.refreshToken),
+      revokeCustomerAccessToken(token.accessToken),
+    ]);
+    throw error;
+  }
 }
 
 async function resolveCustomerIdFromAccessToken(accessToken: string): Promise<string> {
-  const response = await fetch(
-    `${commercetoolsEnv.apiUrl}/${commercetoolsEnv.projectKey}/me`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    },
-  );
-
-  const raw = await response.text();
-  if (!response.ok) {
-    const ctError = toCtFetchError(response, raw);
-    throw mapCustomerCtError(ctError) ?? ctError;
+  try {
+    const response = await createCustomerApiRoot(accessToken).me().get().execute();
+    return response.body.id;
+  } catch (error) {
+    throw mapCustomerCtError(error) ?? error;
   }
-
-  const customer = JSON.parse(raw) as Customer;
-  return customer.id;
 }
 
 /**
@@ -187,7 +195,13 @@ async function registerWithCartMigration(
 async function withStaleAnonymousCartRetry<T>(
   operation: (cartRefs: CartMigrationRefs) => Promise<T>,
 ): Promise<T> {
-  const ownedGuestCart = await getOwnedGuestCartRef();
+  const ownedGuestCart = await getOwnedGuestCartRef().catch((error: unknown) => {
+    // A failed guest-cart lookup must not block sign-in: sign in without the CT cart merge.
+    console.warn('[auth] guest cart lookup failed; signing in without the cart merge', {
+      statusCode: parseCtError(error).statusCode,
+    });
+    return null;
+  });
   const cartRefs: CartMigrationRefs = ownedGuestCart
     ? {
         anonymousCart: { typeId: 'cart', id: ownedGuestCart.cartId },
@@ -222,7 +236,11 @@ export async function loginCustomer(
   await syncCartAfterAuth(response.body);
   await reconcileWishlistOnAuth(response.body.customer.id);
 
-  const session = await exchangePasswordForCustomerToken(email, password);
+  const session = await exchangePasswordForCustomerToken(
+    email,
+    password,
+    response.body.customer.id,
+  );
   await setCustomerSession(session);
 
   return mapCustomer(response.body.customer);
@@ -250,7 +268,11 @@ export async function registerCustomer(input: {
 
   await reconcileWishlistOnAuth(customer.id);
 
-  const session = await exchangePasswordForCustomerToken(input.email, input.password);
+  const session = await exchangePasswordForCustomerToken(
+    input.email,
+    input.password,
+    customer.id,
+  );
   await setCustomerSession(session);
 
   return mapCustomer(customer);
@@ -334,24 +356,14 @@ export async function getAuthenticatedCustomerProfile(): Promise<StorefrontCusto
     return null;
   }
 
-  const response = await fetch(
-    `${commercetoolsEnv.apiUrl}/${commercetoolsEnv.projectKey}/me`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    },
-  );
-
-  const raw = await response.text();
-  if (!response.ok) {
-    if (response.status === 401) {
+  try {
+    const response = await createCustomerApiRoot(accessToken).me().get().execute();
+    return mapCustomer(response.body);
+  } catch (error) {
+    if (parseCtError(error).statusCode === 401) {
       await clearCustomerSession();
       return null;
     }
-    const ctError = toCtFetchError(response, raw);
-    throw mapCustomerCtError(ctError) ?? ctError;
+    throw mapCustomerCtError(error) ?? error;
   }
-
-  return mapCustomer(JSON.parse(raw) as Customer);
 }

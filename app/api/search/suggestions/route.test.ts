@@ -45,4 +45,10 @@ describe('GET /api/search/suggestions', () => {
     });
     expect(mockGetSearchSuggestions).toHaveBeenCalledWith('bed', 'en-GB');
   });
+
+  it('falls back to the catalog locale for an unsupported locale', async () => {
+    mockGetSearchSuggestions.mockResolvedValueOnce([]);
+    await GET(new NextRequest('http://localhost/api/search/suggestions?q=bed&locale=xx-XX'));
+    expect(mockGetSearchSuggestions).toHaveBeenCalledWith('bed', 'en-GB');
+  });
 });

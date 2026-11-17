@@ -6,36 +6,14 @@ import {
   buildProductNameSuggestionFallbackQuery,
   buildProductNameSuggestionQuery,
   mapProductSearchNameSuggestions,
-  mapSearchSuggestionResponse,
   MAX_SEARCH_SUGGESTIONS,
   MIN_SEARCH_SUGGESTION_LENGTH,
 } from './search-suggestion-utils';
 
 export {
-  mapSearchSuggestionResponse,
   MAX_SEARCH_SUGGESTIONS,
   MIN_SEARCH_SUGGESTION_LENGTH,
 } from './search-suggestion-utils';
-
-async function getSearchKeywordSuggestions(
-  query: string,
-  locale: string,
-): Promise<string[]> {
-  const response = await apiRoot
-    .productProjections()
-    .suggest()
-    .get({
-      queryArgs: {
-        [`searchKeywords.${locale}`]: query,
-      },
-    })
-    .execute();
-
-  return mapSearchSuggestionResponse(
-    response.body as Record<string, unknown>,
-    locale,
-  );
-}
 
 async function searchProductIdsForSuggestions(
   searchQuery: Record<string, unknown>,
@@ -103,15 +81,6 @@ export async function getSearchSuggestions(
   }
 
   try {
-    const keywordSuggestions = await getSearchKeywordSuggestions(
-      trimmedQuery,
-      locale,
-    );
-
-    if (keywordSuggestions.length > 0) {
-      return keywordSuggestions;
-    }
-
     return await getProductNameSuggestions(trimmedQuery, locale);
   } catch (error) {
     console.error('[search-suggestions]', error);

@@ -17,6 +17,8 @@ vi.mock('@/lib/commercetools/customer-api', () => ({
   getMyOrders: mockGetMyOrders,
 }));
 
+import { CustomerError } from '@/lib/commercetools/domain-errors';
+
 import { GET } from './route';
 
 function createRequest(query = ''): NextRequest {
@@ -59,6 +61,42 @@ describe('GET /api/customer/orders', () => {
     expect(mockGetMyOrders).toHaveBeenCalledWith({ limit: 10, offset: 0 });
     const body = await response.json();
     expect(body.orders).toHaveLength(1);
+  });
+
+  it('returns 401 Sign in required when commercetools rejects the customer token', async () => {
+    mockGetValidCustomerAccessToken.mockResolvedValue('token');
+    mockGetMyOrders.mockRejectedValue(new CustomerError('Unauthorized', 'Sign in required', 401));
+    const response = await GET(createRequest());
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: 'Sign in required', code: 'Unauthorized' });
+  });
+
+  it('logs only an error summary, never the commercetools body or request, on unexpected errors', async () => {
+    mockGetValidCustomerAccessToken.mockResolvedValue('token');
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetMyOrders.mockRejectedValue(
+      Object.assign(new Error('boom'), {
+        statusCode: 500,
+        code: 'General',
+        body: {
+          statusCode: 500,
+          message: 'ORDER-SECRET',
+          errors: [{ code: 'General', message: 'ORDER-SECRET' }],
+        },
+      }),
+    );
+
+    const response = await GET(createRequest());
+
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.error).toBe('Something went wrong. Please try again.');
+    expect(typeof body.errorId).toBe('string');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('ORDER-SECRET');
+    expect(log).toHaveBeenCalledWith(
+      '[api/customer/orders]',
+      expect.objectContaining({ statusCode: 500 }),
+    );
   });
 
   it('returns 500 when fetch fails', async () => {

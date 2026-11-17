@@ -1,7 +1,5 @@
 import 'server-only';
 
-import type { Order } from '@commercetools/platform-sdk';
-
 import {
   getAuthenticatedCustomerProfile,
   getCustomerAccessTokenForRender,
@@ -12,16 +10,11 @@ import {
   type StorefrontOrder,
   type StorefrontOrderDetail,
 } from './customer-mappers';
+import { isCtNotFound, parseCtError } from './ct-errors';
+import { createCustomerApiRoot } from './customer-client';
+import { mapCustomerCtError, signInRequired } from './customer-errors';
 import { CustomerOrderNotFoundError } from './domain-errors';
-import { commercetoolsEnv } from './env';
 import { getStorefrontContext } from './storefront-context';
-
-type OrdersResponse = {
-  results: Order[];
-  total: number;
-  count: number;
-  offset: number;
-};
 
 export { CustomerOrderNotFoundError };
 
@@ -36,33 +29,32 @@ export async function getMyOrders(options?: {
 
   const limit = options?.limit ?? 20;
   const offset = options?.offset ?? 0;
-  const params = new URLSearchParams({
-    sort: 'createdAt desc',
-    limit: String(limit),
-    offset: String(offset),
-  });
-  params.append('expand', 'paymentInfo.payments[*]');
 
-  const response = await fetch(
-    `${commercetoolsEnv.apiUrl}/${commercetoolsEnv.projectKey}/me/orders?${params}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
+  const { body } = await createCustomerApiRoot(accessToken)
+    .me()
+    .orders()
+    .get({
+      queryArgs: {
+        sort: 'createdAt desc',
+        limit,
+        offset,
+        expand: ['paymentInfo.payments[*]'],
       },
-    },
-  );
+    })
+    .execute()
+    .catch((error: unknown): never => {
+      throw (
+        mapCustomerCtError(error) ??
+        (parseCtError(error).statusCode === 401 ? signInRequired() : error)
+      );
+    });
 
-  const raw = await response.text();
-  if (!response.ok) {
-    throw new Error(`Failed to fetch customer orders (${response.status})`);
-  }
-
-  const body = JSON.parse(raw) as OrdersResponse;
   const { locale } = await getStorefrontContext();
 
   return {
     orders: mapOrders(body.results, locale),
-    total: body.total,
+    // `total` is optional in the SDK type; commercetools includes it unless `withTotal=false`.
+    total: body.total ?? body.results.length,
   };
 }
 
@@ -74,25 +66,22 @@ export async function getMyOrder(
     return null;
   }
 
-  const response = await fetch(
-    `${commercetoolsEnv.apiUrl}/${commercetoolsEnv.projectKey}/me/orders/${encodeURIComponent(orderId)}?expand=paymentInfo.payments[*]`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    },
-  );
+  const { body: order } = await createCustomerApiRoot(accessToken)
+    .me()
+    .orders()
+    .withId({ ID: orderId })
+    .get({ queryArgs: { expand: ['paymentInfo.payments[*]'] } })
+    .execute()
+    .catch((error: unknown): never => {
+      if (isCtNotFound(error)) {
+        throw new CustomerOrderNotFoundError();
+      }
+      throw (
+        mapCustomerCtError(error) ??
+        (parseCtError(error).statusCode === 401 ? signInRequired() : error)
+      );
+    });
 
-  if (response.status === 404) {
-    throw new CustomerOrderNotFoundError();
-  }
-
-  const raw = await response.text();
-  if (!response.ok) {
-    throw new Error(`Failed to fetch order (${response.status})`);
-  }
-
-  const order = JSON.parse(raw) as Order;
   const { locale } = await getStorefrontContext();
 
   return mapOrderDetail(order, locale);

@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import type { CheckoutFlowData } from '@commercetools/checkout-browser-sdk';
 
 import { resolveCheckoutSdkStyles } from './checkout-sdk-styles';
 
@@ -24,5 +25,11 @@ describe('resolveCheckoutSdkStyles', () => {
     } finally {
       vi.stubGlobal('document', originalDocument);
     }
+  });
+
+  it('returns styles typed as the official CheckoutFlowData styles', () => {
+    expectTypeOf(resolveCheckoutSdkStyles()).toEqualTypeOf<
+      NonNullable<CheckoutFlowData['styles']>
+    >();
   });
 });
