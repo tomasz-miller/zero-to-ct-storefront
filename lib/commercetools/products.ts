@@ -583,9 +583,3 @@ export async function getProductAvailabilityBySkus(
 
   return availabilityBySku;
 }
-
-export async function getProductAvailabilityBySku(
-  sku: string,
-): Promise<StorefrontAvailability | null> {
-  return (await getProductAvailabilityBySkus([sku])).get(sku) ?? null;
-}

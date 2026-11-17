@@ -37,12 +37,12 @@ Demonstrates the core B2C path: discover → cart → checkout → order confirm
 2. Open the **market switcher** in the header and change Germany (EUR) to United Kingdom (GBP). The page refreshes with country- and currency-specific prices. If the cart has items, confirm the switch — the German cart is saved and restored when you switch back.
 3. Point out the **Best Sellers** grid — ranked from recent project Orders (units sold); if order volume is sparse, the grid fills from a catalog heuristic so demos always show products.
 4. Hover a product card and click **Quick view** — show the modal with image, price, stock badge, wishlist, add-to-cart, and **View full details** link to PDP.
-5. Use **search** (`/search`): type `bed` and watch **autocomplete suggestions** (Search Term Suggestions API).
+5. Use **search** (`/search`): type `bed` and watch **autocomplete suggestions** (Product Search API).
 6. Submit search or pick a suggestion to open results.
 7. On the results page, refine with **facet filters** (price, color, brand when present in sample data).
 8. Open a product from search results (e.g. a bed or mattress), or use **Quick view** from the listing.
 
-**Talking point:** The market preference is an HTTP-only cookie; it changes Product Projection price selection (`priceCountry` and `priceCurrency`) on the server, while Checkout selects the configured country application. Each market keeps its own cart (parked in `ct_market_carts`) because cart currency cannot change. Full-text search, **Quick View**, and **faceted filters** use the **Product Search API** via a Next.js BFF — no commercetools credentials in the browser. Autocomplete uses **Search Term Suggestions** from product `searchKeywords`.
+**Talking point:** The market preference is an HTTP-only cookie; it changes Product Projection price selection (`priceCountry` and `priceCurrency`) on the server, while Checkout selects the configured country application. Each market keeps its own cart (parked in `ct_market_carts`) because cart currency cannot change. Full-text search, **Quick View**, and **faceted filters** use the **Product Search API** via a Next.js BFF — no commercetools credentials in the browser. Autocomplete uses **Product Search** on product names.
 
 ### 2. Add to cart
 
