@@ -51,25 +51,30 @@ async function exchangePasswordForCustomerToken(
 ): Promise<CustomerSession> {
   const token = await requestCustomerPasswordToken(email, password);
 
-  // The token scope carries customer_id:{id}; GET /me is only the fallback when it is missing.
-  const customerId =
-    parseCustomerIdFromScope(token.scope) ??
-    (await resolveCustomerIdFromAccessToken(token.accessToken));
+  try {
+    // The token scope carries customer_id:{id}; GET /me is only the fallback when it is missing.
+    const customerId =
+      parseCustomerIdFromScope(token.scope) ??
+      (await resolveCustomerIdFromAccessToken(token.accessToken));
 
-  if (customerId !== expectedCustomerId) {
+    if (customerId !== expectedCustomerId) {
+      throw new CustomerError('TokenError', 'Sign-in failed', 500);
+    }
+
+    return {
+      accessToken: token.accessToken,
+      refreshToken: token.refreshToken,
+      expiresAt: token.expiresAt,
+      customerId,
+    };
+  } catch (error) {
+    // Nothing stores this pair once sign-in fails, so revoke it (best effort) before rethrowing.
     await Promise.allSettled([
       revokeCustomerRefreshToken(token.refreshToken),
       revokeCustomerAccessToken(token.accessToken),
     ]);
-    throw new CustomerError('TokenError', 'Sign-in failed', 500);
+    throw error;
   }
-
-  return {
-    accessToken: token.accessToken,
-    refreshToken: token.refreshToken,
-    expiresAt: token.expiresAt,
-    customerId,
-  };
 }
 
 async function resolveCustomerIdFromAccessToken(accessToken: string): Promise<string> {

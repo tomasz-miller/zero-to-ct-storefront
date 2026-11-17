@@ -415,6 +415,27 @@ describe('customer-auth', () => {
       expect(mockSetCustomerSession).not.toHaveBeenCalled();
     });
 
+    it('revokes both tokens and rethrows when the GET /me fallback fails', async () => {
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      mockRequestCustomerPasswordToken.mockResolvedValueOnce(token('manage_my_profile:demo'));
+      const meError = ctErr('ServiceUnavailable', 'ct', 503);
+      meGetExecute.mockRejectedValueOnce(meError);
+      await expect(loginCustomer('a@example.com', 'pw')).rejects.toBe(meError);
+      expect(mockRevokeCustomerRefreshToken).toHaveBeenCalledExactlyOnceWith('refresh-1');
+      expect(mockRevokeCustomerAccessToken).toHaveBeenCalledExactlyOnceWith('access-1');
+      expect(mockSetCustomerSession).not.toHaveBeenCalled();
+    });
+
+    it('rethrows the /me error, not the revocation error, when revocation also fails', async () => {
+      mockExecute.mockResolvedValueOnce({ body: { customer } });
+      mockRequestCustomerPasswordToken.mockResolvedValueOnce(token('manage_my_profile:demo'));
+      const meError = ctErr('ServiceUnavailable', 'ct', 503);
+      meGetExecute.mockRejectedValueOnce(meError);
+      mockRevokeCustomerRefreshToken.mockRejectedValueOnce(new Error('revoke failed'));
+      await expect(loginCustomer('a@example.com', 'pw')).rejects.toBe(meError);
+      expect(mockRevokeCustomerAccessToken).toHaveBeenCalledExactlyOnceWith('access-1');
+    });
+
     it('registers with the customer id from the token scope', async () => {
       mockExecute.mockResolvedValueOnce({ body: { customer } });
       mockRequestCustomerPasswordToken.mockResolvedValueOnce(token('customer_id:cust-1'));
