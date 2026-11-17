@@ -71,6 +71,34 @@ describe('GET /api/customer/orders', () => {
     await expect(response.json()).resolves.toEqual({ error: 'Sign in required', code: 'Unauthorized' });
   });
 
+  it('logs only an error summary, never the commercetools body or request, on unexpected errors', async () => {
+    mockGetValidCustomerAccessToken.mockResolvedValue('token');
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetMyOrders.mockRejectedValue(
+      Object.assign(new Error('boom'), {
+        statusCode: 500,
+        code: 'General',
+        body: {
+          statusCode: 500,
+          message: 'ORDER-SECRET',
+          errors: [{ code: 'General', message: 'ORDER-SECRET' }],
+        },
+      }),
+    );
+
+    const response = await GET(createRequest());
+
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.error).toBe('Something went wrong. Please try again.');
+    expect(typeof body.errorId).toBe('string');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('ORDER-SECRET');
+    expect(log).toHaveBeenCalledWith(
+      '[api/customer/orders]',
+      expect.objectContaining({ statusCode: 500 }),
+    );
+  });
+
   it('returns 500 when fetch fails', async () => {
     mockGetValidCustomerAccessToken.mockResolvedValue('token');
     mockGetMyOrders.mockRejectedValue(new Error('CT error'));
